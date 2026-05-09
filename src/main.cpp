@@ -17,11 +17,21 @@ int main() {
     if (token.kind == TokenKind::Eof) {
       break;
     }
-
     std::cout << "[" << token.location.line << ":" << token.location.column
-              << "] " << token.kind << "`";
-    std::cout.write((const char *)token.text.ptr, token.text.len);
-    std::cout << "`" << "\n";
+              << "] " << token.kind;
+    switch (token.kind) {
+    case TokenKind::Eof: {
+      break;
+    }
+    case TokenKind::Comment:
+    case TokenKind::Name: {
+      std::cout << "`";
+      std::cout.write((const char *)token.text.ptr, token.text.len);
+      std::cout << "`";
+      break;
+    }
+    }
+    std::cout << "\n";
   }
 
   tokenizer.deinit();

@@ -88,17 +88,28 @@ Token Tokenizer::next() {
       }
 
       // Remove multi-line comment markers
-      size_t end = this->index;
+      size_t end = this->index - 1;
       if (multiline) {
-        end -= 2;
+        end -= 1;
       }
 
       // Return comment token
       token.kind = TokenKind::Comment;
       token.text = this->source.range(start, end);
+      this->nextChar();
       return token;
     }
   }
+
+  // Parse Name
+  size_t start = this->index;
+  while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') || c == '_') {
+    c = this->nextChar();
+  }
+
+  token.kind = TokenKind::Name;
+  token.text = this->source.range(start, this->index - 1);
 
   return token;
 }

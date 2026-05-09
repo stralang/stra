@@ -12,6 +12,7 @@ struct SrcLoc {
 enum TokenKind {
   Eof,
   Comment,
+  Name,
 };
 
 struct Token {

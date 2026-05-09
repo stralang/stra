@@ -26,7 +26,7 @@ template <typename T> struct Slice {
   };
 
   Slice<T> range(size_t start, size_t end) const {
-    return Slice<T>{.len = end - start, .ptr = this->ptr + start};
+    return Slice<T>{.len = end - start + 1, .ptr = this->ptr + start};
   }
 };
 
