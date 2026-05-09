@@ -18,7 +18,7 @@ int main() {
       break;
     }
     std::cout << "[" << token.location.line << ":" << token.location.column
-              << "] " << token.kind;
+              << "] " << (uint32_t)token.kind;
     switch (token.kind) {
     case TokenKind::Eof: {
       break;
@@ -28,6 +28,10 @@ int main() {
       std::cout << "`";
       std::cout.write((const char *)token.text.ptr, token.text.len);
       std::cout << "`";
+      break;
+    }
+    case TokenKind::Keyword: {
+      std::cout << " " << (uint32_t)token.keyword;
       break;
     }
     }

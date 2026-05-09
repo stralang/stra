@@ -9,16 +9,37 @@ struct SrcLoc {
   size_t column;
 };
 
-enum TokenKind {
+enum class Keyword {
+  Function = 0,
+  Struct,
+  Enum,
+  Union,
+  Return,
+  If,
+  Else,
+  For,
+  In,
+  Switch,
+  Break,
+  Continue,
+  Defer,
+  Import,
+  Comptime,
+  Assembly,
+};
+
+enum class TokenKind {
   Eof,
   Comment,
   Name,
+  Keyword,
 };
 
 struct Token {
   TokenKind kind;
   union {
     String text;
+    Keyword keyword;
   };
   SrcLoc location;
 };

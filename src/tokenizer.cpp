@@ -1,10 +1,32 @@
 #include "tokenizer.hpp"
 #include "token.hpp"
 #include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <map>
+#include <string>
+
+std::map<std::string, Keyword> keyword_mapping = {
+    {"fn", Keyword::Function},
+    {"struct", Keyword::Struct},
+    {"enum", Keyword::Enum},
+    {"union", Keyword::Union},
+    {"return", Keyword::Return},
+    {"if", Keyword::If},
+    {"else", Keyword::Else},
+    {"for", Keyword::For},
+    {"in", Keyword::In},
+    {"switch", Keyword::Switch},
+    {"break", Keyword::Break},
+    {"continue", Keyword::Continue},
+    {"defer", Keyword::Defer},
+    {"import", Keyword::Import},
+    {"comptime", Keyword::Comptime},
+    {"asm", Keyword::Assembly},
+};
 
 void Tokenizer::init() {
   std::string filepath((const char *)this->path.ptr, this->path.len);
@@ -110,6 +132,14 @@ Token Tokenizer::next() {
 
   token.kind = TokenKind::Name;
   token.text = this->source.range(start, this->index - 1);
+  const std::string cpp_string((const char *)token.text.ptr, token.text.len);
+
+  // Convert to Keyword
+  if (keyword_mapping.count(cpp_string) != 0) {
+    token.kind = TokenKind::Keyword;
+    token.keyword = keyword_mapping.at(cpp_string);
+    return token;
+  }
 
   return token;
 }
