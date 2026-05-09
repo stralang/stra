@@ -123,8 +123,9 @@ Token Tokenizer::next() {
     }
   }
 
-  // Parse Symbols
+  // Parse Symbols and Operators
   switch (c) {
+    // Symbols
   case ':': {
     token.kind = TokenKind::TypeSeperator;
     this->nextChar();
@@ -170,6 +171,126 @@ Token Tokenizer::next() {
     this->nextChar();
     return token;
   }
+
+    // Operators
+  case '=': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Assign;
+    c = this->nextChar();
+    if (c == '=') {
+      token._operator = Operator::EqualTo;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '+': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Add;
+    this->nextChar();
+    return token;
+  }
+  case '-': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Sub;
+    this->nextChar();
+    return token;
+  }
+  case '*': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Mul;
+    this->nextChar();
+    return token;
+  }
+  case '/': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Div;
+    this->nextChar();
+    return token;
+  }
+  case '%': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Mod;
+    this->nextChar();
+    return token;
+  }
+  case '|': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Bitwise_Or;
+    c = this->nextChar();
+    if (c == '|') {
+      token._operator = Operator::Logical_Or;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '^': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Bitwise_Xor;
+    this->nextChar();
+    return token;
+  }
+  case '&': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Bitwise_And;
+    c = this->nextChar();
+    if (c == '&') {
+      token._operator = Operator::Logical_And;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '<': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::LessThen;
+    c = this->nextChar();
+    if (c == '<') {
+      token._operator = Operator::Bitwise_LeftShift;
+      this->nextChar();
+    } else if (c == '=') {
+      token._operator = Operator::LessThenOrEqualTo;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '>': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::GreaterThen;
+    c = this->nextChar();
+    if (c == '>') {
+      token._operator = Operator::Bitwise_RightShift;
+      this->nextChar();
+    } else if (c == '=') {
+      token._operator = Operator::GreaterThenOrEqualTo;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '.': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::MemberAccess;
+    this->nextChar();
+    return token;
+  }
+  case '!': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Unary_Logical_Not;
+    c = this->nextChar();
+    if (c == '=') {
+      token._operator = Operator::NotEqualTo;
+      this->nextChar();
+    }
+    return token;
+  }
+  case '~': {
+    token.kind = TokenKind::Operator;
+    token._operator = Operator::Unary_Bitwise_Not;
+    this->nextChar();
+    return token;
+  }
+  }
+
+  if (token.kind == TokenKind::Operator) {
+    return token;
   }
 
   // Parse Name

@@ -4,6 +4,8 @@
 #include <ostream>
 
 std::ostream &operator<<(std::ostream &os, const SrcLoc &location);
+std::ostream &operator<<(std::ostream &os, const Operator &op);
+std::ostream &operator<<(std::ostream &os, const UnaryOperator &op);
 std::ostream &operator<<(std::ostream &os, const Keyword &keyword);
 std::ostream &operator<<(std::ostream &os, const TokenKind &kind);
 std::ostream &operator<<(std::ostream &os, const Token &token);
