@@ -79,6 +79,7 @@ enum class TokenKind : uint32_t {
   String,
 
   TypeSeperator,
+  Attribute,
   LineDelimiter,
   CommaDelimiter,
   ScopeBegin,

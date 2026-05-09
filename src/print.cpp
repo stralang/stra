@@ -194,6 +194,9 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::TypeSeperator: {
     return os << "`:`";
   }
+  case TokenKind::Attribute: {
+    return os << "Attribute";
+  }
   case TokenKind::LineDelimiter: {
     return os << "`;`";
   }
@@ -249,6 +252,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   case TokenKind::Eof:
   case TokenKind::Undefined:
   case TokenKind::TypeSeperator:
+  case TokenKind::Attribute:
   case TokenKind::LineDelimiter:
   case TokenKind::CommaDelimiter:
   case TokenKind::ScopeBegin:

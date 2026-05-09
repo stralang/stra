@@ -214,6 +214,11 @@ Token Tokenizer::next() {
     this->nextChar();
     return token;
   }
+  case '@': {
+    token.kind = TokenKind::Attribute;
+    this->nextChar();
+    return token;
+  }
   case ';': {
     token.kind = TokenKind::LineDelimiter;
     this->nextChar();
