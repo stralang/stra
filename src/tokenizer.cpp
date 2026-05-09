@@ -27,6 +27,7 @@ std::map<std::string, Keyword> keyword_mapping = {
     {"import", Keyword::Import},
     {"comptime", Keyword::Comptime},
     {"asm", Keyword::Assembly},
+    {"const", Keyword::Const},
 };
 
 std::map<std::string, Operator> operator_keyword_mapping = {

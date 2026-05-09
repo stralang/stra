@@ -62,6 +62,7 @@ enum class Keyword : uint32_t {
   Import,
   Comptime,
   Assembly,
+  Const,
 };
 
 enum class TokenKind : uint32_t {

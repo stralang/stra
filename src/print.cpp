@@ -152,6 +152,9 @@ std::ostream &operator<<(std::ostream &os, const Keyword &keyword) {
   case Keyword::Assembly: {
     return os << "Assembly";
   }
+  case Keyword::Const: {
+    return os << "Const";
+  }
   }
   return os;
 }
