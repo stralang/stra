@@ -136,7 +136,9 @@ Token Tokenizer::next() {
     if (is_negative && this->index + 1 < this->source.len) {
       char ch = this->source.ptr[this->index + 1];
       is_number = ch >= '0' && ch <= '9';
-      c = this->nextChar();
+      if (is_number) {
+        c = this->nextChar();
+      }
     }
 
     if (is_number) {
@@ -272,7 +274,13 @@ Token Tokenizer::next() {
   case '-': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Sub;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '-' && this->index + 1 < this->source.len &&
+        this->source.ptr[this->index + 1] == '-') {
+      token.kind = TokenKind::Undefined;
+      this->nextChar();
+      this->nextChar();
+    }
     return token;
   }
   case '*': {

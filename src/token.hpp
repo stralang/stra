@@ -70,6 +70,7 @@ enum class TokenKind : uint32_t {
   Name,
   Keyword,
   Operator,
+  Undefined,
 
   Integer,
   Float,

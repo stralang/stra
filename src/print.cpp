@@ -173,6 +173,9 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::Operator: {
     return os << "Operator";
   }
+  case TokenKind::Undefined: {
+    return os << "Undefined";
+  }
   case TokenKind::Integer: {
     return os << "Integer";
   }
@@ -241,6 +244,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
     return os << " '" << (char)token.integer << "'";
   }
   case TokenKind::Eof:
+  case TokenKind::Undefined:
   case TokenKind::TypeSeperator:
   case TokenKind::LineDelimiter:
   case TokenKind::CommaDelimiter:
