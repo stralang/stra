@@ -30,6 +30,8 @@ enum class Operator : uint32_t {
   LessThenOrEqualTo,
   GreaterThenOrEqualTo,
   MemberAccess,
+  As,
+  Bitcast,
   Unary_Logical_Not,
   Unary_Bitwise_Not,
 };

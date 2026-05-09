@@ -28,6 +28,11 @@ std::map<std::string, Keyword> keyword_mapping = {
     {"asm", Keyword::Assembly},
 };
 
+std::map<std::string, Operator> operator_keyword_mapping = {
+    {"as", Operator::As},
+    {"bitcast", Operator::Bitcast},
+};
+
 void Tokenizer::init() {
   std::string filepath((const char *)this->path.ptr, this->path.len);
   std::ifstream file(filepath);
@@ -308,6 +313,13 @@ Token Tokenizer::next() {
   if (keyword_mapping.count(cpp_string) != 0) {
     token.kind = TokenKind::Keyword;
     token.keyword = keyword_mapping.at(cpp_string);
+    return token;
+  }
+
+  // Convert to Keyword Operator
+  if (operator_keyword_mapping.count(cpp_string) != 0) {
+    token.kind = TokenKind::Operator;
+    token._operator = operator_keyword_mapping.at(cpp_string);
     return token;
   }
 

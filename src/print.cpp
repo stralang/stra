@@ -67,6 +67,12 @@ std::ostream &operator<<(std::ostream &os, const Operator &op) {
   case Operator::MemberAccess: {
     return os << "Member Access";
   }
+  case Operator::As: {
+    return os << "As";
+  }
+  case Operator::Bitcast: {
+    return os << "Bitcast";
+  }
   case Operator::Unary_Logical_Not:
   case Operator::Unary_Bitwise_Not: {
     return os << (UnaryOperator)op;
