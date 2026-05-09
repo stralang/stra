@@ -34,6 +34,17 @@ int main() {
       std::cout << " " << (uint32_t)token.keyword;
       break;
     }
+    case TokenKind::TypeSeperator:
+    case TokenKind::LineDelimiter:
+    case TokenKind::CommaDelimiter:
+    case TokenKind::ScopeBegin:
+    case TokenKind::ScopeEnd:
+    case TokenKind::BlockBegin:
+    case TokenKind::BlockEnd:
+    case TokenKind::ArrayBegin:
+    case TokenKind::ArrayEnd: {
+      break;
+    }
     }
     std::cout << "\n";
   }

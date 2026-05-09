@@ -33,6 +33,16 @@ enum class TokenKind {
   Comment,
   Name,
   Keyword,
+
+  TypeSeperator,
+  LineDelimiter,
+  CommaDelimiter,
+  ScopeBegin,
+  ScopeEnd,
+  BlockBegin,
+  BlockEnd,
+  ArrayBegin,
+  ArrayEnd,
 };
 
 struct Token {

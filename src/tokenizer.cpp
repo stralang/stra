@@ -123,6 +123,55 @@ Token Tokenizer::next() {
     }
   }
 
+  // Parse Symbols
+  switch (c) {
+  case ':': {
+    token.kind = TokenKind::TypeSeperator;
+    this->nextChar();
+    return token;
+  }
+  case ';': {
+    token.kind = TokenKind::LineDelimiter;
+    this->nextChar();
+    return token;
+  }
+  case ',': {
+    token.kind = TokenKind::CommaDelimiter;
+    this->nextChar();
+    return token;
+  }
+  case '(': {
+    token.kind = TokenKind::ScopeBegin;
+    this->nextChar();
+    return token;
+  }
+  case ')': {
+    token.kind = TokenKind::ScopeEnd;
+    this->nextChar();
+    return token;
+  }
+  case '{': {
+    token.kind = TokenKind::BlockBegin;
+    this->nextChar();
+    return token;
+  }
+  case '}': {
+    token.kind = TokenKind::BlockEnd;
+    this->nextChar();
+    return token;
+  }
+  case '[': {
+    token.kind = TokenKind::ArrayBegin;
+    this->nextChar();
+    return token;
+  }
+  case ']': {
+    token.kind = TokenKind::ArrayEnd;
+    this->nextChar();
+    return token;
+  }
+  }
+
   // Parse Name
   size_t start = this->index;
   while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
