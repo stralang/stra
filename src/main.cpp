@@ -1,3 +1,4 @@
+#include "print.hpp"
 #include "tokenizer.hpp"
 #include <iostream>
 #include <string>
@@ -17,36 +18,7 @@ int main() {
     if (token.kind == TokenKind::Eof) {
       break;
     }
-    std::cout << "[" << token.location.line << ":" << token.location.column
-              << "] " << (uint32_t)token.kind;
-    switch (token.kind) {
-    case TokenKind::Eof: {
-      break;
-    }
-    case TokenKind::Comment:
-    case TokenKind::Name: {
-      std::cout << "`";
-      std::cout.write((const char *)token.text.ptr, token.text.len);
-      std::cout << "`";
-      break;
-    }
-    case TokenKind::Keyword: {
-      std::cout << " " << (uint32_t)token.keyword;
-      break;
-    }
-    case TokenKind::TypeSeperator:
-    case TokenKind::LineDelimiter:
-    case TokenKind::CommaDelimiter:
-    case TokenKind::ScopeBegin:
-    case TokenKind::ScopeEnd:
-    case TokenKind::BlockBegin:
-    case TokenKind::BlockEnd:
-    case TokenKind::ArrayBegin:
-    case TokenKind::ArrayEnd: {
-      break;
-    }
-    }
-    std::cout << "\n";
+    std::cout << token << "\n";
   }
 
   tokenizer.deinit();
