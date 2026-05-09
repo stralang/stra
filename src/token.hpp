@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include <cstdint>
 
 struct SrcLoc {
   String file;
@@ -70,6 +71,11 @@ enum class TokenKind : uint32_t {
   Keyword,
   Operator,
 
+  Integer,
+  Float,
+  Char,
+  String,
+
   TypeSeperator,
   LineDelimiter,
   CommaDelimiter,
@@ -87,6 +93,8 @@ struct Token {
     String text;
     Keyword keyword;
     Operator _operator;
+    int64_t integer;
+    double _float;
   };
   SrcLoc location;
 };

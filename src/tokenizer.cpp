@@ -1,6 +1,7 @@
 #include "tokenizer.hpp"
 #include "token.hpp"
 #include <cassert>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -126,6 +127,80 @@ Token Tokenizer::next() {
       this->nextChar();
       return token;
     }
+  }
+
+  // Parse Literals
+  {
+    bool is_number = c >= '0' && c <= '9';
+    bool is_negative = c == '-';
+    if (is_negative && this->index + 1 < this->source.len) {
+      char ch = this->source.ptr[this->index + 1];
+      is_number = ch >= '0' && ch <= '9';
+      c = this->nextChar();
+    }
+
+    if (is_number) {
+      // Parse Integer/Float
+      size_t start = this->index;
+      if (is_negative) {
+        start -= 1;
+      }
+
+      bool is_float = false;
+      while ((c >= '0' && c <= '9') || c == '.') {
+        if (c == '.') {
+          if (is_float)
+            return token;
+
+          is_float = true;
+        }
+
+        c = this->nextChar();
+      }
+
+      if (is_float) {
+        double value = 0.0;
+        auto [ptr, ec] = std::from_chars(
+            (const char *)(this->source.ptr + start),
+            (const char *)(this->source.ptr + this->index), value);
+
+        token.kind = TokenKind::Float;
+        token._float = value;
+      } else {
+        int64_t value = 0;
+        auto [ptr, ec] = std::from_chars(
+            (const char *)(this->source.ptr + start),
+            (const char *)(this->source.ptr + this->index), value);
+
+        token.kind = TokenKind::Integer;
+        token.integer = value;
+      }
+      return token;
+    }
+  }
+
+  if (c == '\'') {
+    // Parse char
+    char value = this->nextChar();
+    if (this->nextChar() == '\'') {
+      token.kind = TokenKind::Char;
+      token.integer = value;
+      this->nextChar();
+    }
+    return token;
+  } else if (c == '"') {
+    // Parse String
+    c = this->nextChar(); // Skip `"`
+
+    size_t start = this->index;
+    while (c != '"') {
+      c = this->nextChar();
+    }
+
+    token.kind = TokenKind::String;
+    token.text = this->source.range(start, this->index - 1);
+    this->nextChar();
+    return token;
   }
 
   // Parse Symbols and Operators

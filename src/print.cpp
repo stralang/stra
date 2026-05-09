@@ -173,6 +173,18 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::Operator: {
     return os << "Operator";
   }
+  case TokenKind::Integer: {
+    return os << "Integer";
+  }
+  case TokenKind::Float: {
+    return os << "Float";
+  }
+  case TokenKind::Char: {
+    return os << "Char";
+  }
+  case TokenKind::String: {
+    return os << "String";
+  }
   case TokenKind::TypeSeperator: {
     return os << "`:`";
   }
@@ -208,10 +220,9 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   os << token.location << ' ' << token.kind;
 
   switch (token.kind) {
-  case TokenKind::Comment: {
-    return os << " \"" << token.text << '"';
-  }
-  case TokenKind::Name: {
+  case TokenKind::Comment:
+  case TokenKind::Name:
+  case TokenKind::String: {
     return os << " \"" << token.text << '"';
   }
   case TokenKind::Keyword: {
@@ -219,6 +230,15 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   }
   case TokenKind::Operator: {
     return os << ' ' << token._operator;
+  }
+  case TokenKind::Integer: {
+    return os << ' ' << token.integer;
+  }
+  case TokenKind::Float: {
+    return os << ' ' << token._float;
+  }
+  case TokenKind::Char: {
+    return os << " '" << (char)token.integer << "'";
   }
   case TokenKind::Eof:
   case TokenKind::TypeSeperator:
