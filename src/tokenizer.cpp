@@ -1,0 +1,120 @@
+#include "tokenizer.hpp"
+#include "token.hpp"
+#include <cassert>
+#include <cstdlib>
+#include <fstream>
+#include <ios>
+#include <iostream>
+
+void Tokenizer::init() {
+  std::string filepath((const char *)this->path.ptr, this->path.len);
+  std::ifstream file(filepath);
+  if (!file) {
+    assert("Failed to open file" && 0);
+  }
+
+  file.seekg(0, std::ios::end);
+  std::streamsize size = file.tellg();
+  file.seekg(0, std::ios::beg);
+
+  char *text = (char *)malloc(sizeof(char) * size);
+  if (file.read(text, size)) {
+    this->source.ptr = (uint8_t *)text;
+    this->source.len = size;
+    this->index = 0;
+    this->line = 1;
+    this->column = 1;
+  } else {
+    free(text);
+    assert("Failed to read file" && 0);
+  }
+
+  file.close();
+}
+
+void Tokenizer::deinit() { free((void *)this->source.ptr); }
+
+Token Tokenizer::next() {
+  if (this->index >= this->source.len) {
+    return Token{.kind = TokenKind::Eof};
+  }
+
+  char c = this->source[this->index];
+
+  // Skip whitespace
+  while (c == ' ' || c == '\n' || c == '\t') {
+    c = this->nextChar();
+  }
+
+  Token token;
+  token.kind = TokenKind::Eof;
+  token.location = SrcLoc{
+      .file = this->path,
+      .index = this->index,
+      .line = this->line,
+      .column = this->column,
+  };
+
+  if (c == -1) {
+    token.kind = TokenKind::Eof;
+    return token;
+  }
+
+  // Parse Comments
+  if (c == '/' && this->index + 1 < this->source.len) {
+    char peek = this->source.ptr[this->index + 1];
+    if (peek == '/' || peek == '*') {
+      this->nextChar();
+      c = this->nextChar();
+
+      // Skip first space
+      if (c == ' ') {
+        c = this->nextChar();
+      }
+
+      // Find end
+      bool multiline = peek == '*';
+      size_t start = this->index;
+      while (multiline || c != '\n') {
+        c = this->nextChar();
+        if (!multiline || c != '*') {
+          continue;
+        }
+
+        c = this->nextChar();
+        if (c == '/') {
+          break;
+        }
+      }
+
+      // Remove multi-line comment markers
+      size_t end = this->index;
+      if (multiline) {
+        end -= 2;
+      }
+
+      // Return comment token
+      token.kind = TokenKind::Comment;
+      token.text = this->source.range(start, end);
+      return token;
+    }
+  }
+
+  return token;
+}
+
+char Tokenizer::nextChar() {
+  if (this->source[this->index] == '\n') {
+    this->line += 1;
+    this->column = 1;
+  } else {
+    this->column += 1;
+  }
+
+  this->index += 1;
+  if (this->index >= this->source.len) {
+    return -1;
+  }
+
+  return this->source.ptr[this->index];
+}
