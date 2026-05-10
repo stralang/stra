@@ -45,8 +45,19 @@ enum class UnaryOperator : uint32_t {
   Dereference = (uint32_t)Operator::Mul,
 };
 
-enum class Keyword : uint32_t {
-  Function = 0,
+enum class TokenKind : uint32_t {
+  Eof,
+  Comment,
+  Name,
+  Operator,
+  Undefined,
+
+  Integer,
+  Float,
+  Char,
+  String,
+
+  Function,
   Struct,
   Enum,
   Union,
@@ -63,20 +74,6 @@ enum class Keyword : uint32_t {
   Comptime,
   Assembly,
   Const,
-};
-
-enum class TokenKind : uint32_t {
-  Eof,
-  Comment,
-  Name,
-  Keyword,
-  Operator,
-  Undefined,
-
-  Integer,
-  Float,
-  Char,
-  String,
 
   TypeSeperator,
   Attribute,
@@ -94,7 +91,6 @@ struct Token {
   TokenKind kind;
   union {
     String text;
-    Keyword keyword;
     Operator _operator;
     int64_t integer;
     double _float;

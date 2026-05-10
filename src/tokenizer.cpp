@@ -10,24 +10,24 @@
 #include <map>
 #include <string>
 
-std::map<std::string, Keyword> keyword_mapping = {
-    {"fn", Keyword::Function},
-    {"struct", Keyword::Struct},
-    {"enum", Keyword::Enum},
-    {"union", Keyword::Union},
-    {"return", Keyword::Return},
-    {"if", Keyword::If},
-    {"else", Keyword::Else},
-    {"for", Keyword::For},
-    {"in", Keyword::In},
-    {"switch", Keyword::Switch},
-    {"break", Keyword::Break},
-    {"continue", Keyword::Continue},
-    {"defer", Keyword::Defer},
-    {"import", Keyword::Import},
-    {"comptime", Keyword::Comptime},
-    {"asm", Keyword::Assembly},
-    {"const", Keyword::Const},
+std::map<std::string, TokenKind> keyword_mapping = {
+    {"fn", TokenKind::Function},
+    {"struct", TokenKind::Struct},
+    {"enum", TokenKind::Enum},
+    {"union", TokenKind::Union},
+    {"return", TokenKind::Return},
+    {"if", TokenKind::If},
+    {"else", TokenKind::Else},
+    {"for", TokenKind::For},
+    {"in", TokenKind::In},
+    {"switch", TokenKind::Switch},
+    {"break", TokenKind::Break},
+    {"continue", TokenKind::Continue},
+    {"defer", TokenKind::Defer},
+    {"import", TokenKind::Import},
+    {"comptime", TokenKind::Comptime},
+    {"asm", TokenKind::Assembly},
+    {"const", TokenKind::Const},
 };
 
 std::map<std::string, Operator> operator_keyword_mapping = {
@@ -400,8 +400,7 @@ Token Tokenizer::next() {
 
   // Convert to Keyword
   if (keyword_mapping.count(cpp_string) != 0) {
-    token.kind = TokenKind::Keyword;
-    token.keyword = keyword_mapping.at(cpp_string);
+    token.kind = keyword_mapping.at(cpp_string);
     return token;
   }
 

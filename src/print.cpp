@@ -102,63 +102,6 @@ std::ostream &operator<<(std::ostream &os, const UnaryOperator &op) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const Keyword &keyword) {
-  switch (keyword) {
-  case Keyword::Function: {
-    return os << "Function";
-  }
-  case Keyword::Struct: {
-    return os << "Struct";
-  }
-  case Keyword::Enum: {
-    return os << "Enum";
-  }
-  case Keyword::Union: {
-    return os << "Union";
-  }
-  case Keyword::Return: {
-    return os << "Return";
-  }
-  case Keyword::If: {
-    return os << "If";
-  }
-  case Keyword::Else: {
-    return os << "Else";
-  }
-  case Keyword::For: {
-    return os << "For";
-  }
-  case Keyword::In: {
-    return os << "In";
-  }
-  case Keyword::Switch: {
-    return os << "Switch";
-  }
-  case Keyword::Break: {
-    return os << "Break";
-  }
-  case Keyword::Continue: {
-    return os << "Continue";
-  }
-  case Keyword::Defer: {
-    return os << "Defer";
-  }
-  case Keyword::Import: {
-    return os << "Import";
-  }
-  case Keyword::Comptime: {
-    return os << "Comptime";
-  }
-  case Keyword::Assembly: {
-    return os << "Assembly";
-  }
-  case Keyword::Const: {
-    return os << "Const";
-  }
-  }
-  return os;
-}
-
 std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   switch (kind) {
   case TokenKind::Eof: {
@@ -169,9 +112,6 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   }
   case TokenKind::Name: {
     return os << "Name";
-  }
-  case TokenKind::Keyword: {
-    return os << "Keyword";
   }
   case TokenKind::Operator: {
     return os << "Operator";
@@ -190,6 +130,57 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   }
   case TokenKind::String: {
     return os << "String";
+  }
+  case TokenKind::Function: {
+    return os << "Function";
+  }
+  case TokenKind::Struct: {
+    return os << "Struct";
+  }
+  case TokenKind::Enum: {
+    return os << "Enum";
+  }
+  case TokenKind::Union: {
+    return os << "Union";
+  }
+  case TokenKind::Return: {
+    return os << "Return";
+  }
+  case TokenKind::If: {
+    return os << "If";
+  }
+  case TokenKind::Else: {
+    return os << "Else";
+  }
+  case TokenKind::For: {
+    return os << "For";
+  }
+  case TokenKind::In: {
+    return os << "In";
+  }
+  case TokenKind::Switch: {
+    return os << "Switch";
+  }
+  case TokenKind::Break: {
+    return os << "Break";
+  }
+  case TokenKind::Continue: {
+    return os << "Continue";
+  }
+  case TokenKind::Defer: {
+    return os << "Defer";
+  }
+  case TokenKind::Import: {
+    return os << "Import";
+  }
+  case TokenKind::Comptime: {
+    return os << "Comptime";
+  }
+  case TokenKind::Assembly: {
+    return os << "Assembly";
+  }
+  case TokenKind::Const: {
+    return os << "Const";
   }
   case TokenKind::TypeSeperator: {
     return os << "`:`";
@@ -234,9 +225,6 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   case TokenKind::String: {
     return os << " \"" << token.text << '"';
   }
-  case TokenKind::Keyword: {
-    return os << ' ' << token.keyword;
-  }
   case TokenKind::Operator: {
     return os << ' ' << token._operator;
   }
@@ -251,6 +239,23 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   }
   case TokenKind::Eof:
   case TokenKind::Undefined:
+  case TokenKind::Function:
+  case TokenKind::Struct:
+  case TokenKind::Enum:
+  case TokenKind::Union:
+  case TokenKind::Return:
+  case TokenKind::If:
+  case TokenKind::Else:
+  case TokenKind::For:
+  case TokenKind::In:
+  case TokenKind::Switch:
+  case TokenKind::Break:
+  case TokenKind::Continue:
+  case TokenKind::Defer:
+  case TokenKind::Import:
+  case TokenKind::Comptime:
+  case TokenKind::Assembly:
+  case TokenKind::Const:
   case TokenKind::TypeSeperator:
   case TokenKind::Attribute:
   case TokenKind::LineDelimiter:
