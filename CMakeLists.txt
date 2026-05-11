@@ -7,5 +7,6 @@ add_executable(stra
   src/print.cpp
   src/tokenizer.cpp
   src/operator.cpp
+  src/ast.cpp
   src/main.cpp
 )

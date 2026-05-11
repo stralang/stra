@@ -1,3 +1,4 @@
+#include "ast.hpp"
 #include "print.hpp"
 #include "tokenizer.hpp"
 #include <iostream>
@@ -13,13 +14,20 @@ int main() {
   };
   tokenizer.init();
 
-  while (true) {
-    Token token = tokenizer.next();
-    if (token.kind == TokenKind::Eof) {
-      break;
-    }
-    std::cout << token << "\n";
-  }
+  ASTParser parser = ASTParser{
+      .tokenizer = tokenizer,
+  };
+  parser.parse();
+
+  std::cout << (int)parser.ast->kind << "\n";
+
+  // while (true) {
+  //   Token token = tokenizer.next();
+  //   if (token.kind == TokenKind::Eof) {
+  //     break;
+  //   }
+  //   std::cout << token << "\n";
+  // }
 
   tokenizer.deinit();
 }
