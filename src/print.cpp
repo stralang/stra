@@ -1,5 +1,12 @@
 #include "print.hpp"
 #include "token.hpp"
+#include <cstddef>
+#include <ostream>
+#include <string>
+
+std::ostream &operator<<(std::ostream &os, const String &str) {
+  return os.write((const char *)str.ptr, str.len);
+}
 
 std::ostream &operator<<(std::ostream &os, const SrcLoc &location) {
   return os << "[" << location.line << ":" << location.column << "]";
@@ -272,6 +279,47 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const String &str) {
-  return os.write((const char *)str.ptr, str.len);
+std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
+  switch (kind) {
+  case NodeKind::Name: {
+    return os << "Name";
+  }
+  case NodeKind::UnaryOperator: {
+    return os << "Unary Operator";
+  }
+  case NodeKind::Operator: {
+    return os << "Operator";
+  }
+  }
+  return os;
+}
+
+void print_node_impl(std::ostream &os, const Node *node, size_t depth,
+                     std::string prefix) {
+  std::string indent;
+  indent.append(depth * 2, ' ');
+
+  os << indent << prefix << node->kind;
+  switch (node->kind) {
+  case NodeKind::Name: {
+    os << " \"" << node->text << "\"\n";
+    break;
+  }
+  case NodeKind::UnaryOperator: {
+    os << " `" << node->unary_operator.opcode << "`\n";
+    print_node_impl(os, node->unary_operator.child, depth + 1, "Child: ");
+    break;
+  }
+  case NodeKind::Operator: {
+    os << " `" << node->_operator.opcode << "`\n";
+    print_node_impl(os, node->_operator.lhs, depth + 1, "LHS: ");
+    print_node_impl(os, node->_operator.rhs, depth + 1, "RHS: ");
+    break;
+  }
+  }
+}
+
+std::ostream &operator<<(std::ostream &os, const Node &node) {
+  print_node_impl(os, &node, 0, "");
+  return os;
 }

@@ -19,7 +19,7 @@ int main() {
   };
   parser.parse();
 
-  std::cout << (int)parser.ast->kind << "\n";
+  std::cout << *parser.ast << "\n";
 
   // while (true) {
   //   Token token = tokenizer.next();
