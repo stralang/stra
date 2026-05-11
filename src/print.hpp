@@ -1,5 +1,6 @@
 #pragma once
 
+#include "operator.hpp"
 #include "token.hpp"
 #include <ostream>
 
