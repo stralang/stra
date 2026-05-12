@@ -1,7 +1,9 @@
 #include "ast.hpp"
 #include "operator.hpp"
+#include "print.hpp"
 #include "token.hpp"
 #include <cassert>
+#include <iostream>
 
 #define try(is_ok)                                                             \
   if (!(is_ok)) {                                                              \
@@ -40,6 +42,21 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom,
   return out;
 }
 
+Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
+                       Node *atom) {
+  Node *out = atom;
+
+  switch (parser->cur_token.kind) {
+  case TokenKind::Operator: {
+    out = parseBinaryExpr(parser, out, min_precedence);
+    try(out != nullptr);
+    break;
+  }
+  }
+
+  return out;
+}
+
 Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
   out->token = parser->cur_token;
@@ -64,13 +81,41 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   }
   }
 
-  // Parse Operator
+  out = parsePartialExpr(parser, min_precedence, out);
+  try(out != nullptr);
+
+  return out;
+}
+
+Node *parseStmt(ASTParser *parser) {
+  Node *out = nullptr;
+
   switch (parser->cur_token.kind) {
-  case TokenKind::Operator: {
-    out = parseBinaryExpr(parser, out, min_precedence);
-    try(out != nullptr);
+  case TokenKind::Name: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = out->token.location;
+    out->kind = NodeKind::Name;
+    out->text = out->token.text;
+
+    try(parser->nextToken());
+    if (parser->cur_token.kind == TokenKind::TypeSeperator) {
+      // TODO: Parse Variable
+    } else {
+      out = parsePartialExpr(parser, Precedence::Assign, out);
+    }
     break;
   }
+  case TokenKind::Operator: {
+    out = parseExpr(parser, Precedence::Assign);
+    break;
+  }
+  }
+
+  if (parser->cur_token.kind != TokenKind::LineDelimiter &&
+      parser->prev_token.kind != TokenKind::BlockEnd) {
+    std::cerr << "Statement must end with either `;` or `}`\n";
+    return nullptr;
   }
 
   return out;
@@ -82,7 +127,7 @@ void ASTParser::parse() {
     return;
   }
 
-  this->ast = parseExpr(this, Precedence::Assign);
+  this->ast = parseStmt(this);
 }
 
 bool ASTParser::nextToken() {
