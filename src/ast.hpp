@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "arraylist.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
 #include "types.hpp"
@@ -30,6 +31,7 @@ enum class NodeKind {
   UnaryOperator,
   Operator,
   Field,
+  Compound,
 };
 
 struct Node {
@@ -41,6 +43,7 @@ struct Node {
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeField field;
+    ArrayList<Node *> children;
   };
 };
 

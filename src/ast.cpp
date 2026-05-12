@@ -1,4 +1,5 @@
 #include "ast.hpp"
+#include "arraylist.hpp"
 #include "operator.hpp"
 #include "print.hpp"
 #include "token.hpp"
@@ -154,6 +155,37 @@ Node *parseStmt(ASTParser *parser) {
     std::cerr << "Statement must end with either `;` or `}`\n";
     return nullptr;
   }
+  parser->nextToken(); // Pass Ending
+
+  return out;
+}
+
+Node *parseStmtCompound(ASTParser *parser) {
+  Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
+  out->kind = NodeKind::Compound;
+  out->token = parser->cur_token;
+  out->location = parser->cur_token.location;
+  out->children.init(8);
+
+  // Pass Marker
+  if (parser->cur_token.kind == TokenKind::BlockBegin) {
+    try(parser->nextToken());
+  }
+
+  // Parse Compound
+  while (true) {
+    Node *child = parseStmt(parser);
+    if (child == nullptr) {
+      break;
+    }
+
+    out->children.push(child);
+  }
+
+  // Pass Marker
+  if (parser->cur_token.kind == TokenKind::BlockEnd) {
+    try(parser->nextToken());
+  }
 
   return out;
 }
@@ -164,7 +196,7 @@ void ASTParser::parse() {
     return;
   }
 
-  this->ast = parseStmt(this);
+  this->ast = parseStmtCompound(this);
 }
 
 bool ASTParser::nextToken() {

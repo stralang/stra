@@ -293,6 +293,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Field: {
     return os << "Field";
   }
+  case NodeKind::Compound: {
+    return os << "Compound";
+  }
   }
   return os;
 }
@@ -332,6 +335,13 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     }
     if (node->field.initial != nullptr) {
       print_node_impl(os, node->field.initial, depth + 1, "Initial: ");
+    }
+    break;
+  }
+  case NodeKind::Compound: {
+    os << ' ' << node->children.length << '\n';
+    for (size_t i = 0; i < node->children.length; i++) {
+      print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
     }
     break;
   }
