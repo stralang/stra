@@ -18,10 +18,18 @@ struct NodeOperator {
   Node *rhs;
 };
 
+struct NodeField {
+  String name;
+  Node *type;
+  Node *initial;
+  bool definition;
+};
+
 enum class NodeKind {
   Name,
   UnaryOperator,
   Operator,
+  Field,
 };
 
 struct Node {
@@ -32,6 +40,7 @@ struct Node {
     String text;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
+    NodeField field;
   };
 };
 

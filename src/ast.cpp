@@ -87,6 +87,42 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   return out;
 }
 
+// The `name_prealloc` argument must contain the name of the variable, and is
+// used as a preallocated node for the output
+Node *parseField(ASTParser *parser, Node *name_prealloc) {
+  Node *out = name_prealloc;
+  try(out->kind == NodeKind::Name);
+
+  out->kind = NodeKind::Field;
+  out->field.name = out->text;
+  out->field.definition = false;
+  out->field.type = nullptr;
+  out->field.initial = nullptr;
+
+  // Parse Type
+  try(parser->cur_token.kind == TokenKind::TypeSeperator);
+  try(parser->nextToken());
+  if (parser->cur_token.kind != TokenKind::TypeSeperator &&
+      (parser->cur_token.kind != TokenKind::Operator ||
+       parser->cur_token._operator != Operator::Assign)) {
+    out->field.type =
+        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1));
+    try(out->field.type);
+  }
+
+  // Parse Initial
+  out->field.definition = parser->cur_token.kind == TokenKind::TypeSeperator;
+  if (out->field.definition ||
+      (parser->cur_token.kind == TokenKind::Operator &&
+       parser->cur_token._operator == Operator::Assign)) {
+    try(parser->nextToken());
+    out->field.initial = parseExpr(parser, Precedence::Assign);
+    try(out->field.initial);
+  }
+
+  return out;
+}
+
 Node *parseStmt(ASTParser *parser) {
   Node *out = nullptr;
 
@@ -100,7 +136,7 @@ Node *parseStmt(ASTParser *parser) {
 
     try(parser->nextToken());
     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
-      // TODO: Parse Variable
+      out = parseField(parser, out);
     } else {
       out = parsePartialExpr(parser, Precedence::Assign, out);
     }
@@ -112,6 +148,7 @@ Node *parseStmt(ASTParser *parser) {
   }
   }
 
+  try(out);
   if (parser->cur_token.kind != TokenKind::LineDelimiter &&
       parser->prev_token.kind != TokenKind::BlockEnd) {
     std::cerr << "Statement must end with either `;` or `}`\n";

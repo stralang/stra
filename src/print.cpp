@@ -290,6 +290,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Operator: {
     return os << "Operator";
   }
+  case NodeKind::Field: {
+    return os << "Field";
+  }
   }
   return os;
 }
@@ -314,6 +317,22 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << " `" << node->_operator.opcode << "`\n";
     print_node_impl(os, node->_operator.lhs, depth + 1, "LHS: ");
     print_node_impl(os, node->_operator.rhs, depth + 1, "RHS: ");
+    break;
+  }
+  case NodeKind::Field: {
+    os << " \"" << node->field.name << '"';
+
+    if (node->field.definition) {
+      os << " Definition";
+    }
+    os << "\n";
+
+    if (node->field.type != nullptr) {
+      print_node_impl(os, node->field.type, depth + 1, "Type: ");
+    }
+    if (node->field.initial != nullptr) {
+      print_node_impl(os, node->field.initial, depth + 1, "Initial: ");
+    }
     break;
   }
   }
