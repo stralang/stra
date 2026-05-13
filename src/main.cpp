@@ -4,8 +4,12 @@
 #include <iostream>
 #include <string>
 
-int main() {
+int main(int argc, const char **argv) {
   std::string path = "test.stra";
+
+  if (argc == 2) {
+    path = argv[1];
+  }
 
   Tokenizer tokenizer;
   tokenizer.path = Slice<uint8_t>{
