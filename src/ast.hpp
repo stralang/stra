@@ -39,11 +39,13 @@ struct NodeStruct {
 };
 
 struct NodeEnum {
+  Node *repr_type;
   ArrayList<Node *> members;
   ArrayList<Node *> body;
 };
 
 struct NodeUnion {
+  Node *repr_type;
   ArrayList<Node *> variants;
   ArrayList<Node *> body;
 };

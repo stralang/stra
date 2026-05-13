@@ -283,7 +283,13 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   }
   case TokenKind::Enum: {
     out->kind = NodeKind::Enum;
+    out->_enum.repr_type = nullptr;
+
     try(parser->nextToken());
+    if (parser->cur_token.kind != TokenKind::BlockBegin) {
+      out->_enum.repr_type = parseExpr(parser, Precedence::Assign);
+    }
+
     try(parser->cur_token.kind == TokenKind::BlockBegin);
     try(parser->nextToken());
 
@@ -298,7 +304,13 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   }
   case TokenKind::Union: {
     out->kind = NodeKind::Union;
+    out->_union.repr_type = nullptr;
+
     try(parser->nextToken());
+    if (parser->cur_token.kind != TokenKind::BlockBegin) {
+      out->_union.repr_type = parseExpr(parser, Precedence::Assign);
+    }
+
     try(parser->cur_token.kind == TokenKind::BlockBegin);
     try(parser->nextToken());
 

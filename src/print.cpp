@@ -409,6 +409,10 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
   }
   case NodeKind::Enum: {
     os << '\n';
+    if (node->_enum.repr_type != nullptr) {
+      print_node_impl(os, node->_enum.repr_type, depth + 1, "Representation: ");
+    }
+
     os << indent << "Members:\n";
     for (size_t i = 0; i < node->_enum.members.length; i++) {
       print_node_impl(os, node->_enum.members.data.ptr[i], depth + 1, "");
@@ -422,6 +426,11 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
   }
   case NodeKind::Union: {
     os << '\n';
+    if (node->_union.repr_type != nullptr) {
+      print_node_impl(os, node->_union.repr_type, depth + 1,
+                      "Representation: ");
+    }
+
     os << indent << "Variants:\n";
     for (size_t i = 0; i < node->_union.variants.length; i++) {
       print_node_impl(os, node->_union.variants.data.ptr[i], depth + 1, "");
