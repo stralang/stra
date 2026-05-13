@@ -55,6 +55,10 @@ struct NodeMember {
   Node *value;
 };
 
+struct NodeImport {
+  String path;
+};
+
 struct NodeIf {
   Node *conditional;
   Node *body;
@@ -89,6 +93,7 @@ enum class NodeKind {
   Enum,
   Union,
   Member,
+  Import,
   UnaryOperator,
   Operator,
   Return,
@@ -117,6 +122,7 @@ struct Node {
     NodeEnum _enum;
     NodeUnion _union;
     NodeMember member;
+    NodeImport import;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeIf _if;

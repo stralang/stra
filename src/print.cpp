@@ -322,6 +322,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Member: {
     return os << "Member";
   }
+  case NodeKind::Import: {
+    return os << "Import";
+  }
   case NodeKind::UnaryOperator: {
     return os << "Unary Operator";
   }
@@ -475,6 +478,10 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     if (node->member.value != nullptr) {
       print_node_impl(os, node->member.value, depth + 1, "Value: ");
     }
+    break;
+  }
+  case NodeKind::Import: {
+    os << " \"" << node->import.path << "\"\n";
     break;
   }
   case NodeKind::UnaryOperator: {

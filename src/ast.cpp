@@ -323,6 +323,15 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     parser->nextToken();
     break;
   }
+  case TokenKind::Import: {
+    out->kind = NodeKind::Import;
+    try(parser->nextToken());
+    try(parser->cur_token.kind == TokenKind::String);
+
+    out->import.path = parser->cur_token.text;
+    try(parser->nextToken());
+    break;
+  }
   }
 
   out = parsePartialExpr(parser, min_precedence, out);
