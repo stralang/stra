@@ -176,9 +176,13 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser) {
 }
 
 Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
-  Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
-  out->token = parser->cur_token;
-  out->location = parser->cur_token.location;
+  Node *out;
+
+  if (parser->cur_token.kind != TokenKind::ScopeBegin) {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+  }
 
   switch (parser->cur_token.kind) {
   case TokenKind::Operator: {
@@ -336,6 +340,13 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     out->kind = NodeKind::Comptime;
     try(parser->nextToken());
     out->child = parseExpr(parser, Precedence::MemberAccess);
+    break;
+  }
+  case TokenKind::ScopeBegin: {
+    try(parser->nextToken());
+    out = parseExpr(parser, Precedence::Assign);
+    try(parser->cur_token.kind == TokenKind::ScopeEnd);
+    try(parser->nextToken());
     break;
   }
   }
@@ -558,11 +569,7 @@ Node *parseStmt(ASTParser *parser) {
     out->kind = NodeKind::Defer;
 
     try(parser->nextToken());
-    if (parser->cur_token.kind == TokenKind::BlockBegin) {
-      out->child = parseStmtCompound(parser);
-    } else {
-      out->child = parseStmt(parser);
-    }
+    out->child = parseStmt(parser);
     break;
   }
   case TokenKind::Comptime: {
@@ -572,11 +579,11 @@ Node *parseStmt(ASTParser *parser) {
     out->kind = NodeKind::Comptime;
 
     try(parser->nextToken());
-    if (parser->cur_token.kind == TokenKind::BlockBegin) {
-      out->child = parseStmtCompound(parser);
-    } else {
-      out->child = parseStmt(parser);
-    }
+    out->child = parseStmt(parser);
+    break;
+  }
+  case TokenKind::BlockBegin: {
+    out = parseStmtCompound(parser);
     break;
   }
   }
