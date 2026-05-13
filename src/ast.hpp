@@ -115,6 +115,7 @@ enum class NodeKind {
   Union,
   Member,
   Import,
+  Const,
   UnaryOperator,
   Operator,
   Return,

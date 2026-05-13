@@ -341,6 +341,13 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     out->child = parseExpr(parser, Precedence::MemberAccess);
     break;
   }
+  case TokenKind::Const: {
+    out->kind = NodeKind::Const;
+    try(parser->nextToken());
+    out->child = parseExpr(parser, Precedence::MemberAccess);
+    break;
+    break;
+  }
   case TokenKind::ScopeBegin: {
     try(parser->nextToken());
     out = parseExpr(parser, Precedence::Assign);
