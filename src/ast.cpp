@@ -222,12 +222,12 @@ Node *parseStmt(ASTParser *parser) {
   }
 
   try(out);
-  if (parser->cur_token.kind != TokenKind::LineDelimiter &&
-      parser->prev_token.kind != TokenKind::BlockEnd) {
+  if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+    parser->nextToken();
+  } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
     std::cerr << "Statement must end with either `;` or `}`\n";
     return nullptr;
   }
-  parser->nextToken(); // Pass Ending
 
   return out;
 }
