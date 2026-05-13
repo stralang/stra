@@ -272,7 +272,12 @@ void ASTParser::parse() {
 }
 
 bool ASTParser::nextToken() {
+  Token next_token = this->tokenizer.next();
+  while (next_token.kind == TokenKind::Comment) {
+    next_token = this->tokenizer.next();
+  }
+
   this->prev_token = this->cur_token;
-  this->cur_token = this->tokenizer.next();
+  this->cur_token = next_token;
   return this->cur_token.kind != TokenKind::Eof;
 }
