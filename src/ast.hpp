@@ -98,6 +98,7 @@ enum class NodeKind {
   Case,
   Break,
   Continue,
+  Defer,
 };
 
 struct Node {

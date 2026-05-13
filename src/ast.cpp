@@ -536,12 +536,27 @@ Node *parseStmt(ASTParser *parser) {
     try(parser->nextToken());
     break;
   }
+  case TokenKind::Defer: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Defer;
+
+    try(parser->nextToken());
+    if (parser->cur_token.kind == TokenKind::BlockBegin) {
+      out->child = parseStmtCompound(parser);
+    } else {
+      out->child = parseStmt(parser);
+    }
+    break;
+  }
   }
 
   try(out);
   if (parser->cur_token.kind == TokenKind::LineDelimiter) {
     parser->nextToken();
-  } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
+  } else if (parser->prev_token.kind != TokenKind::LineDelimiter &&
+             parser->prev_token.kind != TokenKind::BlockEnd) {
     std::cerr << "Statement must end with either `;` or `}`\n";
     return nullptr;
   }
