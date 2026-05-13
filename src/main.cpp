@@ -1,3 +1,4 @@
+#include "allocator.hpp"
 #include "ast.hpp"
 #include "print.hpp"
 #include "tokenizer.hpp"
@@ -18,8 +19,10 @@ int main(int argc, const char **argv) {
   };
   tokenizer.init();
 
+  Allocator allocator;
   ASTParser parser = ASTParser{
       .tokenizer = tokenizer,
+      .allocator = &allocator,
   };
   parser.parse();
 

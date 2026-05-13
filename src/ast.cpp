@@ -1,10 +1,10 @@
 #include "ast.hpp"
 #include "arraylist.hpp"
 #include "operator.hpp"
-#include "print.hpp"
 #include "token.hpp"
 #include <cassert>
 #include <iostream>
+
 #define try(is_ok)                                                             \
   if (!(is_ok)) {                                                              \
     return nullptr;                                                            \
@@ -30,7 +30,7 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom,
     Associativity associativity = operatorAssociativity(opcode);
     precedence = (Precedence)((int32_t)precedence + (int32_t)associativity);
 
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->kind = NodeKind::Operator;
     out->token = parser->cur_token;
     out->location = out->token.location;
@@ -69,12 +69,12 @@ struct FieldsAndBodyResult {
 FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser) {
   ArrayList<Node *> fields;
   ArrayList<Node *> body;
-  fields.init(8);
-  body.init(8);
+  fields.init(parser->allocator, 8);
+  body.init(parser->allocator, 8);
 
   bool allow_field = true;
   while (parser->cur_token.kind != TokenKind::BlockEnd) {
-    Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+    Node *field = (Node *)parser->allocator->alloc(sizeof(Node));
     field->token = parser->cur_token;
     field->location = parser->cur_token.location;
     field->kind = NodeKind::Name;
@@ -116,12 +116,12 @@ FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser) {
 FieldsAndBodyResult parseMembersAndBody(ASTParser *parser) {
   ArrayList<Node *> fields;
   ArrayList<Node *> body;
-  fields.init(8);
-  body.init(8);
+  fields.init(parser->allocator, 8);
+  body.init(parser->allocator, 8);
 
   bool allow_member = true;
   while (parser->cur_token.kind != TokenKind::BlockEnd) {
-    Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+    Node *field = (Node *)parser->allocator->alloc(sizeof(Node));
     field->token = parser->cur_token;
     field->location = parser->cur_token.location;
     field->kind = NodeKind::Name;
@@ -178,7 +178,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   Node *out;
 
   if (parser->cur_token.kind != TokenKind::ScopeBegin) {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
   }
@@ -226,7 +226,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   }
   case TokenKind::Function: {
     out->kind = NodeKind::Function;
-    out->function.parameters.init(8);
+    out->function.parameters.init(parser->allocator, 8);
     out->function.return_type = nullptr;
     out->function.body = nullptr;
 
@@ -236,7 +236,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     try(parser->cur_token.kind == TokenKind::ScopeBegin);
     try(parser->nextToken());
     while (parser->cur_token.kind != TokenKind::ScopeEnd) {
-      Node *parameter = (Node *)parser->allocator.alloc(sizeof(Node));
+      Node *parameter = (Node *)parser->allocator->alloc(sizeof(Node));
       parameter->token = parser->cur_token;
       parameter->location = parser->cur_token.location;
       parameter->kind = NodeKind::Name;
@@ -400,17 +400,17 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
 }
 
 Node *parseConditional(ASTParser *parser) {
-  Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
+  Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   out->token = parser->cur_token;
   out->location = parser->cur_token.location;
   out->kind = NodeKind::Compound;
-  out->children.init(2);
+  out->children.init(parser->allocator, 2);
 
   while (parser->cur_token.kind != TokenKind::BlockBegin) {
     Node *child;
 
     if (parser->cur_token.kind == TokenKind::Name) {
-      child = (Node *)parser->allocator.alloc(sizeof(Node));
+      child = (Node *)parser->allocator->alloc(sizeof(Node));
       child->token = parser->cur_token;
       child->location = parser->cur_token.location;
       child->kind = NodeKind::Name;
@@ -443,7 +443,7 @@ Node *parseStmt(ASTParser *parser) {
 
   switch (parser->cur_token.kind) {
   case TokenKind::Name: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = out->token.location;
     out->kind = NodeKind::Name;
@@ -462,7 +462,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Return: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Return;
@@ -475,7 +475,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::If: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::If;
@@ -506,7 +506,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::For: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::For;
@@ -521,11 +521,11 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Switch: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Switch;
-    out->_switch.cases.init(8);
+    out->_switch.cases.init(parser->allocator, 8);
 
     try(parser->nextToken());
     out->_switch.conditional = parseExpr(parser, Precedence::Assign);
@@ -534,7 +534,7 @@ Node *parseStmt(ASTParser *parser) {
     try(parser->nextToken());
 
     while (parser->cur_token.kind != TokenKind::BlockEnd) {
-      Node *_case = (Node *)parser->allocator.alloc(sizeof(Node));
+      Node *_case = (Node *)parser->allocator->alloc(sizeof(Node));
       _case->kind = NodeKind::Case;
 
       _case->_case.constant = parseExpr(parser, Precedence::Assign);
@@ -553,7 +553,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Break: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Break;
@@ -561,7 +561,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Continue: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Continue;
@@ -569,7 +569,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Defer: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Defer;
@@ -579,7 +579,7 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Comptime: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Comptime;
@@ -589,11 +589,11 @@ Node *parseStmt(ASTParser *parser) {
     break;
   }
   case TokenKind::Assembly: {
-    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
     out->location = parser->cur_token.location;
     out->kind = NodeKind::Assembly;
-    out->assembly.instructions.init(8);
+    out->assembly.instructions.init(parser->allocator, 8);
 
     try(parser->nextToken());
     try(parser->cur_token.kind == TokenKind::BlockBegin);
@@ -607,7 +607,7 @@ Node *parseStmt(ASTParser *parser) {
       inst.token = parser->cur_token;
       inst.location = parser->cur_token.location;
       inst.name = parser->cur_token.text;
-      inst.arguments.init(4);
+      inst.arguments.init(parser->allocator, 4);
 
       // Parse Arguments
       try(parser->nextToken());
@@ -668,11 +668,11 @@ Node *parseStmt(ASTParser *parser) {
 }
 
 Node *parseStmtCompound(ASTParser *parser) {
-  Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
+  Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   out->kind = NodeKind::Compound;
   out->token = parser->cur_token;
   out->location = parser->cur_token.location;
-  out->children.init(8);
+  out->children.init(parser->allocator, 8);
 
   // Pass Marker
   if (parser->cur_token.kind == TokenKind::BlockBegin) {

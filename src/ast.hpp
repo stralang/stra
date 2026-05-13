@@ -164,7 +164,7 @@ struct ASTParser {
   Token prev_token;
   Token cur_token;
 
-  Allocator allocator;
+  Allocator *allocator;
 
   void parse();
   bool nextToken();
