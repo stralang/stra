@@ -83,6 +83,30 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     parser->nextToken();
     break;
   }
+  case TokenKind::Integer: {
+    out->kind = NodeKind::Integer;
+    out->integer = parser->cur_token.integer;
+    parser->nextToken();
+    break;
+  }
+  case TokenKind::Float: {
+    out->kind = NodeKind::Float;
+    out->_float = parser->cur_token._float;
+    parser->nextToken();
+    break;
+  }
+  case TokenKind::Char: {
+    out->kind = NodeKind::Char;
+    out->integer = parser->cur_token.integer;
+    parser->nextToken();
+    break;
+  }
+  case TokenKind::String: {
+    out->kind = NodeKind::String;
+    out->text = parser->cur_token.text;
+    parser->nextToken();
+    break;
+  }
   case TokenKind::Function: {
     out->kind = NodeKind::Function;
     out->function.parameters.init(8);

@@ -1,4 +1,5 @@
 #include "print.hpp"
+#include "ast.hpp"
 #include "token.hpp"
 #include <cstddef>
 #include <ostream>
@@ -281,8 +282,26 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
 
 std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   switch (kind) {
+  case NodeKind::Compound: {
+    return os << "Compound";
+  }
   case NodeKind::Name: {
     return os << "Name";
+  }
+  case NodeKind::Integer: {
+    return os << "Integer";
+  }
+  case NodeKind::Float: {
+    return os << "Float";
+  }
+  case NodeKind::Char: {
+    return os << "Char";
+  }
+  case NodeKind::String: {
+    return os << "String";
+  }
+  case NodeKind::Field: {
+    return os << "Field";
   }
   case NodeKind::Function: {
     return os << "Function";
@@ -292,12 +311,6 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   }
   case NodeKind::Operator: {
     return os << "Operator";
-  }
-  case NodeKind::Field: {
-    return os << "Field";
-  }
-  case NodeKind::Compound: {
-    return os << "Compound";
   }
   }
   return os;
@@ -310,8 +323,47 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
 
   os << indent << prefix << node->kind;
   switch (node->kind) {
+  case NodeKind::Compound: {
+    os << ' ' << node->children.length << '\n';
+    for (size_t i = 0; i < node->children.length; i++) {
+      print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
+    }
+    break;
+  }
   case NodeKind::Name: {
     os << " \"" << node->text << "\"\n";
+    break;
+  }
+  case NodeKind::Integer: {
+    os << " `" << node->integer << "`\n";
+    break;
+  }
+  case NodeKind::Float: {
+    os << " `" << node->_float << "`\n";
+    break;
+  }
+  case NodeKind::Char: {
+    os << " `" << (char)node->integer << "`\n";
+    break;
+  }
+  case NodeKind::String: {
+    os << " \"" << node->text << "\"\n";
+    break;
+  }
+  case NodeKind::Field: {
+    os << " \"" << node->field.name << '"';
+
+    if (node->field.definition) {
+      os << " Definition";
+    }
+    os << "\n";
+
+    if (node->field.type != nullptr) {
+      print_node_impl(os, node->field.type, depth + 1, "Type: ");
+    }
+    if (node->field.initial != nullptr) {
+      print_node_impl(os, node->field.initial, depth + 1, "Initial: ");
+    }
     break;
   }
   case NodeKind::Function: {
@@ -339,29 +391,6 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << " `" << node->_operator.opcode << "`\n";
     print_node_impl(os, node->_operator.lhs, depth + 1, "LHS: ");
     print_node_impl(os, node->_operator.rhs, depth + 1, "RHS: ");
-    break;
-  }
-  case NodeKind::Field: {
-    os << " \"" << node->field.name << '"';
-
-    if (node->field.definition) {
-      os << " Definition";
-    }
-    os << "\n";
-
-    if (node->field.type != nullptr) {
-      print_node_impl(os, node->field.type, depth + 1, "Type: ");
-    }
-    if (node->field.initial != nullptr) {
-      print_node_impl(os, node->field.initial, depth + 1, "Initial: ");
-    }
-    break;
-  }
-  case NodeKind::Compound: {
-    os << ' ' << node->children.length << '\n';
-    for (size_t i = 0; i < node->children.length; i++) {
-      print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
-    }
     break;
   }
   }

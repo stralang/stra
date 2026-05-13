@@ -5,6 +5,7 @@
 #include "token.hpp"
 #include "tokenizer.hpp"
 #include "types.hpp"
+#include <cstdint>
 
 struct Node;
 
@@ -33,12 +34,16 @@ struct NodeFunction {
 };
 
 enum class NodeKind {
+  Compound,
   Name,
+  Integer,
+  Float,
+  Char,
+  String,
+  Field,
   Function,
   UnaryOperator,
   Operator,
-  Field,
-  Compound,
 };
 
 struct Node {
@@ -46,12 +51,14 @@ struct Node {
   SrcLoc location;
   NodeKind kind;
   union {
+    ArrayList<Node *> children;
     String text;
+    int64_t integer;
+    double _float;
+    NodeField field;
     NodeFunction function;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
-    NodeField field;
-    ArrayList<Node *> children;
   };
 };
 
