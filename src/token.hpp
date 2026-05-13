@@ -17,6 +17,7 @@ enum class TokenKind : uint32_t {
   Name,
   Operator,
   Undefined,
+  Case,
 
   Integer,
   Float,

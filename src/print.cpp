@@ -127,6 +127,9 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::Undefined: {
     return os << "Undefined";
   }
+  case TokenKind::Case: {
+    return os << "Case";
+  }
   case TokenKind::Integer: {
     return os << "Integer";
   }
@@ -247,6 +250,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   }
   case TokenKind::Eof:
   case TokenKind::Undefined:
+  case TokenKind::Case:
   case TokenKind::Function:
   case TokenKind::Struct:
   case TokenKind::Enum:
@@ -332,6 +336,12 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   }
   case NodeKind::For: {
     return os << "For";
+  }
+  case NodeKind::Switch: {
+    return os << "Switch";
+  }
+  case NodeKind::Case: {
+    return os << "Case";
   }
   }
   return os;
@@ -490,6 +500,22 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << '\n';
     print_node_impl(os, node->_for.conditional, depth + 1, "Conditional: ");
     print_node_impl(os, node->_for.body, depth + 1, "Body: ");
+    break;
+  }
+  case NodeKind::Switch: {
+    os << '\n';
+    print_node_impl(os, node->_switch.conditional, depth + 1, "Conditional: ");
+
+    os << indent << "Cases:\n";
+    for (size_t i = 0; i < node->_switch.cases.length; i++) {
+      print_node_impl(os, node->_switch.cases.data.ptr[i], depth + 1, "");
+    }
+    break;
+  }
+  case NodeKind::Case: {
+    os << '\n';
+    print_node_impl(os, node->_case.constant, depth + 1, "Constant: ");
+    print_node_impl(os, node->_case.body, depth + 1, "Body: ");
     break;
   }
   }

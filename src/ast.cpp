@@ -488,6 +488,38 @@ Node *parseStmt(ASTParser *parser) {
     out->_for.body = parseStmtCompound(parser);
     break;
   }
+  case TokenKind::Switch: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Switch;
+    out->_switch.cases.init(8);
+
+    try(parser->nextToken());
+    out->_switch.conditional = parseExpr(parser, Precedence::Assign);
+
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+    try(parser->nextToken());
+
+    while (parser->cur_token.kind != TokenKind::BlockEnd) {
+      Node *_case = (Node *)parser->allocator.alloc(sizeof(Node));
+      _case->kind = NodeKind::Case;
+
+      _case->_case.constant = parseExpr(parser, Precedence::Assign);
+      try(parser->cur_token.kind == TokenKind::Case);
+      _case->token = parser->cur_token;
+      _case->location = parser->cur_token.location;
+
+      try(parser->nextToken());
+      _case->_case.body = parseStmtCompound(parser);
+      out->_switch.cases.push(_case);
+    }
+
+    try(parser->cur_token.kind == TokenKind::BlockEnd);
+    parser->nextToken();
+
+    break;
+  }
   }
 
   try(out);

@@ -268,6 +268,9 @@ Token Tokenizer::next() {
     if (c == '=') {
       token._operator = Operator::EqualTo;
       this->nextChar();
+    } else if (c == '>') {
+      token.kind = TokenKind::Case;
+      this->nextChar();
     }
     return token;
   }

@@ -66,6 +66,16 @@ struct NodeFor {
   Node *body;
 };
 
+struct NodeSwitch {
+  Node *conditional;
+  ArrayList<Node *> cases;
+};
+
+struct NodeCase {
+  Node *constant;
+  Node *body;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -84,6 +94,8 @@ enum class NodeKind {
   Return,
   If,
   For,
+  Switch,
+  Case,
 };
 
 struct Node {
@@ -106,6 +118,8 @@ struct Node {
     NodeOperator _operator;
     NodeIf _if;
     NodeFor _for;
+    NodeSwitch _switch;
+    NodeCase _case;
   };
 };
 
