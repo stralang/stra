@@ -367,6 +367,45 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
   return out;
 }
 
+Node *parseConditional(ASTParser *parser) {
+  Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
+  out->token = parser->cur_token;
+  out->location = parser->cur_token.location;
+  out->kind = NodeKind::Compound;
+  out->children.init(2);
+
+  while (parser->cur_token.kind != TokenKind::BlockBegin) {
+    Node *child;
+
+    if (parser->cur_token.kind == TokenKind::Name) {
+      child = (Node *)parser->allocator.alloc(sizeof(Node));
+      child->token = parser->cur_token;
+      child->location = parser->cur_token.location;
+      child->kind = NodeKind::Name;
+      child->text = parser->cur_token.text;
+
+      try(parser->nextToken());
+      if (parser->cur_token.kind == TokenKind::TypeSeperator) {
+        child = parseField(parser, child);
+      } else {
+        child = parsePartialExpr(
+            parser, (Precedence)((int32_t)Precedence::Assign + 1), child);
+      }
+    } else {
+      child = parseExpr(parser, Precedence::Assign);
+    }
+
+    out->children.push(child);
+
+    if (parser->cur_token.kind != TokenKind::LineDelimiter) {
+      break;
+    }
+    try(parser->nextToken());
+  }
+
+  return out;
+}
+
 Node *parseStmt(ASTParser *parser) {
   Node *out = nullptr;
 
@@ -401,6 +440,38 @@ Node *parseStmt(ASTParser *parser) {
     if (parser->cur_token.kind != TokenKind::LineDelimiter) {
       out->child = parseExpr(parser, Precedence::Assign);
     }
+    break;
+  }
+  case TokenKind::If: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::If;
+
+    // Parse Conditional
+    try(parser->nextToken());
+    out->_if.conditional = parseConditional(parser);
+    // out->_if.conditional = parseExpr(parser, Precedence::Assign);
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+
+    // Parse Body
+    out->_if.body = parseStmtCompound(parser);
+    out->_if._else = nullptr;
+
+    // Parse Else and Else-If
+    if (parser->cur_token.kind == TokenKind::Else) {
+      try(parser->nextToken());
+
+      if (parser->cur_token.kind == TokenKind::If) {
+        out->_if._else = parseStmt(parser);
+      } else if (parser->cur_token.kind == TokenKind::BlockBegin) {
+        out->_if._else = parseStmtCompound(parser);
+      } else {
+        std::cerr << "Else body must be either an if statement or compound\n";
+        return nullptr;
+      }
+    }
+
     break;
   }
   }

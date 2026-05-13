@@ -327,6 +327,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Return: {
     return os << "Return";
   }
+  case NodeKind::If: {
+    return os << "If";
+  }
   }
   return os;
 }
@@ -467,6 +470,16 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << '\n';
     if (node->child != nullptr) {
       print_node_impl(os, node->child, depth + 1, "Child: ");
+    }
+    break;
+  }
+  case NodeKind::If: {
+    os << '\n';
+    print_node_impl(os, node->_if.conditional, depth + 1, "Conditional: ");
+    print_node_impl(os, node->_if.body, depth + 1, "Body: ");
+
+    if (node->_if._else != nullptr) {
+      print_node_impl(os, node->_if._else, depth + 1, "Else: ");
     }
     break;
   }
