@@ -309,6 +309,12 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Struct: {
     return os << "Struct";
   }
+  case NodeKind::Enum: {
+    return os << "Enum";
+  }
+  case NodeKind::Member: {
+    return os << "Member";
+  }
   case NodeKind::UnaryOperator: {
     return os << "Unary Operator";
   }
@@ -395,6 +401,26 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << indent << "Body:\n";
     for (size_t i = 0; i < node->_struct.body.length; i++) {
       print_node_impl(os, node->_struct.body.data.ptr[i], depth + 1, "");
+    }
+    break;
+  }
+  case NodeKind::Enum: {
+    os << '\n';
+    os << indent << "Members:\n";
+    for (size_t i = 0; i < node->_enum.members.length; i++) {
+      print_node_impl(os, node->_enum.members.data.ptr[i], depth + 1, "");
+    }
+
+    os << indent << "Body:\n";
+    for (size_t i = 0; i < node->_enum.body.length; i++) {
+      print_node_impl(os, node->_enum.body.data.ptr[i], depth + 1, "");
+    }
+    break;
+  }
+  case NodeKind::Member: {
+    os << " \"" << node->member.name << "\"\n";
+    if (node->member.value != nullptr) {
+      print_node_impl(os, node->member.value, depth + 1, "Value: ");
     }
     break;
   }

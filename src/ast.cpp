@@ -198,6 +198,64 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     parser->nextToken();
     break;
   }
+  case TokenKind::Enum: {
+    out->kind = NodeKind::Enum;
+    out->_enum.members.init(8);
+    out->_enum.body.init(8);
+
+    try(parser->nextToken());
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+    try(parser->nextToken());
+
+    bool allow_member = true;
+    while (parser->cur_token.kind != TokenKind::BlockEnd) {
+      Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+      field->token = parser->cur_token;
+      field->location = parser->cur_token.location;
+      field->kind = NodeKind::Name;
+      field->text = parser->cur_token.text;
+      try(parser->nextToken());
+
+      if (parser->cur_token.kind != TokenKind::TypeSeperator) {
+        if (!allow_member) {
+          std::cerr << "Previous member didn't end with `,`\n";
+          return nullptr;
+        }
+
+        field->kind = NodeKind::Member;
+        field->member.name = field->text;
+        field->member.value = nullptr;
+
+        if (parser->cur_token.kind == TokenKind::Operator &&
+            parser->cur_token._operator == Operator::Assign) {
+          try(parser->nextToken());
+          field->member.value = parseExpr(parser, Precedence::Assign);
+        }
+
+        out->_enum.members.push(field);
+
+        allow_member = parser->cur_token.kind == TokenKind::CommaDelimiter;
+        if (allow_member) {
+          try(parser->nextToken());
+        }
+
+        continue;
+      }
+
+      field = parseField(parser, field);
+      out->_enum.body.push(field);
+
+      if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+        try(parser->nextToken());
+      } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
+        std::cerr << "Statement must end with either `;` or `}`\n";
+        return nullptr;
+      }
+    }
+    try(parser->cur_token.kind == TokenKind::BlockEnd);
+    parser->nextToken();
+    break;
+  }
   }
 
   out = parsePartialExpr(parser, min_precedence, out);

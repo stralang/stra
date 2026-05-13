@@ -38,6 +38,16 @@ struct NodeStruct {
   ArrayList<Node *> body;
 };
 
+struct NodeEnum {
+  ArrayList<Node *> members;
+  ArrayList<Node *> body;
+};
+
+struct NodeMember {
+  String name;
+  Node *value;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -48,6 +58,8 @@ enum class NodeKind {
   Field,
   Function,
   Struct,
+  Enum,
+  Member,
   UnaryOperator,
   Operator,
 };
@@ -64,6 +76,8 @@ struct Node {
     NodeField field;
     NodeFunction function;
     NodeStruct _struct;
+    NodeEnum _enum;
+    NodeMember member;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
   };
