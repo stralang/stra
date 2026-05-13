@@ -229,6 +229,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     out->function.parameters.init(parser->allocator, 8);
     out->function.return_type = nullptr;
     out->function.body = nullptr;
+    out->function.undefined = false;
 
     try(parser->nextToken());
 
@@ -256,6 +257,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
 
     // Parse Return
     if (parser->cur_token.kind != TokenKind::BlockBegin &&
+        parser->cur_token.kind != TokenKind::Undefined &&
         parser->cur_token.kind != TokenKind::LineDelimiter) {
       out->function.return_type = parseExpr(parser, Precedence::Assign);
       try(out->function.return_type != nullptr);
@@ -265,6 +267,9 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     if (parser->cur_token.kind == TokenKind::BlockBegin) {
       out->function.body = parseStmtCompound(parser);
       try(out->function.body != nullptr);
+    } else if (parser->cur_token.kind == TokenKind::Undefined) {
+      try(parser->nextToken());
+      out->function.undefined = true;
     }
 
     break;
@@ -392,8 +397,14 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
       (parser->cur_token.kind == TokenKind::Operator &&
        parser->cur_token._operator == Operator::Assign)) {
     try(parser->nextToken());
-    out->field.initial = parseExpr(parser, Precedence::Assign);
-    try(out->field.initial);
+
+    out->field.undefined = parser->cur_token.kind == TokenKind::Undefined;
+    if (!out->field.undefined) {
+      out->field.initial = parseExpr(parser, Precedence::Assign);
+      try(out->field.initial);
+    } else {
+      try(parser->nextToken());
+    }
   }
 
   return out;

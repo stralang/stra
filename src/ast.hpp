@@ -25,12 +25,14 @@ struct NodeField {
   Node *type;
   Node *initial;
   bool definition;
+  bool undefined;
 };
 
 struct NodeFunction {
   ArrayList<Node *> parameters;
   Node *return_type;
   Node *body;
+  bool undefined;
 };
 
 struct NodeStruct {

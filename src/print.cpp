@@ -415,6 +415,8 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     }
     if (node->field.initial != nullptr) {
       print_node_impl(os, node->field.initial, depth + 1, "Initial: ");
+    } else if (node->field.undefined) {
+      os << indent << "  Initial: Undefined\n";
     }
     break;
   }
@@ -431,6 +433,8 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
 
     if (node->function.body != nullptr) {
       print_node_impl(os, node->function.body, depth + 1, "Body: ");
+    } else if (node->function.undefined) {
+      os << indent << "  Body: Undefined\n";
     }
     break;
   }
