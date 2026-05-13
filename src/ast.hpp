@@ -43,6 +43,11 @@ struct NodeEnum {
   ArrayList<Node *> body;
 };
 
+struct NodeUnion {
+  ArrayList<Node *> variants;
+  ArrayList<Node *> body;
+};
+
 struct NodeMember {
   String name;
   Node *value;
@@ -59,6 +64,7 @@ enum class NodeKind {
   Function,
   Struct,
   Enum,
+  Union,
   Member,
   UnaryOperator,
   Operator,
@@ -77,6 +83,7 @@ struct Node {
     NodeFunction function;
     NodeStruct _struct;
     NodeEnum _enum;
+    NodeUnion _union;
     NodeMember member;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;

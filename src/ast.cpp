@@ -296,6 +296,21 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     parser->nextToken();
     break;
   }
+  case TokenKind::Union: {
+    out->kind = NodeKind::Union;
+    try(parser->nextToken());
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+    try(parser->nextToken());
+
+    FieldsAndBodyResult result = parseFieldsAndBody(parser);
+    try(result.ok);
+    out->_union.variants = result.fields;
+    out->_union.body = result.body;
+
+    try(parser->cur_token.kind == TokenKind::BlockEnd);
+    parser->nextToken();
+    break;
+  }
   }
 
   out = parsePartialExpr(parser, min_precedence, out);

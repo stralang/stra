@@ -312,6 +312,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Enum: {
     return os << "Enum";
   }
+  case NodeKind::Union: {
+    return os << "Union";
+  }
   case NodeKind::Member: {
     return os << "Member";
   }
@@ -414,6 +417,19 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << indent << "Body:\n";
     for (size_t i = 0; i < node->_enum.body.length; i++) {
       print_node_impl(os, node->_enum.body.data.ptr[i], depth + 1, "");
+    }
+    break;
+  }
+  case NodeKind::Union: {
+    os << '\n';
+    os << indent << "Variants:\n";
+    for (size_t i = 0; i < node->_union.variants.length; i++) {
+      print_node_impl(os, node->_union.variants.data.ptr[i], depth + 1, "");
+    }
+
+    os << indent << "Body:\n";
+    for (size_t i = 0; i < node->_union.body.length; i++) {
+      print_node_impl(os, node->_union.body.data.ptr[i], depth + 1, "");
     }
     break;
   }
