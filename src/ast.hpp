@@ -80,6 +80,27 @@ struct NodeCase {
   Node *body;
 };
 
+struct NodeAssembly {
+  struct Argument {
+    Token token;
+    SrcLoc location;
+    enum { Input, Return, Register } kind;
+    union {
+      String reg;
+      Node *node;
+    };
+  };
+
+  struct Instruction {
+    Token token;
+    SrcLoc location;
+    String name;
+    ArrayList<Argument> arguments;
+  };
+
+  ArrayList<Instruction> instructions;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -105,6 +126,7 @@ enum class NodeKind {
   Continue,
   Defer,
   Comptime,
+  Assembly,
 };
 
 struct Node {
@@ -130,6 +152,7 @@ struct Node {
     NodeFor _for;
     NodeSwitch _switch;
     NodeCase _case;
+    NodeAssembly assembly;
   };
 };
 

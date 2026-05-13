@@ -5,7 +5,6 @@
 #include "token.hpp"
 #include <cassert>
 #include <iostream>
-
 #define try(is_ok)                                                             \
   if (!(is_ok)) {                                                              \
     return nullptr;                                                            \
@@ -580,6 +579,67 @@ Node *parseStmt(ASTParser *parser) {
 
     try(parser->nextToken());
     out->child = parseStmt(parser);
+    break;
+  }
+  case TokenKind::Assembly: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Assembly;
+    out->assembly.instructions.init(8);
+
+    try(parser->nextToken());
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+    try(parser->nextToken());
+
+    // Parse Instructions
+    while (parser->cur_token.kind != TokenKind::BlockEnd) {
+      try(parser->cur_token.kind == TokenKind::Name);
+
+      NodeAssembly::Instruction inst;
+      inst.token = parser->cur_token;
+      inst.location = parser->cur_token.location;
+      inst.name = parser->cur_token.text;
+      inst.arguments.init(4);
+
+      // Parse Arguments
+      try(parser->nextToken());
+      while (parser->cur_token.kind != TokenKind::LineDelimiter) {
+        NodeAssembly::Argument arg;
+        arg.token = parser->cur_token;
+        arg.location = parser->cur_token.location;
+        arg.kind = NodeAssembly::Argument::Input;
+
+        if (parser->cur_token.kind == TokenKind::Operator &&
+            parser->cur_token._operator == Operator::Assign) {
+          try(parser->nextToken());
+          arg.kind = NodeAssembly::Argument::Return;
+        }
+
+        if (parser->cur_token.kind == TokenKind::Operator &&
+            parser->cur_token._operator == Operator::Mod) {
+          try(parser->nextToken());
+          arg.kind = NodeAssembly::Argument::Register;
+          arg.reg = parser->cur_token.text;
+          try(parser->nextToken());
+        } else {
+          arg.node = parseExpr(parser, Precedence::Assign);
+        }
+
+        inst.arguments.push(arg);
+        if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+          break;
+        }
+        try(parser->nextToken());
+      }
+
+      out->assembly.instructions.push(inst);
+      try(parser->cur_token.kind == TokenKind::LineDelimiter);
+      try(parser->nextToken());
+    }
+
+    try(parser->cur_token.kind == TokenKind::BlockEnd);
+    try(parser->nextToken());
     break;
   }
   case TokenKind::BlockBegin: {

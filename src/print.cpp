@@ -358,6 +358,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Comptime: {
     return os << "Comptime";
   }
+  case NodeKind::Assembly: {
+    return os << "Assembly";
+  }
   }
   return os;
 }
@@ -550,6 +553,33 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
   case NodeKind::Comptime: {
     os << '\n';
     print_node_impl(os, node->child, depth + 1, "Child: ");
+    break;
+  }
+  case NodeKind::Assembly: {
+    os << '\n';
+    for (size_t i = 0; i < node->assembly.instructions.length; i++) {
+      NodeAssembly::Instruction *inst =
+          node->assembly.instructions.data.ptr + i;
+      os << indent << "  Instruction: `" << inst->name << "`\n";
+
+      for (size_t a = 0; a < inst->arguments.length; a++) {
+        NodeAssembly::Argument *arg = inst->arguments.data.ptr + a;
+        switch (arg->kind) {
+        case NodeAssembly::Argument::Input: {
+          print_node_impl(os, arg->node, depth + 2, "Input: ");
+          break;
+        }
+        case NodeAssembly::Argument::Return: {
+          print_node_impl(os, arg->node, depth + 2, "Return: ");
+          break;
+        }
+        case NodeAssembly::Argument::Register: {
+          os << indent << "    Register: `" << arg->reg << "`\n";
+          break;
+        }
+        }
+      }
+    }
     break;
   }
   }
