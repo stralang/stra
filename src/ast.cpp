@@ -152,6 +152,52 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
 
     break;
   }
+  case TokenKind::Struct: {
+    out->kind = NodeKind::Struct;
+    out->_struct.fields.init(8);
+    out->_struct.body.init(8);
+
+    try(parser->nextToken());
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+    try(parser->nextToken());
+
+    bool allow_field = true;
+    while (parser->cur_token.kind != TokenKind::BlockEnd) {
+      Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+      field->token = parser->cur_token;
+      field->location = parser->cur_token.location;
+      field->kind = NodeKind::Name;
+      field->text = parser->cur_token.text;
+      try(parser->nextToken());
+
+      field = parseField(parser, field);
+
+      if (!field->field.definition) {
+        if (!allow_field) {
+          std::cerr << "Previous field didn't end with `,`\n";
+          return nullptr;
+        }
+
+        out->_struct.fields.push(field);
+        allow_field = parser->cur_token.kind == TokenKind::CommaDelimiter;
+        if (allow_field) {
+          try(parser->nextToken());
+        }
+        continue;
+      }
+
+      out->_struct.body.push(field);
+      if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+        try(parser->nextToken());
+      } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
+        std::cerr << "Statement must end with either `;` or `}`\n";
+        return nullptr;
+      }
+    }
+    try(parser->cur_token.kind == TokenKind::BlockEnd);
+    parser->nextToken();
+    break;
+  }
   }
 
   out = parsePartialExpr(parser, min_precedence, out);

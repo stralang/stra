@@ -306,6 +306,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Function: {
     return os << "Function";
   }
+  case NodeKind::Struct: {
+    return os << "Struct";
+  }
   case NodeKind::UnaryOperator: {
     return os << "Unary Operator";
   }
@@ -379,6 +382,19 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
 
     if (node->function.body != nullptr) {
       print_node_impl(os, node->function.body, depth + 1, "Body: ");
+    }
+    break;
+  }
+  case NodeKind::Struct: {
+    os << '\n';
+    os << indent << "Fields:\n";
+    for (size_t i = 0; i < node->_struct.fields.length; i++) {
+      print_node_impl(os, node->_struct.fields.data.ptr[i], depth + 1, "");
+    }
+
+    os << indent << "Body:\n";
+    for (size_t i = 0; i < node->_struct.body.length; i++) {
+      print_node_impl(os, node->_struct.body.data.ptr[i], depth + 1, "");
     }
     break;
   }

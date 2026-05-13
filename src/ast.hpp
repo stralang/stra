@@ -33,6 +33,11 @@ struct NodeFunction {
   Node *body;
 };
 
+struct NodeStruct {
+  ArrayList<Node *> fields;
+  ArrayList<Node *> body;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -42,6 +47,7 @@ enum class NodeKind {
   String,
   Field,
   Function,
+  Struct,
   UnaryOperator,
   Operator,
 };
@@ -57,6 +63,7 @@ struct Node {
     double _float;
     NodeField field;
     NodeFunction function;
+    NodeStruct _struct;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
   };
