@@ -343,6 +343,12 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Case: {
     return os << "Case";
   }
+  case NodeKind::Break: {
+    return os << "Break";
+  }
+  case NodeKind::Continue: {
+    return os << "Continue";
+  }
   }
   return os;
 }
@@ -516,6 +522,11 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << '\n';
     print_node_impl(os, node->_case.constant, depth + 1, "Constant: ");
     print_node_impl(os, node->_case.body, depth + 1, "Body: ");
+    break;
+  }
+  case NodeKind::Break:
+  case NodeKind::Continue: {
+    os << '\n';
     break;
   }
   }

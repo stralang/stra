@@ -96,6 +96,8 @@ enum class NodeKind {
   For,
   Switch,
   Case,
+  Break,
+  Continue,
 };
 
 struct Node {

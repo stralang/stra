@@ -520,6 +520,22 @@ Node *parseStmt(ASTParser *parser) {
 
     break;
   }
+  case TokenKind::Break: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Break;
+    try(parser->nextToken());
+    break;
+  }
+  case TokenKind::Continue: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Continue;
+    try(parser->nextToken());
+    break;
+  }
   }
 
   try(out);
