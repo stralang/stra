@@ -11,8 +11,11 @@
     return nullptr;                                                            \
   }
 
-// Forward Declaration
+// Forward Declarations [
 Node *parseExpr(ASTParser *parser, Precedence min_precedence);
+Node *parseField(ASTParser *parser, Node *name_prealloc);
+Node *parseStmtCompound(ASTParser *parser);
+// ] Forward Declarations
 
 Node *parseBinaryExpr(ASTParser *parser, Node *atom,
                       Precedence min_precedence) {
@@ -78,6 +81,51 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     out->kind = NodeKind::Name;
     out->text = parser->cur_token.text;
     parser->nextToken();
+    break;
+  }
+  case TokenKind::Function: {
+    out->kind = NodeKind::Function;
+    out->function.parameters.init(8);
+    out->function.return_type = nullptr;
+    out->function.body = nullptr;
+
+    try(parser->nextToken());
+
+    // Parse Parameters
+    try(parser->cur_token.kind == TokenKind::ScopeBegin);
+    try(parser->nextToken());
+    while (parser->cur_token.kind != TokenKind::ScopeEnd) {
+      Node *parameter = (Node *)parser->allocator.alloc(sizeof(Node));
+      parameter->token = parser->cur_token;
+      parameter->location = parser->cur_token.location;
+      parameter->kind = NodeKind::Name;
+      parameter->text = parser->cur_token.text;
+      try(parser->nextToken());
+
+      parameter = parseField(parser, parameter);
+      out->function.parameters.push(parameter);
+
+      if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+        break;
+      }
+      try(parser->nextToken());
+    }
+    try(parser->cur_token.kind == TokenKind::ScopeEnd);
+    try(parser->nextToken());
+
+    // Parse Return
+    if (parser->cur_token.kind != TokenKind::BlockBegin &&
+        parser->cur_token.kind != TokenKind::LineDelimiter) {
+      out->function.return_type = parseExpr(parser, Precedence::Assign);
+      try(out->function.return_type != nullptr);
+    }
+
+    // Parse Body
+    if (parser->cur_token.kind == TokenKind::BlockBegin) {
+      out->function.body = parseStmtCompound(parser);
+      try(out->function.body != nullptr);
+    }
+
     break;
   }
   }
@@ -184,7 +232,7 @@ Node *parseStmtCompound(ASTParser *parser) {
 
   // Pass Marker
   if (parser->cur_token.kind == TokenKind::BlockEnd) {
-    try(parser->nextToken());
+    parser->nextToken();
   }
 
   return out;

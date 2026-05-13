@@ -26,8 +26,15 @@ struct NodeField {
   bool definition;
 };
 
+struct NodeFunction {
+  ArrayList<Node *> parameters;
+  Node *return_type;
+  Node *body;
+};
+
 enum class NodeKind {
   Name,
+  Function,
   UnaryOperator,
   Operator,
   Field,
@@ -40,6 +47,7 @@ struct Node {
   NodeKind kind;
   union {
     String text;
+    NodeFunction function;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeField field;
