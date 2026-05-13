@@ -451,7 +451,6 @@ Node *parseStmt(ASTParser *parser) {
     // Parse Conditional
     try(parser->nextToken());
     out->_if.conditional = parseConditional(parser);
-    // out->_if.conditional = parseExpr(parser, Precedence::Assign);
     try(parser->cur_token.kind == TokenKind::BlockBegin);
 
     // Parse Body
@@ -472,6 +471,21 @@ Node *parseStmt(ASTParser *parser) {
       }
     }
 
+    break;
+  }
+  case TokenKind::For: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::For;
+
+    // Parse Conditional
+    try(parser->nextToken());
+    out->_for.conditional = parseConditional(parser);
+    try(parser->cur_token.kind == TokenKind::BlockBegin);
+
+    // Parse body
+    out->_for.body = parseStmtCompound(parser);
     break;
   }
   }

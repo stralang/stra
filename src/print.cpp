@@ -330,6 +330,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::If: {
     return os << "If";
   }
+  case NodeKind::For: {
+    return os << "For";
+  }
   }
   return os;
 }
@@ -481,6 +484,12 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     if (node->_if._else != nullptr) {
       print_node_impl(os, node->_if._else, depth + 1, "Else: ");
     }
+    break;
+  }
+  case NodeKind::For: {
+    os << '\n';
+    print_node_impl(os, node->_for.conditional, depth + 1, "Conditional: ");
+    print_node_impl(os, node->_for.body, depth + 1, "Body: ");
     break;
   }
   }

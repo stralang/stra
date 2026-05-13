@@ -61,6 +61,11 @@ struct NodeIf {
   Node *_else;
 };
 
+struct NodeFor {
+  Node *conditional;
+  Node *body;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -78,6 +83,7 @@ enum class NodeKind {
   Operator,
   Return,
   If,
+  For,
 };
 
 struct Node {
@@ -99,6 +105,7 @@ struct Node {
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeIf _if;
+    NodeFor _for;
   };
 };
 
