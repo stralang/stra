@@ -355,6 +355,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Defer: {
     return os << "Defer";
   }
+  case NodeKind::Comptime: {
+    return os << "Comptime";
+  }
   }
   return os;
 }
@@ -540,6 +543,11 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     break;
   }
   case NodeKind::Defer: {
+    os << '\n';
+    print_node_impl(os, node->child, depth + 1, "Child: ");
+    break;
+  }
+  case NodeKind::Comptime: {
     os << '\n';
     print_node_impl(os, node->child, depth + 1, "Child: ");
     break;

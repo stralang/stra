@@ -104,6 +104,7 @@ enum class NodeKind {
   Break,
   Continue,
   Defer,
+  Comptime,
 };
 
 struct Node {
