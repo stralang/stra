@@ -70,6 +70,7 @@ enum class NodeKind {
   Member,
   UnaryOperator,
   Operator,
+  Return,
 };
 
 struct Node {
@@ -78,6 +79,7 @@ struct Node {
   NodeKind kind;
   union {
     ArrayList<Node *> children;
+    Node *child;
     String text;
     int64_t integer;
     double _float;

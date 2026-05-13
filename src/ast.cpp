@@ -390,6 +390,19 @@ Node *parseStmt(ASTParser *parser) {
     out = parseExpr(parser, Precedence::Assign);
     break;
   }
+  case TokenKind::Return: {
+    out = (Node *)parser->allocator.alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Return;
+    out->child = nullptr;
+
+    try(parser->nextToken());
+    if (parser->cur_token.kind != TokenKind::LineDelimiter) {
+      out->child = parseExpr(parser, Precedence::Assign);
+    }
+    break;
+  }
   }
 
   try(out);
