@@ -61,6 +61,120 @@ Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
   return out;
 }
 
+struct FieldsAndBodyResult {
+  bool ok;
+  ArrayList<Node *> fields;
+  ArrayList<Node *> body;
+};
+
+FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser) {
+  ArrayList<Node *> fields;
+  ArrayList<Node *> body;
+  fields.init(8);
+  body.init(8);
+
+  bool allow_field = true;
+  while (parser->cur_token.kind != TokenKind::BlockEnd) {
+    Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+    field->token = parser->cur_token;
+    field->location = parser->cur_token.location;
+    field->kind = NodeKind::Name;
+    field->text = parser->cur_token.text;
+    if (!parser->nextToken()) {
+      return {false};
+    }
+
+    field = parseField(parser, field);
+
+    if (!field->field.definition) {
+      if (!allow_field) {
+        std::cerr << "Previous field didn't end with `,`\n";
+        return {false};
+      }
+
+      fields.push(field);
+      allow_field = parser->cur_token.kind == TokenKind::CommaDelimiter;
+      if (allow_field && !parser->nextToken()) {
+        return {false};
+      }
+      continue;
+    }
+
+    body.push(field);
+    if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+      if (!parser->nextToken()) {
+        return {false};
+      }
+    } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
+      std::cerr << "Statement must end with either `;` or `}`\n";
+      return {false};
+    }
+  }
+
+  return {true, fields, body};
+}
+
+FieldsAndBodyResult parseMembersAndBody(ASTParser *parser) {
+  ArrayList<Node *> fields;
+  ArrayList<Node *> body;
+  fields.init(8);
+  body.init(8);
+
+  bool allow_member = true;
+  while (parser->cur_token.kind != TokenKind::BlockEnd) {
+    Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
+    field->token = parser->cur_token;
+    field->location = parser->cur_token.location;
+    field->kind = NodeKind::Name;
+    field->text = parser->cur_token.text;
+    if (!parser->nextToken()) {
+      return {false};
+    }
+
+    if (parser->cur_token.kind != TokenKind::TypeSeperator) {
+      if (!allow_member) {
+        std::cerr << "Previous member didn't end with `,`\n";
+        return {false};
+      }
+
+      field->kind = NodeKind::Member;
+      field->member.name = field->text;
+      field->member.value = nullptr;
+
+      if (parser->cur_token.kind == TokenKind::Operator &&
+          parser->cur_token._operator == Operator::Assign) {
+        if (!parser->nextToken()) {
+          return {false};
+        }
+        field->member.value = parseExpr(parser, Precedence::Assign);
+      }
+
+      fields.push(field);
+
+      allow_member = parser->cur_token.kind == TokenKind::CommaDelimiter;
+      if (allow_member && !parser->nextToken()) {
+        return {false};
+      }
+
+      continue;
+    }
+
+    field = parseField(parser, field);
+    body.push(field);
+
+    if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+      if (!parser->nextToken()) {
+        return {false};
+      }
+    } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
+      std::cerr << "Statement must end with either `;` or `}`\n";
+      return {false};
+    }
+  }
+
+  return {true, fields, body};
+}
+
 Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   Node *out = (Node *)parser->allocator.alloc(sizeof(Node));
   out->token = parser->cur_token;
@@ -154,104 +268,30 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
   }
   case TokenKind::Struct: {
     out->kind = NodeKind::Struct;
-    out->_struct.fields.init(8);
-    out->_struct.body.init(8);
-
     try(parser->nextToken());
     try(parser->cur_token.kind == TokenKind::BlockBegin);
     try(parser->nextToken());
 
-    bool allow_field = true;
-    while (parser->cur_token.kind != TokenKind::BlockEnd) {
-      Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
-      field->token = parser->cur_token;
-      field->location = parser->cur_token.location;
-      field->kind = NodeKind::Name;
-      field->text = parser->cur_token.text;
-      try(parser->nextToken());
+    FieldsAndBodyResult result = parseFieldsAndBody(parser);
+    try(result.ok);
+    out->_struct.fields = result.fields;
+    out->_struct.body = result.body;
 
-      field = parseField(parser, field);
-
-      if (!field->field.definition) {
-        if (!allow_field) {
-          std::cerr << "Previous field didn't end with `,`\n";
-          return nullptr;
-        }
-
-        out->_struct.fields.push(field);
-        allow_field = parser->cur_token.kind == TokenKind::CommaDelimiter;
-        if (allow_field) {
-          try(parser->nextToken());
-        }
-        continue;
-      }
-
-      out->_struct.body.push(field);
-      if (parser->cur_token.kind == TokenKind::LineDelimiter) {
-        try(parser->nextToken());
-      } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
-        std::cerr << "Statement must end with either `;` or `}`\n";
-        return nullptr;
-      }
-    }
     try(parser->cur_token.kind == TokenKind::BlockEnd);
     parser->nextToken();
     break;
   }
   case TokenKind::Enum: {
     out->kind = NodeKind::Enum;
-    out->_enum.members.init(8);
-    out->_enum.body.init(8);
-
     try(parser->nextToken());
     try(parser->cur_token.kind == TokenKind::BlockBegin);
     try(parser->nextToken());
 
-    bool allow_member = true;
-    while (parser->cur_token.kind != TokenKind::BlockEnd) {
-      Node *field = (Node *)parser->allocator.alloc(sizeof(Node));
-      field->token = parser->cur_token;
-      field->location = parser->cur_token.location;
-      field->kind = NodeKind::Name;
-      field->text = parser->cur_token.text;
-      try(parser->nextToken());
+    FieldsAndBodyResult result = parseMembersAndBody(parser);
+    try(result.ok);
+    out->_enum.members = result.fields;
+    out->_enum.body = result.body;
 
-      if (parser->cur_token.kind != TokenKind::TypeSeperator) {
-        if (!allow_member) {
-          std::cerr << "Previous member didn't end with `,`\n";
-          return nullptr;
-        }
-
-        field->kind = NodeKind::Member;
-        field->member.name = field->text;
-        field->member.value = nullptr;
-
-        if (parser->cur_token.kind == TokenKind::Operator &&
-            parser->cur_token._operator == Operator::Assign) {
-          try(parser->nextToken());
-          field->member.value = parseExpr(parser, Precedence::Assign);
-        }
-
-        out->_enum.members.push(field);
-
-        allow_member = parser->cur_token.kind == TokenKind::CommaDelimiter;
-        if (allow_member) {
-          try(parser->nextToken());
-        }
-
-        continue;
-      }
-
-      field = parseField(parser, field);
-      out->_enum.body.push(field);
-
-      if (parser->cur_token.kind == TokenKind::LineDelimiter) {
-        try(parser->nextToken());
-      } else if (parser->prev_token.kind != TokenKind::BlockEnd) {
-        std::cerr << "Statement must end with either `;` or `}`\n";
-        return nullptr;
-      }
-    }
     try(parser->cur_token.kind == TokenKind::BlockEnd);
     parser->nextToken();
     break;
