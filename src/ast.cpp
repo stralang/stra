@@ -449,6 +449,48 @@ Node *parseConditional(ASTParser *parser) {
   return out;
 }
 
+Node *parseAttribute(ASTParser *parser) {
+  Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
+  out->token = parser->cur_token;
+  out->location = parser->cur_token.location;
+  out->kind = NodeKind::Attribute;
+  out->children.init(parser->allocator, 2);
+
+  try(parser->nextToken());
+  try(parser->cur_token.kind == TokenKind::ScopeBegin);
+  try(parser->nextToken());
+
+  while (parser->cur_token.kind != TokenKind::ScopeEnd) {
+    try(parser->cur_token.kind == TokenKind::Name);
+
+    Node *attribute = (Node *)parser->allocator->alloc(sizeof(Node));
+    attribute->token = parser->cur_token;
+    attribute->location = parser->cur_token.location;
+    attribute->kind = NodeKind::Name;
+    attribute->text = parser->cur_token.text;
+
+    try(parser->nextToken());
+    if (parser->cur_token.kind == TokenKind::Operator &&
+        parser->cur_token._operator == Operator::Assign) {
+      try(parser->nextToken());
+      attribute->kind = NodeKind::Member;
+      attribute->member.name = attribute->text;
+      attribute->member.value = parseExpr(parser, Precedence::Assign);
+    }
+
+    out->children.push(attribute);
+
+    if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+      break;
+    }
+    try(parser->nextToken());
+  }
+
+  try(parser->cur_token.kind == TokenKind::ScopeEnd);
+  parser->nextToken();
+  return out;
+}
+
 Node *parseStmt(ASTParser *parser) {
   Node *out = nullptr;
 
@@ -663,6 +705,11 @@ Node *parseStmt(ASTParser *parser) {
   case TokenKind::BlockBegin: {
     out = parseStmtCompound(parser);
     break;
+  }
+  case TokenKind::Attribute: {
+    out = parseAttribute(parser);
+    try(out);
+    return out; // attributes don't end with `;` nor `}`
   }
   }
 

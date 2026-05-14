@@ -130,6 +130,7 @@ enum class NodeKind {
   Defer,
   Comptime,
   Assembly,
+  Attribute,
 };
 
 struct Node {

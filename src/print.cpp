@@ -364,6 +364,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Assembly: {
     return os << "Assembly";
   }
+  case NodeKind::Attribute: {
+    return os << "Attribute";
+  }
   }
   return os;
 }
@@ -591,6 +594,13 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
         }
         }
       }
+    }
+    break;
+  }
+  case NodeKind::Attribute: {
+    os << '\n';
+    for (size_t i = 0; i < node->children.length; i++) {
+      print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
     }
     break;
   }
