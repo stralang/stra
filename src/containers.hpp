@@ -1,0 +1,137 @@
+#pragma once
+
+#include "allocator.hpp"
+#include "types.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+template <typename T> struct ArrayList {
+  Slice<T> data;
+  size_t length;
+  Allocator *allocator;
+
+  void init(Allocator *allocator, size_t capacity) {
+    this->allocator = allocator;
+    this->data.len = capacity;
+    this->data.ptr = (T *)allocator->alloc(sizeof(T) * this->data.len);
+    this->length = 0;
+  }
+  void deinit() { allocator->_free(this->data.ptr); }
+
+  void push(T value) {
+    if (this->length == this->data.len) {
+      this->data.len *= 2;
+      this->data.ptr = (T *)allocator->_realloc((uint8_t *)this->data.ptr,
+                                                sizeof(T) * this->data.len);
+    }
+
+    this->data.ptr[this->length] = value;
+    this->length += 1;
+  }
+
+  Slice<T> slice() { return this->data.range(0, this->length); }
+};
+
+template <typename V> struct StringMap {
+  struct Slot {
+    bool tombstone;
+    bool alive;
+    uint64_t hashcode;
+    String key;
+    V value;
+  };
+
+  Allocator *allocator;
+  Slot *slots;
+  size_t slot_capacity;
+  size_t slot_count;
+
+  void insert(String key, V value) {
+    uint64_t hashcode = hash(key);
+    Slot *slot = getSlot(hashcode, false);
+    slot->key = key;
+    slot->value = value;
+  }
+
+  V *get(String key) {
+    uint64_t hashcode = hash(key);
+    Slot *slot = getSlot(hashcode, true);
+    if (slot == nullptr) {
+      return nullptr;
+    }
+
+    return slot->value;
+  }
+
+  void remove(String key) {
+    uint64_t hashcode = hash(key);
+    Slot *slot = getSlot(hashcode, true);
+    if (slot == nullptr) {
+      return;
+    }
+
+    slot->alive = false;
+    slot->tombstone = true;
+  }
+
+  uint64_t hash(String s) {
+    uint64_t hash = 0xcbf29ce484222325;
+    for (size_t i = 0; i < s.len; i++) {
+      hash = hash ^ s.ptr[i];
+      hash = hash * 0x100000001b3;
+    }
+
+    return hash;
+  }
+
+  Slot *getSlot(uint64_t hashcode, bool get) {
+    size_t slot_idx = hashcode % this->slot_capacity;
+    Slot *slot = this->slots + slot_idx;
+
+    for (size_t i = 0; i < this->slot_capacity; i++) {
+      if ((!slot->alive && (get && !slot->tombstone)) ||
+          slot->hashcode == hashcode) {
+        break;
+      }
+      slot_idx += 1;
+      slot = this->slots + slot_idx % this->slot_capacity;
+    }
+
+    if (!slot->alive) {
+      if (get) {
+        return nullptr;
+      }
+
+      slot->alive = true;
+      slot->tombstone = false;
+      slot->hashcode = hashcode;
+    }
+
+    return slot;
+  }
+
+  void resize(size_t new_capacity) {
+    Slot *new_slots = (Slot *)allocator->alloc(sizeof(Slot) * new_capacity);
+    memset(new_slots, 0, sizeof(Slot) * new_capacity);
+
+    for (size_t i = 0; i < this->slot_capacity; i++) {
+      Slot *old_slot = this->slots + i;
+      size_t new_slot_idx = old_slot->hashcode % new_capacity;
+      Slot *new_slot = new_slots + new_slot_idx;
+      while (new_slot->alive) {
+        new_slot_idx += 1;
+        new_slot = new_slots + new_slot_idx;
+      }
+
+      new_slot->alive = true;
+      new_slot->hashcode = old_slot->hashcode;
+      new_slot->key = old_slot->key;
+      new_slot->value = old_slot->value;
+    }
+
+    allocator->_free(this->slots);
+    this->slots = new_slots;
+  }
+};
