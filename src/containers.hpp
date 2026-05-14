@@ -1,11 +1,37 @@
 #pragma once
 
 #include "allocator.hpp"
-#include "types.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
+
+template <typename T> struct Slice {
+  size_t len;
+  T *ptr;
+
+  T &operator[](size_t index) {
+    if (index >= this->len) {
+      std::cerr << "Index out of bounds" << std::endl;
+      std::abort();
+    }
+    return ptr[index];
+  }
+  const T &operator[](size_t index) const {
+    if (index >= this->len) {
+      std::cerr << "Index out of bounds" << std::endl;
+      std::abort();
+    }
+    return ptr[index];
+  };
+
+  Slice<T> range(size_t start, size_t end) const {
+    return Slice<T>{.len = end - start + 1, .ptr = this->ptr + start};
+  }
+};
+
+using String = Slice<uint8_t>;
 
 template <typename T> struct ArrayList {
   Slice<T> data;
@@ -29,6 +55,11 @@ template <typename T> struct ArrayList {
 
     this->data.ptr[this->length] = value;
     this->length += 1;
+  }
+
+  T pop() {
+    this->length -= 1;
+    return this->data.ptr[this->length];
   }
 
   Slice<T> slice() { return this->data.range(0, this->length); }

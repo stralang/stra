@@ -1,33 +1,46 @@
 #pragma once
 
 #include <cassert>
-#include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <iostream>
 
-template <typename T> struct Slice {
-  size_t len;
-  T *ptr;
+struct Type;
 
-  T &operator[](size_t index) {
-    if (index >= this->len) {
-      std::cerr << "Index out of bounds" << std::endl;
-      std::abort();
-    }
-    return ptr[index];
-  }
-  const T &operator[](size_t index) const {
-    if (index >= this->len) {
-      std::cerr << "Index out of bounds" << std::endl;
-      std::abort();
-    }
-    return ptr[index];
-  };
-
-  Slice<T> range(size_t start, size_t end) const {
-    return Slice<T>{.len = end - start + 1, .ptr = this->ptr + start};
-  }
+struct IntegerType {
+  bool is_untyped;
+  bool is_signed;
+  // -1 for native
+  int32_t bits;
 };
 
-using String = Slice<uint8_t>;
+struct FloatType {
+  bool is_untyped;
+  uint32_t bits;
+};
+
+struct SliceType {
+  // <0 for pointer slice, =0 for slice, >0 for array (comptile-time length)
+  int64_t length;
+  Type *type;
+};
+
+enum class TypeKind {
+  Void,
+  Bool,
+  Integer,
+  Float,
+  Pointer,
+  Slice,
+  SIMD,
+  Constant,
+  TypeId,
+};
+
+struct Type {
+  TypeKind kind;
+  union {
+    Type *child;
+    IntegerType integer;
+    FloatType _float;
+    SliceType slice;
+  };
+};
