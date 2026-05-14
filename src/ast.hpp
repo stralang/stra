@@ -130,7 +130,9 @@ enum class NodeKind {
   Defer,
   Comptime,
   Assembly,
+
   Attribute,
+  Comment,
 };
 
 struct Node {
@@ -163,6 +165,7 @@ struct Node {
 struct ASTParser {
   Tokenizer tokenizer;
   Node *ast;
+  ArrayList<Token> comments;
 
   Token prev_token;
   Token cur_token;

@@ -761,12 +761,14 @@ void ASTParser::parse() {
     return;
   }
 
+  this->comments.init(this->allocator, 16);
   this->ast = parseStmtCompound(this);
 }
 
 bool ASTParser::nextToken() {
   Token next_token = this->tokenizer.next();
   while (next_token.kind == TokenKind::Comment) {
+    this->comments.push(next_token);
     next_token = this->tokenizer.next();
   }
 
