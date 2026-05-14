@@ -50,11 +50,6 @@ Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
   Node *out = atom;
 
   switch (parser->cur_token.kind) {
-  case TokenKind::Operator: {
-    out = parseBinaryExpr(parser, out, min_precedence);
-    try(out != nullptr);
-    break;
-  }
   case TokenKind::ScopeBegin: {
     out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->token = parser->cur_token;
@@ -97,6 +92,11 @@ Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
     try(out != nullptr);
     break;
   }
+  }
+
+  if (parser->cur_token.kind == TokenKind::Operator) {
+    out = parseBinaryExpr(parser, out, min_precedence);
+    try(out != nullptr);
   }
 
   return out;
