@@ -81,6 +81,22 @@ Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
     try(out != nullptr);
     break;
   }
+  case TokenKind::ArrayBegin: {
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Index;
+    out->index.slice = atom;
+
+    try(parser->nextToken());
+    out->index.index = parseExpr(parser, Precedence::Assign);
+
+    try(parser->cur_token.kind == TokenKind::ArrayEnd);
+    try(parser->nextToken());
+
+    try(out != nullptr);
+    break;
+  }
   }
 
   return out;

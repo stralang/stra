@@ -65,6 +65,11 @@ struct NodeCall {
   ArrayList<Node *> arguments;
 };
 
+struct NodeIndex {
+  Node *slice;
+  Node *index;
+};
+
 struct NodeIf {
   Node *conditional;
   Node *body;
@@ -125,6 +130,7 @@ enum class NodeKind {
   UnaryOperator,
   Operator,
   Call,
+  Index,
   Return,
   If,
   For,
@@ -160,6 +166,7 @@ struct Node {
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeCall call;
+    NodeIndex index;
     NodeIf _if;
     NodeFor _for;
     NodeSwitch _switch;
