@@ -4,21 +4,9 @@
 #include "containers.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
-#include "types.hpp"
 #include <cstdint>
 
 struct Node;
-
-struct NodeUnaryOperator {
-  UnaryOperator opcode;
-  Node *child;
-};
-
-struct NodeOperator {
-  Operator opcode;
-  Node *lhs;
-  Node *rhs;
-};
 
 struct NodeField {
   String name;
@@ -59,6 +47,22 @@ struct NodeMember {
 
 struct NodeImport {
   String path;
+};
+
+struct NodeUnaryOperator {
+  UnaryOperator opcode;
+  Node *child;
+};
+
+struct NodeOperator {
+  Operator opcode;
+  Node *lhs;
+  Node *rhs;
+};
+
+struct NodeCall {
+  Node *callee;
+  ArrayList<Node *> arguments;
 };
 
 struct NodeIf {
@@ -120,6 +124,7 @@ enum class NodeKind {
   Const,
   UnaryOperator,
   Operator,
+  Call,
   Return,
   If,
   For,
@@ -154,6 +159,7 @@ struct Node {
     NodeImport import;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
+    NodeCall call;
     NodeIf _if;
     NodeFor _for;
     NodeSwitch _switch;

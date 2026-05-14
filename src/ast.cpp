@@ -55,6 +55,32 @@ Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence,
     try(out != nullptr);
     break;
   }
+  case TokenKind::ScopeBegin: {
+    out = (Node *)parser->allocator->alloc(sizeof(Node));
+    out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
+    out->kind = NodeKind::Call;
+    out->call.callee = atom;
+    out->call.arguments.init(parser->allocator, 4);
+
+    try(parser->nextToken());
+    while (parser->cur_token.kind != TokenKind::ScopeEnd) {
+      Node *arg = parseExpr(parser, Precedence::Assign);
+      try(arg != nullptr);
+      out->call.arguments.push(arg);
+
+      if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+        break;
+      }
+      try(parser->nextToken());
+    }
+
+    try(parser->cur_token.kind == TokenKind::ScopeEnd);
+    try(parser->nextToken());
+
+    try(out != nullptr);
+    break;
+  }
   }
 
   return out;
