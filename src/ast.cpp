@@ -395,6 +395,27 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence) {
     break;
     break;
   }
+  case TokenKind::ArrayBegin: {
+    out->kind = NodeKind::Slice;
+    out->slice.is_pointer = false;
+    out->slice.length = nullptr;
+    out->slice.type = nullptr;
+
+    try(parser->nextToken());
+    if (parser->cur_token.kind == TokenKind::Operator &&
+        parser->cur_token._operator == Operator::Mul) {
+      out->slice.is_pointer = true;
+      try(parser->nextToken());
+    } else if (parser->cur_token.kind != TokenKind::ArrayEnd) {
+      out->slice.length = parseExpr(parser, Precedence::Assign);
+    }
+
+    try(parser->cur_token.kind == TokenKind::ArrayEnd);
+    try(parser->nextToken());
+
+    out->slice.type = parseExpr(parser, Precedence::Assign);
+    break;
+  }
   case TokenKind::ScopeBegin: {
     try(parser->nextToken());
     out = parseExpr(parser, Precedence::Assign);

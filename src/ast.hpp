@@ -49,6 +49,12 @@ struct NodeImport {
   String path;
 };
 
+struct NodeSlice {
+  bool is_pointer;
+  Node *length;
+  Node *type;
+};
+
 struct NodeUnaryOperator {
   UnaryOperator opcode;
   Node *child;
@@ -127,6 +133,7 @@ enum class NodeKind {
   Member,
   Import,
   Const,
+  Slice,
   UnaryOperator,
   Operator,
   Call,
@@ -163,6 +170,7 @@ struct Node {
     NodeUnion _union;
     NodeMember member;
     NodeImport import;
+    NodeSlice slice;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
     NodeCall call;

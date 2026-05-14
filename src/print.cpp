@@ -328,6 +328,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Const: {
     return os << "Const";
   }
+  case NodeKind::Slice: {
+    return os << "Slice";
+  }
   case NodeKind::UnaryOperator: {
     return os << "Unary Operator";
   }
@@ -509,6 +512,18 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
   case NodeKind::Const: {
     os << '\n';
     print_node_impl(os, node->child, depth + 1, "Child: ");
+    break;
+  }
+  case NodeKind::Slice: {
+    if (node->slice.is_pointer) {
+      os << " Pointer";
+    }
+    os << '\n';
+
+    if (node->slice.length != nullptr) {
+      print_node_impl(os, node->slice.length, depth + 1, "Length: ");
+    }
+    print_node_impl(os, node->slice.type, depth + 1, "Type: ");
     break;
   }
   case NodeKind::UnaryOperator: {
