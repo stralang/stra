@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "ast.hpp"
+#include "parser.hpp"
 #include "print.hpp"
 #include "tokenizer.hpp"
 #include <iostream>

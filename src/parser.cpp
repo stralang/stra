@@ -1,3 +1,4 @@
+#include "parser.hpp"
 #include "ast.hpp"
 #include "containers.hpp"
 #include "operator.hpp"
