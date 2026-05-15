@@ -112,6 +112,7 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::Function: {
     Value out_value = {.type = nullptr};
+    out_value.has_value = true;
 
     // Prepare type
     Type fn_t = {.kind = TypeKind::Function};
@@ -148,6 +149,123 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       out_value.data.type_value = out_value.type;
       out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
     }
+    return out_value;
+  }
+  case NodeKind::Struct: {
+    Scope *struct_scope = scope->findScope(node);
+    Value out_value;
+    out_value.has_value = true;
+    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+
+    // Prepare type
+    Type struct_t = {.kind = TypeKind::Struct};
+    struct_t._struct.fields.init(evaluator->allocator, 4);
+
+    // Evaluate fields
+    for (size_t i = 0; i < node->_struct.fields.length; i++) {
+      Value val =
+          evaluate(evaluator, node->_struct.fields.data.ptr[i], struct_scope);
+      struct_t._struct.fields.push(val.type);
+    }
+
+    // Get type
+    out_value.data.type_value = evaluator->type_cache->get(struct_t);
+
+    // Evaluate Children
+    for (size_t i = 0; i < node->_struct.body.length; i++) {
+      evaluate(evaluator, node->_struct.body.data.ptr[i], struct_scope);
+    }
+
+    return out_value;
+  }
+  case NodeKind::Enum: {
+    Value out_value;
+    out_value.has_value = true;
+    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+
+    // Prepare type
+    Type enum_t = {.kind = TypeKind::Enum};
+
+    // Evaluate repr
+    if (node->_enum.repr_type != nullptr) {
+      Value repr_val = evaluate(evaluator, node->_enum.repr_type, scope);
+      if (repr_val.type->kind != TypeKind::TypeId) {
+        std::cerr << "Enum repr type is not `TypeId`\n";
+        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
+      }
+
+      enum_t._enum.repr_type = repr_val.data.type_value;
+    } else {
+      Type repr_t = {.kind = TypeKind::Integer};
+      repr_t.integer = IntegerType{
+          .is_untyped = false,
+          .is_signed = false,
+          .bits = 32,
+      };
+      enum_t._enum.repr_type = evaluator->type_cache->get(repr_t);
+    }
+
+    // Get scope
+    Scope *enum_scope = scope->findScope(node);
+
+    // Evaluate members
+    for (size_t i = 0; i < node->_enum.members.length; i++) {
+      evaluate(evaluator, node->_enum.members.data.ptr[i], enum_scope);
+    }
+
+    // Evaluate children
+    for (size_t i = 0; i < node->_enum.body.length; i++) {
+      evaluate(evaluator, node->_enum.body.data.ptr[i], enum_scope);
+    }
+
+    return out_value;
+  }
+  case NodeKind::Union: {
+    Value out_value;
+    out_value.has_value = true;
+    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+
+    // Prepare type
+    Type union_t = {.kind = TypeKind::Union};
+    union_t._union.variants.init(evaluator->allocator, 4);
+
+    // Evaluate repr
+    if (node->_union.repr_type != nullptr) {
+      Value repr_val = evaluate(evaluator, node->_union.repr_type, scope);
+      if (repr_val.type->kind != TypeKind::TypeId) {
+        std::cerr << "Union repr type is not `TypeId`\n";
+        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
+      }
+
+      union_t._union.repr_type = repr_val.data.type_value;
+    } else {
+      Type repr_t = {.kind = TypeKind::Integer};
+      repr_t.integer = IntegerType{
+          .is_untyped = false,
+          .is_signed = false,
+          .bits = 32,
+      };
+      union_t._union.repr_type = evaluator->type_cache->get(repr_t);
+    }
+
+    // Get scope
+    Scope *union_scope = scope->findScope(node);
+
+    // Evaluate variants
+    for (size_t i = 0; i < node->_union.variants.length; i++) {
+      Value val =
+          evaluate(evaluator, node->_union.variants.data.ptr[i], union_scope);
+      union_t._union.variants.push(val.type);
+    }
+
+    // Get type
+    out_value.data.type_value = evaluator->type_cache->get(union_t);
+
+    // Evaluate Children
+    for (size_t i = 0; i < node->_union.body.length; i++) {
+      evaluate(evaluator, node->_union.body.data.ptr[i], union_scope);
+    }
+
     return out_value;
   }
   }
