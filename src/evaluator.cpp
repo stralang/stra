@@ -7,9 +7,15 @@
 #include <cstdlib>
 #include <iostream>
 
+#define expect(ok, srcloc, msg)                                                \
+  if (!(ok)) {                                                                 \
+    std::cerr << srcloc << " " msg << '\n';                                    \
+    return Value{.type = nullptr};                                             \
+  }
+
 Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
   std::cerr << "TODO: Execute compile-time\n";
-  std::abort();
+  return Value{.type = nullptr};
 }
 
 Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
@@ -23,14 +29,8 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::Name: {
     Symbol *symbol = evaluator->scope->findSymbol(&node->text, &node->location);
-    if (symbol == nullptr) {
-      std::cerr << node->location << " Reference Error. Symbol not found: \""
-                << node->text << "\"\n";
-      return Value{
-          .type = evaluator->type_cache->get(Type{.kind = TypeKind::Void}),
-      };
-    }
-
+    expect(symbol != nullptr, node->location,
+           "Symbol not found: \"" << node->text << '\"');
     return evaluate(evaluator, symbol->node, symbol->parent);
   }
   case NodeKind::Integer: {
@@ -91,24 +91,26 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     Value out_value = {.type = nullptr};
     if (node->field.type != nullptr) {
       Value value = evaluate(evaluator, node->field.type, scope);
-      if (value.type->kind != TypeKind::TypeId) {
-        std::cerr << "Field type must be typeid, got " << value.type->kind
-                  << "\n";
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
-      }
+      expect(value.type != nullptr, node->field.type->location,
+             "Failed to evaluate field type");
+      expect(value.type->kind == TypeKind::TypeId, node->field.type->location,
+             "Field type must be a type");
 
       out_value.type = value.data.type_value;
     }
 
     if (node->field.initial != nullptr) {
       Value value = evaluate(evaluator, node->field.initial, scope);
+      expect(value.type != nullptr, node->field.initial->location,
+             "Failed to evaluate field initial");
       if (out_value.type == nullptr) {
         out_value.type = value.type;
       } else if (out_value.type != value.type) {
-        std::cerr << "Field initial doesn't match type.\n";
+        std::cerr << node->field.initial->location
+                  << " Field initial doesn't match type.\n";
         std::cerr << "Field Type: " << out_value.type;
         std::cerr << "Initial Type: " << value.type;
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
+        return Value{.type = nullptr};
       }
 
       out_value.data = value.data;
@@ -126,18 +128,21 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Evaluate parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
-      Value val =
-          evaluate(evaluator, node->function.parameters.data.ptr[i], scope);
+      Node *param = node->function.parameters.data.ptr[i];
+      Value val = evaluate(evaluator, param, scope);
+      expect(val.type != nullptr, param->location,
+             "Failed to evaluate function parameter");
       fn_t.function.arguments.push(val.type);
     }
 
     // Evaluate return type
     if (node->function.return_type != nullptr) {
       Value val = evaluate(evaluator, node->function.return_type, scope);
-      if (val.type->kind != TypeKind::TypeId) {
-        std::cerr << "Function return type is not `TypeId`\n";
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
-      }
+      expect(val.type != nullptr, node->function.return_type->location,
+             "Failed to evaluate function return type");
+      expect(val.type->kind == TypeKind::TypeId,
+             node->function.return_type->location,
+             "Function return type must be a type");
       fn_t.function.return_type = val.data.type_value;
     } else {
       fn_t.function.return_type =
@@ -169,8 +174,9 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Evaluate fields
     for (size_t i = 0; i < node->_struct.fields.length; i++) {
-      Value val =
-          evaluate(evaluator, node->_struct.fields.data.ptr[i], struct_scope);
+      Node *field = node->_struct.fields.data.ptr[i];
+      Value val = evaluate(evaluator, field, struct_scope);
+      expect(val.type != nullptr, field, "Failed to evaluate struct field");
       struct_t._struct.fields.push(val.type);
     }
 
@@ -195,10 +201,13 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate repr
     if (node->_enum.repr_type != nullptr) {
       Value repr_val = evaluate(evaluator, node->_enum.repr_type, scope);
-      if (repr_val.type->kind != TypeKind::TypeId) {
-        std::cerr << "Enum repr type is not `TypeId`\n";
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
-      }
+      expect(repr_val.type != nullptr, node->_enum.repr_type->location,
+             "Failed to evaluate enum repr type");
+      expect(repr_val.type->kind == TypeKind::TypeId,
+             node->_enum.repr_type->location, "Enum repr type must be a type");
+      expect(repr_val.type->child->kind == TypeKind::Integer,
+             node->_enum.repr_type->location,
+             "Enum repr type is not an integer");
 
       enum_t._enum.repr_type = repr_val.data.type_value;
     } else {
@@ -238,10 +247,11 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate repr
     if (node->_union.repr_type != nullptr) {
       Value repr_val = evaluate(evaluator, node->_union.repr_type, scope);
-      if (repr_val.type->kind != TypeKind::TypeId) {
-        std::cerr << "Union repr type is not `TypeId`\n";
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
-      }
+      expect(repr_val.type != nullptr, node->_union.repr_type->location,
+             "Failed to evaluate union repr type");
+      expect(repr_val.type->kind == TypeKind::TypeId,
+             node->_union.repr_type->location,
+             "Union repr type is not `TypeId`");
 
       union_t._union.repr_type = repr_val.data.type_value;
     } else {
@@ -259,8 +269,10 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Evaluate variants
     for (size_t i = 0; i < node->_union.variants.length; i++) {
-      Value val =
-          evaluate(evaluator, node->_union.variants.data.ptr[i], union_scope);
+      Node *variant = node->_union.variants.data.ptr[i];
+      Value val = evaluate(evaluator, variant, union_scope);
+      expect(val.type != nullptr, variant->location,
+             "Failed to evaluate union variant");
       union_t._union.variants.push(val.type);
     }
 
@@ -284,10 +296,12 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     };
     if (node->member.value != nullptr) {
       Value val = execute(evaluator, node->member.value, scope);
-      if (!val.has_value || val.type->kind != TypeKind::Integer) {
-        std::cerr << "Member value must be an integer and compile-time known\n";
-        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
-      }
+      expect(val.type != nullptr, node->member.value->location,
+             "Failed to get member constant");
+      expect(val.has_value, node->member.value->location,
+             "Member value must be compile-time known");
+      expect(val.type->kind == TypeKind::Integer, node->member.value->location,
+             "Member value must be an integer");
 
       out_value.has_value = true;
       out_value.data.integer = val.data.integer;
