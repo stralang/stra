@@ -28,9 +28,11 @@ int main(int argc, const char **argv) {
   };
   parser.parse();
 
+  TypeCache type_cache;
   Evaluator evaluator = {
       .ast = parser.ast,
       .scope = parser.scope,
+      .type_cache = &type_cache,
       .allocator = &allocator,
   };
   evaluator.eval();

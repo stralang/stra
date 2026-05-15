@@ -1,11 +1,28 @@
 #pragma once
 
 #include "allocator.hpp"
+#include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+
+struct Hasher {
+  uint64_t state = 0xcbf29ce484222325;
+
+  void hash_raw(uint8_t *bytes, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+      state = state ^ bytes[i];
+      state = state * 0x100000001b3;
+    }
+  }
+
+  template <typename T> void hash(T *ptr) {
+    hash_raw((uint8_t *)ptr, sizeof(T));
+  }
+};
 
 template <typename T> struct Slice {
   size_t len;
@@ -63,6 +80,53 @@ template <typename T> struct ArrayList {
   }
 
   Slice<T> slice() { return this->data.range(0, this->length); }
+};
+
+struct DynamicArena {
+  struct Chunk {
+    uint8_t *ptr;
+    size_t used;
+  };
+
+  Chunk *chunks;
+  size_t min_chunk_size;
+  size_t chunk_count;
+  Allocator *allocator;
+
+  void init(Allocator *allocator, size_t min_chunk_size) {
+    this->allocator = allocator;
+    this->chunks = (Chunk *)allocator->alloc(sizeof(Chunk));
+    this->chunks[0] = {
+        .ptr = allocator->alloc(min_chunk_size),
+        .used = 0,
+    };
+    this->min_chunk_size = min_chunk_size;
+    this->chunk_count = 1;
+  }
+  void deinit() {
+    for (size_t i = 0; i < this->chunk_count; i++) {
+      allocator->_free(this->chunks[i].ptr);
+    }
+    allocator->_free((uint8_t *)this->chunks);
+  }
+
+  uint8_t *alloc(size_t size) {
+    Chunk *chunk = this->chunks + this->chunk_count - 1;
+    if (size >= (min_chunk_size - chunk->used)) {
+      chunk = addChunk(std::max(size, min_chunk_size));
+    }
+
+    uint8_t *out = chunk->ptr + chunk->used;
+    chunk->used += size;
+    return out;
+  }
+
+  Chunk *addChunk(size_t size) {
+    Chunk *new_chunks = (Chunk *)allocator->alloc(this->chunk_count + 1);
+    memcpy(new_chunks, this->chunks, this->chunk_count * sizeof(Chunk));
+    this->chunk_count += 1;
+    return this->chunks + this->chunk_count - 1;
+  }
 };
 
 template <typename K, typename V> struct HashMap {

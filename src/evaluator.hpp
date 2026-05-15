@@ -7,12 +7,20 @@
 
 struct Value {
   Type *type;
-  union {};
+  bool has_value;
+  union {
+    Type *type_value;
+    String text;
+    int64_t integer;
+    double _float;
+  } data;
 };
 
 struct Evaluator {
   Node *ast;
   Scope *scope;
+
+  TypeCache *type_cache;
   HashMap<Node *, Type *> type_mapping;
 
   // VM

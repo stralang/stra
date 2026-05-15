@@ -673,3 +673,91 @@ std::ostream &operator<<(std::ostream &os, const Scope &scope) {
   print_scope_impl(os, &scope, 0);
   return os;
 }
+
+std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
+  switch (kind) {
+  case TypeKind::Void: {
+    return os << "Void";
+  }
+  case TypeKind::Bool: {
+    return os << "Bool";
+  }
+  case TypeKind::Integer: {
+    return os << "Integer";
+  }
+  case TypeKind::Float: {
+    return os << "Float";
+  }
+  case TypeKind::Pointer: {
+    return os << "Pointer";
+  }
+  case TypeKind::Slice: {
+    return os << "Slice";
+  }
+  case TypeKind::SIMD: {
+    return os << "SIMD";
+  }
+  case TypeKind::Constant: {
+    return os << "Constant";
+  }
+  case TypeKind::TypeId: {
+    return os << "TypeId";
+  }
+  }
+  return os;
+}
+
+void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
+  os << type->kind;
+  switch (type->kind) {
+  case TypeKind::Void:
+  case TypeKind::Bool:
+  case TypeKind::TypeId: {
+    break;
+  }
+  case TypeKind::Integer: {
+    if (type->integer.is_untyped) {
+      os << " Untyped";
+    } else {
+      if (type->integer.is_signed) {
+        os << " Signed";
+      }
+      os << " Bits: " << type->integer.bits;
+    }
+    break;
+  }
+  case TypeKind::Float: {
+    if (type->_float.is_untyped) {
+      os << " Untyped";
+    } else {
+      os << " Bits: " << type->_float.bits;
+    }
+    break;
+  }
+  case TypeKind::Pointer:
+  case TypeKind::Constant: {
+    os << " `";
+    print_type_impl(os, type->child, depth + 1);
+    os << '`';
+    break;
+  }
+  case TypeKind::Slice:
+  case TypeKind::SIMD: {
+    if (type->slice.length == -1) {
+      os << " Pointer";
+    } else if (type->slice.length != 0) {
+      os << " Length: " << type->slice.length;
+    }
+
+    os << " `";
+    print_type_impl(os, type->slice.type, depth + 1);
+    os << '`';
+    break;
+  }
+  }
+}
+
+std::ostream &operator<<(std::ostream &os, const Type &type) {
+  print_type_impl(os, &type, 0);
+  return os;
+}
