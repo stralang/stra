@@ -28,6 +28,7 @@ int main(int argc, const char **argv) {
   parser.parse();
 
   std::cout << *parser.ast << "\n";
+  // std::cout << *parser.scope << "\n";
 
   // while (true) {
   //   Token token = tokenizer.next();

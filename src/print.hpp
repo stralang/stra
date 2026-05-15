@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "operator.hpp"
+#include "symbol.hpp"
 #include "token.hpp"
 #include <ostream>
 
@@ -15,3 +16,5 @@ std::ostream &operator<<(std::ostream &os, const Token &token);
 
 std::ostream &operator<<(std::ostream &os, const NodeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Node &node);
+
+std::ostream &operator<<(std::ostream &os, const Scope &scope);
