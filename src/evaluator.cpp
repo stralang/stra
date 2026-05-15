@@ -110,6 +110,46 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     return out_value;
   }
+  case NodeKind::Function: {
+    Value out_value = {.type = nullptr};
+
+    // Prepare type
+    Type fn_t = {.kind = TypeKind::Function};
+    fn_t.function.arguments.init(evaluator->allocator, 4);
+
+    // Evaluate parameters
+    for (size_t i = 0; i < node->function.parameters.length; i++) {
+      Value val =
+          evaluate(evaluator, node->function.parameters.data.ptr[i], scope);
+      fn_t.function.arguments.push(val.type);
+    }
+
+    // Evaluate return type
+    if (node->function.return_type != nullptr) {
+      Value val = evaluate(evaluator, node->function.return_type, scope);
+      if (val.type->kind != TypeKind::TypeId) {
+        std::cerr << "Function return type is not `TypeId`\n";
+        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
+      }
+      fn_t.function.return_type = val.data.type_value;
+    } else {
+      fn_t.function.return_type =
+          evaluator->type_cache->get({.kind = TypeKind::Void});
+    }
+
+    // Get type
+    out_value.type = evaluator->type_cache->get(fn_t);
+
+    // Evaluate Body
+    Scope *fn_scope = scope->findScope(node);
+    if (node->function.body != nullptr) {
+      evaluate(evaluator, node->function.body, fn_scope);
+    } else if (!node->function.undefined) {
+      out_value.data.type_value = out_value.type;
+      out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    }
+    return out_value;
+  }
   }
 
   return Value{

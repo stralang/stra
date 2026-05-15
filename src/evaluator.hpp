@@ -13,6 +13,7 @@ struct Value {
     String text;
     int64_t integer;
     double _float;
+    Node *node;
   } data;
 };
 
