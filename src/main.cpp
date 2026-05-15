@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "ast.hpp"
+#include "evaluator.hpp"
 #include "parser.hpp"
 #include "print.hpp"
 #include "tokenizer.hpp"
@@ -26,6 +27,13 @@ int main(int argc, const char **argv) {
       .allocator = &allocator,
   };
   parser.parse();
+
+  Evaluator evaluator = {
+      .ast = parser.ast,
+      .scope = parser.scope,
+      .allocator = &allocator,
+  };
+  evaluator.eval();
 
   std::cout << *parser.ast << "\n";
   // std::cout << *parser.scope << "\n";

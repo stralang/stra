@@ -65,12 +65,12 @@ template <typename T> struct ArrayList {
   Slice<T> slice() { return this->data.range(0, this->length); }
 };
 
-template <typename V> struct StringMap {
+template <typename K, typename V> struct HashMap {
   struct Slot {
     bool tombstone;
     bool alive;
     uint64_t hashcode;
-    String key;
+    K key;
     V value;
   };
 
@@ -79,14 +79,23 @@ template <typename V> struct StringMap {
   size_t slot_capacity;
   size_t slot_count;
 
-  void insert(String key, V value) {
+  void init(Allocator *allocator, size_t slot_capacity) {
+    this->allocator = allocator;
+    this->slot_capacity = slot_capacity;
+    this->slot_count = 0;
+    this->slots = (Slot *)allocator->alloc(sizeof(Slot) * this->slot_capacity);
+    memset(this->slots, 0, sizeof(Slot) * this->slot_capacity);
+  }
+  void deinit() { allocator->_free(this->slots); }
+
+  void insert(K key, V value) {
     uint64_t hashcode = hash(key);
     Slot *slot = getSlot(hashcode, false);
     slot->key = key;
     slot->value = value;
   }
 
-  V *get(String key) {
+  V *get(K key) {
     uint64_t hashcode = hash(key);
     Slot *slot = getSlot(hashcode, true);
     if (slot == nullptr) {
@@ -96,7 +105,7 @@ template <typename V> struct StringMap {
     return slot->value;
   }
 
-  void remove(String key) {
+  void remove(K key) {
     uint64_t hashcode = hash(key);
     Slot *slot = getSlot(hashcode, true);
     if (slot == nullptr) {
@@ -107,10 +116,13 @@ template <typename V> struct StringMap {
     slot->tombstone = true;
   }
 
-  uint64_t hash(String s) {
+  uint64_t hash(K k) {
+    size_t len = sizeof(K);
+    uint8_t *bytes = (uint8_t *)&k;
+
     uint64_t hash = 0xcbf29ce484222325;
-    for (size_t i = 0; i < s.len; i++) {
-      hash = hash ^ s.ptr[i];
+    for (size_t i = 0; i < len; i++) {
+      hash = hash ^ bytes[i];
       hash = hash * 0x100000001b3;
     }
 

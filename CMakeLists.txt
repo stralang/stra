@@ -8,5 +8,6 @@ add_executable(stra
   src/tokenizer.cpp
   src/operator.cpp
   src/parser.cpp
+  src/evaluator.cpp
   src/main.cpp
 )
