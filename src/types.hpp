@@ -25,6 +25,24 @@ struct SliceType {
   Type *type;
 };
 
+struct FunctionType {
+  ArrayList<Type *> arguments;
+  Type *return_type;
+};
+
+struct StructType {
+  ArrayList<Type *> fields;
+};
+
+struct EnumType {
+  Type *repr_type;
+};
+
+struct UnionType {
+  Type *repr_type;
+  ArrayList<Type *> variants;
+};
+
 enum class TypeKind {
   Void,
   Bool,
@@ -35,6 +53,10 @@ enum class TypeKind {
   SIMD,
   Constant,
   TypeId,
+  Function,
+  Struct,
+  Enum,
+  Union
 };
 
 struct Type {
@@ -44,6 +66,10 @@ struct Type {
     IntegerType integer;
     FloatType _float;
     SliceType slice;
+    FunctionType function;
+    StructType _struct;
+    EnumType _enum;
+    UnionType _union;
   };
   uint64_t hashcode;
 };
@@ -108,6 +134,33 @@ struct TypeCache {
     }
     case TypeKind::Constant: {
       hasher.hash(&t->child->hashcode);
+      break;
+    }
+    case TypeKind::Function: {
+      hasher.hash(&t->function.arguments.length);
+      for (size_t i = 0; i < t->function.arguments.length; i++) {
+        hasher.hash(t->function.arguments.data.ptr[i]);
+      }
+      hasher.hash(&t->function.return_type);
+      break;
+    }
+    case TypeKind::Struct: {
+      hasher.hash(&t->_struct.fields.length);
+      for (size_t i = 0; i < t->_struct.fields.length; i++) {
+        hasher.hash(t->_struct.fields.data.ptr[i]);
+      }
+      break;
+    }
+    case TypeKind::Enum: {
+      hasher.hash(&t->_enum.repr_type);
+      break;
+    }
+    case TypeKind::Union: {
+      hasher.hash(&t->_union.variants.length);
+      for (size_t i = 0; i < t->_union.variants.length; i++) {
+        hasher.hash(t->_union.variants.data.ptr[i]);
+      }
+      hasher.hash(&t->_union.repr_type);
       break;
     }
     }

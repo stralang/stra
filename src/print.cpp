@@ -703,6 +703,18 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
   case TypeKind::TypeId: {
     return os << "TypeId";
   }
+  case TypeKind::Function: {
+    return os << "Function";
+  }
+  case TypeKind::Struct: {
+    return os << "Struct";
+  }
+  case TypeKind::Enum: {
+    return os << "Enum";
+  }
+  case TypeKind::Union: {
+    return os << "Union";
+  }
   }
   return os;
 }
@@ -752,6 +764,49 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
     os << " `";
     print_type_impl(os, type->slice.type, depth + 1);
     os << '`';
+    break;
+  }
+  case TypeKind::Function: {
+    os << " `(";
+    for (size_t i = 0; i < type->function.arguments.length; i++) {
+      print_type_impl(os, type->function.arguments.data.ptr[i], depth + 1);
+      if (i != type->function.arguments.length - 1) {
+        os << ", ";
+      }
+    }
+    os << ") ";
+    print_type_impl(os, type->function.return_type, depth + 1);
+    os << '`';
+    break;
+  }
+  case TypeKind::Struct: {
+    os << " `{";
+    for (size_t i = 0; i < type->_struct.fields.length; i++) {
+      print_type_impl(os, type->_struct.fields.data.ptr[i], depth + 1);
+      if (i != type->_struct.fields.length - 1) {
+        os << ", ";
+      }
+    }
+    os << "}`";
+    break;
+  }
+  case TypeKind::Enum: {
+    os << " `";
+    print_type_impl(os, type->_enum.repr_type, depth + 1);
+    os << "`";
+    break;
+  }
+  case TypeKind::Union: {
+    os << " `";
+    print_type_impl(os, type->_union.repr_type, depth + 1);
+    os << " {";
+    for (size_t i = 0; i < type->_union.variants.length; i++) {
+      print_type_impl(os, type->_union.variants.data.ptr[i], depth + 1);
+      if (i != type->_union.variants.length - 1) {
+        os << ", ";
+      }
+    }
+    os << "}`";
     break;
   }
   }
