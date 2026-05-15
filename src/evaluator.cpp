@@ -4,7 +4,13 @@
 #include "symbol.hpp"
 #include "types.hpp"
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+
+Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
+  std::cerr << "TODO: Execute compile-time\n";
+  std::abort();
+}
 
 Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   switch (node->kind) {
@@ -264,6 +270,27 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate Children
     for (size_t i = 0; i < node->_union.body.length; i++) {
       evaluate(evaluator, node->_union.body.data.ptr[i], union_scope);
+    }
+
+    return out_value;
+  }
+  case NodeKind::Member: {
+    Type t = {.kind = TypeKind::Integer};
+    t.integer = {.is_untyped = true};
+
+    Value out_value = {
+        .type = evaluator->type_cache->get(t),
+        .has_value = false,
+    };
+    if (node->member.value != nullptr) {
+      Value val = execute(evaluator, node->member.value, scope);
+      if (!val.has_value || val.type->kind != TypeKind::Integer) {
+        std::cerr << "Member value must be an integer and compile-time known\n";
+        return Value{evaluator->type_cache->get({.kind = TypeKind::Void})};
+      }
+
+      out_value.has_value = true;
+      out_value.data.integer = val.data.integer;
     }
 
     return out_value;
