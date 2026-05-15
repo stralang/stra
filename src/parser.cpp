@@ -276,6 +276,11 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     out->function.body = nullptr;
     out->function.undefined = false;
 
+    // Create Scope
+    Scope *fn_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    fn_scope->init(parser->allocator, false, scope);
+    fn_scope->node = out;
+
     try(parser->nextToken());
 
     // Parse Parameters
@@ -289,7 +294,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
       parameter->text = parser->cur_token.text;
       try(parser->nextToken());
 
-      parameter = parseField(parser, parameter, scope);
+      parameter = parseField(parser, parameter, fn_scope);
       out->function.parameters.push(parameter);
 
       if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
@@ -310,7 +315,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
 
     // Parse Body
     if (parser->cur_token.kind == TokenKind::BlockBegin) {
-      out->function.body = parseStmtCompound(parser, scope);
+      out->function.body = parseStmtCompound(parser, fn_scope);
       try(out->function.body != nullptr);
     } else if (parser->cur_token.kind == TokenKind::Undefined) {
       try(parser->nextToken());
