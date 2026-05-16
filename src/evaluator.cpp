@@ -328,6 +328,37 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
         .data = {.type_value = type_value},
     };
   }
+  case NodeKind::Slice: {
+    Value val = evaluate(evaluator, node->slice.type, scope);
+    expect(val.type != nullptr, node->slice.type->location,
+           "Failed to get element type");
+    expect(val.type->kind == TypeKind::TypeId, node->slice.type->location,
+           "Element type must be a type");
+
+    Type t = {.kind = TypeKind::Slice};
+    t.slice.type = val.data.type_value;
+    t.slice.length = 0;
+
+    if (node->slice.is_pointer) {
+      t.slice.length = -1;
+    } else if (node->slice.length != nullptr) {
+      Value val = execute(evaluator, node->slice.length, scope);
+      expect(val.type != nullptr, node->slice.length->location,
+             "Failed to get slice length");
+      expect(val.type->kind == TypeKind::Integer, node->slice.length,
+             "Slice length must be an integer");
+
+      t.slice.length = val.data.integer;
+    }
+
+    Type *real_type = evaluator->type_cache->get(t);
+
+    return Value{
+        .type = evaluator->type_cache->get({.kind = TypeKind::TypeId}),
+        .has_value = true,
+        .data = {.type_value = real_type},
+    };
+  }
   }
 
   return Value{.type = nullptr};
