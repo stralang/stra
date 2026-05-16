@@ -309,11 +309,28 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     return out_value;
   }
+  case NodeKind::Import: {
+    // TODO: Import
+    break;
+  }
+  case NodeKind::Const: {
+    Value val = evaluate(evaluator, node->child, scope);
+    expect(val.type != nullptr, node->child->location,
+           "Failed to get child type");
+    expect(val.type->kind == TypeKind::TypeId, node->child->location,
+           "Child type must be a type");
+
+    Type *type_value = evaluator->type_cache->get(
+        {.kind = TypeKind::Constant, .child = val.data.type_value});
+    return Value{
+        .type = val.type,
+        .has_value = true,
+        .data = {.type_value = type_value},
+    };
+  }
   }
 
-  return Value{
-      .type = evaluator->type_cache->get(Type{.kind = TypeKind::Void}),
-  };
+  return Value{.type = nullptr};
 }
 
 void Evaluator::eval() {
