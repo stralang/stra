@@ -5,18 +5,6 @@
 #include "symbol.hpp"
 #include "types.hpp"
 
-struct Value {
-  Type *type;
-  bool has_value;
-  union {
-    Type *type_value;
-    String text;
-    int64_t integer;
-    double _float;
-    Node *node;
-  } data;
-};
-
 struct Evaluator {
   Node *ast;
   Scope *scope;

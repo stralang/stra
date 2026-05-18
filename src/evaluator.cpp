@@ -10,7 +10,8 @@
 #define expect(ok, srcloc, msg)                                                \
   if (!(ok)) {                                                                 \
     std::cerr << srcloc << " " msg << '\n';                                    \
-    return Value{.type = nullptr};                                             \
+    node->value.type = nullptr;                                                \
+    return;                                                                    \
   }
 
 Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
@@ -18,7 +19,11 @@ Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
   return Value{.type = nullptr};
 }
 
-Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
+void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
+  if (node->value.type != nullptr) {
+    return;
+  }
+
   switch (node->kind) {
   case NodeKind::Compound: {
     Scope *child_scope = evaluator->scope->findScope(node);
@@ -31,29 +36,29 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     Symbol *symbol = evaluator->scope->findSymbol(&node->text, &node->location);
     expect(symbol != nullptr, node->location,
            "Symbol not found: \"" << node->text << '\"');
-    return evaluate(evaluator, symbol->node, symbol->parent);
+    evaluate(evaluator, symbol->node, symbol->parent);
+    node->value = symbol->node->value;
+    break;
   }
   case NodeKind::Integer: {
     Type t;
     t.kind = TypeKind::Integer;
     t.integer.is_untyped = true;
 
-    Type *real_type = evaluator->type_cache->get(t);
-    return Value{
-        .type = real_type,
-        .data = {.integer = node->integer},
-    };
+    node->value.type = evaluator->type_cache->get(t);
+    node->value.has_data = true;
+    node->value.data = {.integer = node->integer};
+    break;
   }
   case NodeKind::Float: {
     Type t;
     t.kind = TypeKind::Float;
     t._float.is_untyped = true;
 
-    Type *real_type = evaluator->type_cache->get(t);
-    return Value{
-        .type = real_type,
-        .data = {._float = node->_float},
-    };
+    node->value.type = evaluator->type_cache->get(t);
+    node->value.has_data = true;
+    node->value.data = {._float = node->_float};
+    break;
   }
   case NodeKind::Char: {
     Type t;
@@ -61,11 +66,10 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     t.integer.bits = 8;
     t.integer.is_signed = false;
 
-    Type *real_type = evaluator->type_cache->get(t);
-    return Value{
-        .type = real_type,
-        .data = {.integer = node->integer},
-    };
+    node->value.type = evaluator->type_cache->get(t);
+    node->value.has_data = true;
+    node->value.data = {.integer = node->integer};
+    break;
   }
   case NodeKind::String: {
     Type int_t = {.kind = TypeKind::Integer};
@@ -81,46 +85,46 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
         .type = evaluator->type_cache->get(int_t),
     };
 
-    Type *real_type = evaluator->type_cache->get(slice_t);
-    return Value{
-        .type = real_type,
-        .data = {.text = node->text},
-    };
+    node->value.type = evaluator->type_cache->get(slice_t);
+    node->value.has_data = true;
+    node->value.data = {.text = node->text};
+    break;
   }
   case NodeKind::Field: {
-    Value out_value = {.type = nullptr};
     if (node->field.type != nullptr) {
-      Value value = evaluate(evaluator, node->field.type, scope);
-      expect(value.type != nullptr, node->field.type->location,
+      evaluate(evaluator, node->field.type, scope);
+      Value *value = &node->field.type->value;
+      expect(value->type != nullptr, node->field.type->location,
              "Failed to evaluate field type");
-      expect(value.type->kind == TypeKind::TypeId, node->field.type->location,
+      expect(value->type->kind == TypeKind::TypeId, node->field.type->location,
              "Field type must be a type");
 
-      out_value.type = value.data.type_value;
+      node->value.type = value->data.type_value;
     }
 
     if (node->field.initial != nullptr) {
-      Value value = evaluate(evaluator, node->field.initial, scope);
-      expect(value.type != nullptr, node->field.initial->location,
+      evaluate(evaluator, node->field.initial, scope);
+      Value *value = &node->field.initial->value;
+      expect(value->type != nullptr, node->field.initial->location,
              "Failed to evaluate field initial");
-      if (out_value.type == nullptr) {
-        out_value.type = value.type;
-      } else if (out_value.type != value.type) {
+      if (node->value.type == nullptr) {
+        node->value.type = value->type;
+      } else if (node->value.type != value->type) {
         std::cerr << node->field.initial->location
                   << " Field initial doesn't match type.\n";
-        std::cerr << "Field Type: " << out_value.type;
-        std::cerr << "Initial Type: " << value.type;
-        return Value{.type = nullptr};
+        std::cerr << "Field Type: " << node->value.type;
+        std::cerr << "Initial Type: " << value->type;
+        node->value.type = nullptr;
+        return;
       }
 
-      out_value.data = value.data;
+      node->value.has_data = true;
+      node->value.data = value->data;
     }
-
-    return out_value;
+    break;
   }
   case NodeKind::Function: {
-    Value out_value = {.type = nullptr};
-    out_value.has_value = true;
+    node->value.has_data = true;
 
     // Prepare type
     Type fn_t = {.kind = TypeKind::Function};
@@ -129,44 +133,45 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *param = node->function.parameters.data.ptr[i];
-      Value val = evaluate(evaluator, param, scope);
-      expect(val.type != nullptr, param->location,
+      evaluate(evaluator, param, scope);
+      Value *val = &param->value;
+      expect(val->type != nullptr, param->location,
              "Failed to evaluate function parameter");
-      fn_t.function.arguments.push(val.type);
+      fn_t.function.arguments.push(val->type);
     }
 
     // Evaluate return type
     if (node->function.return_type != nullptr) {
-      Value val = evaluate(evaluator, node->function.return_type, scope);
-      expect(val.type != nullptr, node->function.return_type->location,
+      evaluate(evaluator, node->function.return_type, scope);
+      Value *val = &node->function.return_type->value;
+      expect(val->type != nullptr, node->function.return_type->location,
              "Failed to evaluate function return type");
-      expect(val.type->kind == TypeKind::TypeId,
+      expect(val->type->kind == TypeKind::TypeId,
              node->function.return_type->location,
              "Function return type must be a type");
-      fn_t.function.return_type = val.data.type_value;
+      fn_t.function.return_type = val->data.type_value;
     } else {
       fn_t.function.return_type =
           evaluator->type_cache->get({.kind = TypeKind::Void});
     }
 
     // Get type
-    out_value.type = evaluator->type_cache->get(fn_t);
+    node->value.type = evaluator->type_cache->get(fn_t);
 
     // Evaluate Body
     Scope *fn_scope = scope->findScope(node);
     if (node->function.body != nullptr) {
       evaluate(evaluator, node->function.body, fn_scope);
     } else if (!node->function.undefined) {
-      out_value.data.type_value = out_value.type;
-      out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+      node->value.data.type_value = node->value.type;
+      node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
     }
-    return out_value;
+    break;
   }
   case NodeKind::Struct: {
     Scope *struct_scope = scope->findScope(node);
-    Value out_value;
-    out_value.has_value = true;
-    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
     Type struct_t = {.kind = TypeKind::Struct};
@@ -175,41 +180,41 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate fields
     for (size_t i = 0; i < node->_struct.fields.length; i++) {
       Node *field = node->_struct.fields.data.ptr[i];
-      Value val = evaluate(evaluator, field, struct_scope);
-      expect(val.type != nullptr, field, "Failed to evaluate struct field");
-      struct_t._struct.fields.push(val.type);
+      evaluate(evaluator, field, struct_scope);
+      Value *val = &field->value;
+      expect(val->type != nullptr, field, "Failed to evaluate struct field");
+      struct_t._struct.fields.push(val->type);
     }
 
     // Get type
-    out_value.data.type_value = evaluator->type_cache->get(struct_t);
+    node->value.data.type_value = evaluator->type_cache->get(struct_t);
 
     // Evaluate Children
     for (size_t i = 0; i < node->_struct.body.length; i++) {
       evaluate(evaluator, node->_struct.body.data.ptr[i], struct_scope);
     }
-
-    return out_value;
+    break;
   }
   case NodeKind::Enum: {
-    Value out_value;
-    out_value.has_value = true;
-    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
     Type enum_t = {.kind = TypeKind::Enum};
 
     // Evaluate repr
     if (node->_enum.repr_type != nullptr) {
-      Value repr_val = evaluate(evaluator, node->_enum.repr_type, scope);
-      expect(repr_val.type != nullptr, node->_enum.repr_type->location,
+      evaluate(evaluator, node->_enum.repr_type, scope);
+      Value *repr_val = &node->_enum.repr_type->value;
+      expect(repr_val->type != nullptr, node->_enum.repr_type->location,
              "Failed to evaluate enum repr type");
-      expect(repr_val.type->kind == TypeKind::TypeId,
+      expect(repr_val->type->kind == TypeKind::TypeId,
              node->_enum.repr_type->location, "Enum repr type must be a type");
-      expect(repr_val.type->child->kind == TypeKind::Integer,
+      expect(repr_val->type->child->kind == TypeKind::Integer,
              node->_enum.repr_type->location,
              "Enum repr type is not an integer");
 
-      enum_t._enum.repr_type = repr_val.data.type_value;
+      enum_t._enum.repr_type = repr_val->data.type_value;
     } else {
       Type repr_t = {.kind = TypeKind::Integer};
       repr_t.integer = IntegerType{
@@ -232,13 +237,11 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     for (size_t i = 0; i < node->_enum.body.length; i++) {
       evaluate(evaluator, node->_enum.body.data.ptr[i], enum_scope);
     }
-
-    return out_value;
+    break;
   }
   case NodeKind::Union: {
-    Value out_value;
-    out_value.has_value = true;
-    out_value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
     Type union_t = {.kind = TypeKind::Union};
@@ -246,14 +249,15 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Evaluate repr
     if (node->_union.repr_type != nullptr) {
-      Value repr_val = evaluate(evaluator, node->_union.repr_type, scope);
-      expect(repr_val.type != nullptr, node->_union.repr_type->location,
+      evaluate(evaluator, node->_union.repr_type, scope);
+      Value *repr_val = &node->_union.repr_type->value;
+      expect(repr_val->type != nullptr, node->_union.repr_type->location,
              "Failed to evaluate union repr type");
-      expect(repr_val.type->kind == TypeKind::TypeId,
+      expect(repr_val->type->kind == TypeKind::TypeId,
              node->_union.repr_type->location,
              "Union repr type is not `TypeId`");
 
-      union_t._union.repr_type = repr_val.data.type_value;
+      union_t._union.repr_type = repr_val->data.type_value;
     } else {
       Type repr_t = {.kind = TypeKind::Integer};
       repr_t.integer = IntegerType{
@@ -270,73 +274,72 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Evaluate variants
     for (size_t i = 0; i < node->_union.variants.length; i++) {
       Node *variant = node->_union.variants.data.ptr[i];
-      Value val = evaluate(evaluator, variant, union_scope);
-      expect(val.type != nullptr, variant->location,
+      evaluate(evaluator, variant, union_scope);
+      Value *val = &variant->value;
+      expect(val->type != nullptr, variant->location,
              "Failed to evaluate union variant");
-      union_t._union.variants.push(val.type);
+      union_t._union.variants.push(val->type);
     }
 
     // Get type
-    out_value.data.type_value = evaluator->type_cache->get(union_t);
+    node->value.data.type_value = evaluator->type_cache->get(union_t);
 
     // Evaluate Children
     for (size_t i = 0; i < node->_union.body.length; i++) {
       evaluate(evaluator, node->_union.body.data.ptr[i], union_scope);
     }
-
-    return out_value;
+    break;
   }
   case NodeKind::Member: {
     Type t = {.kind = TypeKind::Integer};
     t.integer = {.is_untyped = true};
 
-    Value out_value = {
-        .type = evaluator->type_cache->get(t),
-        .has_value = false,
-    };
+    node->value.type = evaluator->type_cache->get(t),
+    node->value.has_data = false;
     if (node->member.value != nullptr) {
-      Value val = execute(evaluator, node->member.value, scope);
-      expect(val.type != nullptr, node->member.value->location,
+      execute(evaluator, node->member.value, scope);
+      Value *val = &node->member.value->value;
+      expect(val->type != nullptr, node->member.value->location,
              "Failed to get member constant");
-      expect(val.has_value, node->member.value->location,
+      expect(val->has_data, node->member.value->location,
              "Member value must be compile-time known");
-      expect(val.type->kind == TypeKind::Integer, node->member.value->location,
+      expect(val->type->kind == TypeKind::Integer, node->member.value->location,
              "Member value must be an integer");
 
-      out_value.has_value = true;
-      out_value.data.integer = val.data.integer;
+      node->value.has_data = true;
+      node->value.data.integer = val->data.integer;
     }
-
-    return out_value;
+    break;
   }
   case NodeKind::Import: {
     // TODO: Import
     break;
   }
   case NodeKind::Const: {
-    Value val = evaluate(evaluator, node->child, scope);
-    expect(val.type != nullptr, node->child->location,
+    evaluate(evaluator, node->child, scope);
+    Value *val = &node->child->value;
+    expect(val->type != nullptr, node->child->location,
            "Failed to get child type");
-    expect(val.type->kind == TypeKind::TypeId, node->child->location,
+    expect(val->type->kind == TypeKind::TypeId, node->child->location,
            "Child type must be a type");
 
     Type *type_value = evaluator->type_cache->get(
-        {.kind = TypeKind::Constant, .child = val.data.type_value});
-    return Value{
-        .type = val.type,
-        .has_value = true,
-        .data = {.type_value = type_value},
-    };
+        {.kind = TypeKind::Constant, .child = val->data.type_value});
+    node->value.type = val->type;
+    node->value.has_data = true;
+    node->value.data.type_value = type_value;
+    break;
   }
   case NodeKind::Slice: {
-    Value val = evaluate(evaluator, node->slice.type, scope);
-    expect(val.type != nullptr, node->slice.type->location,
+    evaluate(evaluator, node->slice.type, scope);
+    Value *val = &node->slice.type->value;
+    expect(val->type != nullptr, node->slice.type->location,
            "Failed to get element type");
-    expect(val.type->kind == TypeKind::TypeId, node->slice.type->location,
+    expect(val->type->kind == TypeKind::TypeId, node->slice.type->location,
            "Element type must be a type");
 
     Type t = {.kind = TypeKind::Slice};
-    t.slice.type = val.data.type_value;
+    t.slice.type = val->data.type_value;
     t.slice.length = 0;
 
     if (node->slice.is_pointer) {
@@ -351,17 +354,12 @@ Value evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       t.slice.length = val.data.integer;
     }
 
-    Type *real_type = evaluator->type_cache->get(t);
-
-    return Value{
-        .type = evaluator->type_cache->get({.kind = TypeKind::TypeId}),
-        .has_value = true,
-        .data = {.type_value = real_type},
-    };
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+    node->value.data.type_value = evaluator->type_cache->get(t);
+    break;
   }
   }
-
-  return Value{.type = nullptr};
 }
 
 void Evaluator::eval() {

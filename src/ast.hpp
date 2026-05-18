@@ -4,6 +4,7 @@
 #include "containers.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
+#include "types.hpp"
 #include <cstdint>
 
 struct Node;
@@ -118,6 +119,18 @@ struct NodeAssembly {
   ArrayList<Instruction> instructions;
 };
 
+struct Value {
+  Type *type;
+  bool has_data;
+  union {
+    Type *type_value;
+    String text;
+    int64_t integer;
+    double _float;
+    Node *node;
+  } data;
+};
+
 enum class NodeKind {
   Compound,
   Name,
@@ -156,6 +169,8 @@ enum class NodeKind {
 struct Node {
   Token token;
   SrcLoc location;
+  Value value;
+
   NodeKind kind;
   union {
     ArrayList<Node *> children;
