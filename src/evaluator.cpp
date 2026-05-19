@@ -821,6 +821,15 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     }
     break;
   }
+  case NodeKind::For: {
+    Scope *for_scope = scope->findScope(node);
+    evaluate(evaluator, node->_for.conditional, for_scope);
+    expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
+           node->_if.conditional->location, "Conditional must be Bool");
+
+    evaluate(evaluator, node->_for.body, for_scope);
+    break;
+  }
   }
 }
 
