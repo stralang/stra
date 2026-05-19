@@ -886,6 +886,22 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
+  case NodeKind::Assembly: {
+    for (size_t i = 0; i < node->assembly.instructions.length; i++) {
+      NodeAssembly::Instruction *inst =
+          node->assembly.instructions.data.ptr + i;
+
+      for (size_t a = 0; a < inst->arguments.length; a++) {
+        NodeAssembly::Argument *arg = inst->arguments.data.ptr + a;
+        if (arg->kind == NodeAssembly::Argument::Register) {
+          continue;
+        }
+
+        evaluate(evaluator, arg->node, scope);
+      }
+    }
+    break;
+  }
   }
 }
 
