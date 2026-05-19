@@ -17,6 +17,7 @@
 
 // Forward Declarations
 void evaluate(Evaluator *evaluator, Node *node, Scope *scope);
+extern Value execute(Evaluator *evaluator, Node *node, Scope *scope);
 
 bool compareTypes(Type *lhs, Type *rhs) {
   if (lhs->kind != rhs->kind) {
@@ -88,11 +89,6 @@ bool compareTypes(Type *lhs, Type *rhs) {
   }
 
   return false;
-}
-
-Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
-  std::cerr << "TODO: Execute compile-time\n";
-  return Value{.type = nullptr};
 }
 
 void evaluateUnary(Evaluator *evaluator, Node *node, Scope *scope) {
