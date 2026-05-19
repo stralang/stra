@@ -862,6 +862,20 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
+  case NodeKind::Break:
+  case NodeKind::Continue: {
+    Scope *loop_scope = scope;
+    while (loop_scope != nullptr && loop_scope->node->kind != NodeKind::For) {
+      // TODO: handle named loop
+      loop_scope = loop_scope->parent;
+    }
+
+    expect(loop_scope != nullptr, node->location,
+           "" << node->kind << " must be in a loop");
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    break;
+  }
   }
 }
 
