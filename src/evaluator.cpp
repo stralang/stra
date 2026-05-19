@@ -308,7 +308,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case Operator::EqualTo:
   case Operator::NotEqualTo: {
-    expect(lhs->value.type == rhs->value.type, rhs->location,
+    expect(compareTypes(lhs->value.type, rhs->value.type), rhs->location,
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
                    << *rhs->value.type << "`");
 
@@ -779,7 +779,6 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::Return: {
     Scope *fn_scope = scope;
-    std::cerr << "Search " << (scope == nullptr) << "\n";
     while (fn_scope != nullptr && fn_scope->node->kind != NodeKind::Function) {
       fn_scope = fn_scope->parent;
     }
@@ -804,6 +803,21 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
              node->child->location,
              "Unexpected return value. Got `"
                  << node->child->value.type << "` Expected `" << expected_type);
+    }
+    break;
+  }
+  case NodeKind::If: {
+    Scope *if_scope = scope->findScope(node);
+
+    evaluate(evaluator, node->_if.conditional, if_scope);
+    expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
+           node->_if.conditional->location, "Conditional must be Bool");
+
+    evaluate(evaluator, node->_if.body, if_scope);
+
+    if (node->_if._else != nullptr) {
+      Scope *else_scope = scope->findScope(node->_if._else);
+      evaluate(evaluator, node->_if._else, else_scope);
     }
     break;
   }
