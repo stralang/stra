@@ -177,7 +177,38 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
   evaluate(evaluator, node->_operator.lhs, scope);
   Node *lhs = node->_operator.lhs;
   if (node->_operator.opcode == Operator::MemberAccess) {
-    // TODO: Member Access
+    Type *lhs_type = lhs->value.type;
+    if (lhs_type->kind == TypeKind::TypeId) {
+      lhs_type = lhs->value.data.type_value;
+    }
+
+    Scope *access_scope = nullptr;
+    switch (lhs_type->kind) {
+    case TypeKind::Function: {
+      access_scope = lhs_type->function.scope;
+      break;
+    }
+    case TypeKind::Struct: {
+      access_scope = lhs_type->_struct.scope;
+      break;
+    }
+    case TypeKind::Enum: {
+      access_scope = lhs_type->_enum.scope;
+      break;
+    }
+    case TypeKind::Union: {
+      access_scope = lhs_type->_union.scope;
+      break;
+    }
+    default: {
+      expect(false, lhs->location,
+             "LHS must be a Function, Struct, Enum, or Union. Got `"
+                 << *lhs_type << "`");
+    }
+    }
+
+    evaluate(evaluator, node->_operator.rhs, access_scope);
+    node->value = node->_operator.rhs->value;
     return;
   }
 
@@ -326,14 +357,14 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Scope *child_scope = evaluator->scope->findScope(node);
+    Scope *child_scope = scope->findScope(node);
     for (size_t i = 0; i < node->children.length; i++) {
       evaluate(evaluator, node->children.data.ptr[i], child_scope);
     }
     break;
   }
   case NodeKind::Name: {
-    Symbol *symbol = evaluator->scope->findSymbol(&node->text, &node->location);
+    Symbol *symbol = scope->findSymbol(&node->text, &node->location);
     expect(symbol != nullptr, node->location,
            "Symbol not found: \"" << node->text << '\"');
     evaluate(evaluator, symbol->node, symbol->parent);
