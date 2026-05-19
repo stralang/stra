@@ -769,6 +769,15 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.has_data = false;
     break;
   }
+  case NodeKind::Index: {
+    Node *slice = node->index.slice;
+    Node *index = node->index.index;
+    evaluate(evaluator, slice, scope);
+    evaluate(evaluator, index, scope);
+
+    node->value.type = slice->value.type->slice.type;
+    break;
+  }
   }
 }
 
