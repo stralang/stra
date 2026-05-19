@@ -365,9 +365,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Scope *child_scope = scope->findScope(node);
     for (size_t i = 0; i < node->children.length; i++) {
-      evaluate(evaluator, node->children.data.ptr[i], child_scope);
+      evaluate(evaluator, node->children.data.ptr[i], scope);
     }
     break;
   }
@@ -776,6 +775,36 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     evaluate(evaluator, index, scope);
 
     node->value.type = slice->value.type->slice.type;
+    break;
+  }
+  case NodeKind::Return: {
+    Scope *fn_scope = scope;
+    std::cerr << "Search " << (scope == nullptr) << "\n";
+    while (fn_scope != nullptr && fn_scope->node->kind != NodeKind::Function) {
+      fn_scope = fn_scope->parent;
+    }
+
+    expect(fn_scope != nullptr, node->location,
+           "Return must be in a function scope");
+
+    Node *fn_node = scope->node;
+    Type *expected_type;
+    if (fn_node->function.return_type != nullptr) {
+      expected_type = fn_node->function.return_type->value.type;
+    } else {
+      expected_type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    }
+
+    if (node->child == nullptr) {
+      expect(expected_type->kind == TypeKind::Void, node->location,
+             "Function expects return value");
+    } else {
+      evaluate(evaluator, node->child, scope);
+      expect(compareTypes(expected_type, node->child->value.type),
+             node->child->location,
+             "Unexpected return value. Got `"
+                 << node->child->value.type << "` Expected `" << expected_type);
+    }
     break;
   }
   }
