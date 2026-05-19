@@ -51,7 +51,6 @@ enum class TypeKind {
   Pointer,
   Slice,
   SIMD,
-  Constant,
   TypeId,
   Function,
   Struct,
@@ -71,6 +70,7 @@ struct Type {
     EnumType _enum;
     UnionType _union;
   };
+  bool is_constant;
   uint64_t hashcode;
 };
 
@@ -107,6 +107,7 @@ struct TypeCache {
   uint64_t hash(Type *t) {
     Hasher hasher;
     hasher.hash(&t->kind);
+    hasher.hash(&t->is_constant);
 
     switch (t->kind) {
     case TypeKind::Void:
@@ -130,10 +131,6 @@ struct TypeCache {
     case TypeKind::SIMD: {
       hasher.hash(&t->slice.type->hashcode);
       hasher.hash(&t->slice.length);
-      break;
-    }
-    case TypeKind::Constant: {
-      hasher.hash(&t->child->hashcode);
       break;
     }
     case TypeKind::Function: {

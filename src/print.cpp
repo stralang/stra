@@ -697,9 +697,6 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
   case TypeKind::SIMD: {
     return os << "SIMD";
   }
-  case TypeKind::Constant: {
-    return os << "Constant";
-  }
   case TypeKind::TypeId: {
     return os << "TypeId";
   }
@@ -721,6 +718,10 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
 
 void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
   os << type->kind;
+  if (type->is_constant) {
+    os << " [Constant]";
+  }
+
   switch (type->kind) {
   case TypeKind::Void:
   case TypeKind::Bool:
@@ -746,8 +747,7 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
     }
     break;
   }
-  case TypeKind::Pointer:
-  case TypeKind::Constant: {
+  case TypeKind::Pointer: {
     os << " `";
     print_type_impl(os, type->child, depth + 1);
     os << '`';

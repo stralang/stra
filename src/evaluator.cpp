@@ -1,5 +1,6 @@
 #include "evaluator.hpp"
 #include "ast.hpp"
+#include "operator.hpp"
 #include "print.hpp"
 #include "symbol.hpp"
 #include "types.hpp"
@@ -323,11 +324,11 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     expect(val->type->kind == TypeKind::TypeId, node->child->location,
            "Child type must be a type");
 
-    Type *type_value = evaluator->type_cache->get(
-        {.kind = TypeKind::Constant, .child = val->data.type_value});
+    Type out_type = *val->data.type_value;
+    out_type.is_constant = true;
     node->value.type = val->type;
     node->value.has_data = true;
-    node->value.data.type_value = type_value;
+    node->value.data.type_value = evaluator->type_cache->get(out_type);
     break;
   }
   case NodeKind::Slice: {
