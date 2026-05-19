@@ -881,6 +881,11 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
+  case NodeKind::Comptime: {
+    execute(evaluator, node->child, scope);
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    break;
+  }
   }
 }
 
