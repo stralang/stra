@@ -51,7 +51,8 @@ enum class Precedence : int32_t {
   Multiply = 10,
   Unary = 11,
   Cast = 12,
-  MemberAccess = 13,
+  Special = 13,
+  MemberAccess = 14,
 };
 
 enum class Associativity : bool {

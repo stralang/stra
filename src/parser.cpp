@@ -22,7 +22,61 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
                       Scope *scope) {
   Node *out = atom;
 
-  while (parser->cur_token.kind == TokenKind::Operator) {
+  while (true) {
+    if (parser->cur_token.kind == TokenKind::ScopeBegin) {
+      if (Precedence::Special < min_precedence) {
+        break;
+      }
+
+      Node *_tmp = out;
+      out = (Node *)parser->allocator->alloc(sizeof(Node));
+      out->token = parser->cur_token;
+      out->location = parser->cur_token.location;
+      out->kind = NodeKind::Call;
+      out->call.callee = _tmp;
+      out->call.arguments.init(parser->allocator, 4);
+
+      try(parser->nextToken());
+      while (parser->cur_token.kind != TokenKind::ScopeEnd) {
+        Node *arg = parseExpr(parser, Precedence::Assign, scope);
+        try(arg != nullptr);
+        out->call.arguments.push(arg);
+
+        if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+          break;
+        }
+        try(parser->nextToken());
+      }
+
+      try(parser->cur_token.kind == TokenKind::ScopeEnd);
+      try(parser->nextToken());
+
+      try(out != nullptr);
+      continue;
+    } else if (parser->cur_token.kind == TokenKind::ArrayBegin) {
+      if (Precedence::Special < min_precedence) {
+        break;
+      }
+
+      Node *_tmp = out;
+      out = (Node *)parser->allocator->alloc(sizeof(Node));
+      out->token = parser->cur_token;
+      out->location = parser->cur_token.location;
+      out->kind = NodeKind::Index;
+      out->index.slice = _tmp;
+
+      try(parser->nextToken());
+      out->index.index = parseExpr(parser, Precedence::Assign, scope);
+
+      try(parser->cur_token.kind == TokenKind::ArrayEnd);
+      try(parser->nextToken());
+
+      try(out != nullptr);
+      continue;
+    } else if (parser->cur_token.kind != TokenKind::Operator) {
+      break;
+    }
+
     Operator opcode = parser->cur_token._operator;
     Precedence precedence = operatorPrecedence(opcode);
     if (precedence < min_precedence) {
@@ -50,51 +104,6 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
 Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
                        Scope *scope) {
   Node *out = atom;
-
-  switch (parser->cur_token.kind) {
-  case TokenKind::ScopeBegin: {
-    out = (Node *)parser->allocator->alloc(sizeof(Node));
-    out->token = parser->cur_token;
-    out->location = parser->cur_token.location;
-    out->kind = NodeKind::Call;
-    out->call.callee = atom;
-    out->call.arguments.init(parser->allocator, 4);
-
-    try(parser->nextToken());
-    while (parser->cur_token.kind != TokenKind::ScopeEnd) {
-      Node *arg = parseExpr(parser, Precedence::Assign, scope);
-      try(arg != nullptr);
-      out->call.arguments.push(arg);
-
-      if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
-        break;
-      }
-      try(parser->nextToken());
-    }
-
-    try(parser->cur_token.kind == TokenKind::ScopeEnd);
-    try(parser->nextToken());
-
-    try(out != nullptr);
-    break;
-  }
-  case TokenKind::ArrayBegin: {
-    out = (Node *)parser->allocator->alloc(sizeof(Node));
-    out->token = parser->cur_token;
-    out->location = parser->cur_token.location;
-    out->kind = NodeKind::Index;
-    out->index.slice = atom;
-
-    try(parser->nextToken());
-    out->index.index = parseExpr(parser, Precedence::Assign, scope);
-
-    try(parser->cur_token.kind == TokenKind::ArrayEnd);
-    try(parser->nextToken());
-
-    try(out != nullptr);
-    break;
-  }
-  }
 
   if (parser->cur_token.kind == TokenKind::Operator) {
     out = parseBinaryExpr(parser, out, min_precedence, scope);
