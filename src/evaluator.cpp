@@ -804,6 +804,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
              "Unexpected return value. Got `"
                  << node->child->value.type << "` Expected `" << expected_type);
     }
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
   case NodeKind::If: {
@@ -819,6 +821,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       Scope *else_scope = scope->findScope(node->_if._else);
       evaluate(evaluator, node->_if._else, else_scope);
     }
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
   case NodeKind::For: {
@@ -828,6 +832,34 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
            node->_if.conditional->location, "Conditional must be Bool");
 
     evaluate(evaluator, node->_for.body, for_scope);
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    break;
+  }
+  case NodeKind::Switch: {
+    evaluate(evaluator, node->_switch.conditional, scope);
+
+    for (size_t i = 0; i < node->_switch.cases.length; i++) {
+      Node *_case = node->_switch.cases.data.ptr[i];
+      evaluate(evaluator, _case, scope);
+
+      Value *case_value = &_case->_case.constant->value;
+      expect(
+          compareTypes(case_value->type, node->_switch.conditional->value.type),
+          _case->_case.constant->location,
+          "Unexpected case constant. Got `"
+              << *_case->_case.constant->value.type << "` Expected `"
+              << *node->_switch.conditional->value.type << "`");
+    }
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    break;
+  }
+  case NodeKind::Case: {
+    Scope *case_scope = scope->findScope(node);
+    execute(evaluator, node->_case.constant, scope);
+    evaluate(evaluator, node->_case.body, case_scope);
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
   }
