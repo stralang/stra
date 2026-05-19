@@ -461,11 +461,14 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Function: {
-    node->value.has_data = true;
+    Scope *fn_scope = scope->findScope(node);
+    node->value.has_data = false;
 
     // Prepare type
-    Type fn_t = {.kind = TypeKind::Function};
-    fn_t.function.arguments.init(evaluator->allocator, 4);
+    Type *fn_t = evaluator->type_cache->get(
+        {.kind = TypeKind::Function, .function = {.scope = fn_scope}});
+    node->value.type = fn_t;
+    fn_t->function.arguments.init(evaluator->allocator, 4);
 
     // Evaluate parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
@@ -474,7 +477,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       Value *val = &param->value;
       expect(val->type != nullptr, param->location,
              "Failed to evaluate function parameter");
-      fn_t.function.arguments.push(val->type);
+      fn_t->function.arguments.push(val->type);
     }
 
     // Evaluate return type
@@ -486,21 +489,17 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       expect(val->type->kind == TypeKind::TypeId,
              node->function.return_type->location,
              "Function return type must be a type");
-      fn_t.function.return_type = val->data.type_value;
+      fn_t->function.return_type = val->data.type_value;
     } else {
-      fn_t.function.return_type =
+      fn_t->function.return_type =
           evaluator->type_cache->get({.kind = TypeKind::Void});
     }
 
-    // Get type
-    node->value.type = evaluator->type_cache->get(fn_t);
-
     // Evaluate Body
-    Scope *fn_scope = scope->findScope(node);
-    fn_t.function.scope = fn_scope;
     if (node->function.body != nullptr) {
       evaluate(evaluator, node->function.body, fn_scope);
     } else if (!node->function.undefined) {
+      node->value.has_data = true;
       node->value.data.type_value = node->value.type;
       node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
     }
@@ -512,9 +511,11 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
-    Type struct_t = {.kind = TypeKind::Struct};
-    struct_t._struct.fields.init(evaluator->allocator, 4);
-    struct_t._struct.scope = struct_scope;
+    Type *struct_t = evaluator->type_cache->get(
+        {.kind = TypeKind::Struct, ._struct = {.scope = struct_scope}});
+    node->value.data.type_value = struct_t;
+    struct_t->_struct.fields.init(evaluator->allocator, 4);
+    struct_t->_struct.scope = struct_scope;
 
     // Evaluate fields
     for (size_t i = 0; i < node->_struct.fields.length; i++) {
@@ -522,11 +523,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       evaluate(evaluator, field, struct_scope);
       Value *val = &field->value;
       expect(val->type != nullptr, field, "Failed to evaluate struct field");
-      struct_t._struct.fields.push(val->type);
+      struct_t->_struct.fields.push(val->type);
     }
-
-    // Get type
-    node->value.data.type_value = evaluator->type_cache->get(struct_t);
 
     // Evaluate Children
     for (size_t i = 0; i < node->_struct.body.length; i++) {
@@ -535,11 +533,14 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Enum: {
+    Scope *enum_scope = scope->findScope(node);
     node->value.has_data = true;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
-    Type enum_t = {.kind = TypeKind::Enum};
+    Type *enum_t = evaluator->type_cache->get(
+        {.kind = TypeKind::Enum, ._enum = {.scope = enum_scope}});
+    node->value.data.type_value = enum_t;
 
     // Evaluate repr
     if (node->_enum.repr_type != nullptr) {
@@ -553,7 +554,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
              node->_enum.repr_type->location,
              "Enum repr type is not an integer");
 
-      enum_t._enum.repr_type = repr_val->data.type_value;
+      enum_t->_enum.repr_type = repr_val->data.type_value;
     } else {
       Type repr_t = {.kind = TypeKind::Integer};
       repr_t.integer = IntegerType{
@@ -561,12 +562,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
           .is_signed = false,
           .bits = 32,
       };
-      enum_t._enum.repr_type = evaluator->type_cache->get(repr_t);
+      enum_t->_enum.repr_type = evaluator->type_cache->get(repr_t);
     }
-
-    // Get scope
-    Scope *enum_scope = scope->findScope(node);
-    enum_t._enum.scope = enum_scope;
 
     // Evaluate members
     for (size_t i = 0; i < node->_enum.members.length; i++) {
@@ -580,12 +577,15 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Union: {
+    Scope *union_scope = scope->findScope(node);
     node->value.has_data = true;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
     // Prepare type
-    Type union_t = {.kind = TypeKind::Union};
-    union_t._union.variants.init(evaluator->allocator, 4);
+    Type *union_t = evaluator->type_cache->get(
+        {.kind = TypeKind::Union, ._union = {.scope = union_scope}});
+    node->value.data.type_value = union_t;
+    union_t->_union.variants.init(evaluator->allocator, 4);
 
     // Evaluate repr
     if (node->_union.repr_type != nullptr) {
@@ -597,7 +597,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
              node->_union.repr_type->location,
              "Union repr type is not `TypeId`");
 
-      union_t._union.repr_type = repr_val->data.type_value;
+      union_t->_union.repr_type = repr_val->data.type_value;
     } else {
       Type repr_t = {.kind = TypeKind::Integer};
       repr_t.integer = IntegerType{
@@ -605,12 +605,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
           .is_signed = false,
           .bits = 32,
       };
-      union_t._union.repr_type = evaluator->type_cache->get(repr_t);
+      union_t->_union.repr_type = evaluator->type_cache->get(repr_t);
     }
-
-    // Get scope
-    Scope *union_scope = scope->findScope(node);
-    union_t._union.scope = union_scope;
 
     // Evaluate variants
     for (size_t i = 0; i < node->_union.variants.length; i++) {
@@ -619,11 +615,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       Value *val = &variant->value;
       expect(val->type != nullptr, variant->location,
              "Failed to evaluate union variant");
-      union_t._union.variants.push(val->type);
+      union_t->_union.variants.push(val->type);
     }
-
-    // Get type
-    node->value.data.type_value = evaluator->type_cache->get(union_t);
 
     // Evaluate Children
     for (size_t i = 0; i < node->_union.body.length; i++) {

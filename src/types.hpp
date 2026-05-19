@@ -139,30 +139,19 @@ struct TypeCache {
       break;
     }
     case TypeKind::Function: {
-      hasher.hash(&t->function.arguments.length);
-      for (size_t i = 0; i < t->function.arguments.length; i++) {
-        hasher.hash(t->function.arguments.data.ptr[i]);
-      }
-      hasher.hash(&t->function.return_type);
+      hasher.hash(&t->function.scope);
       break;
     }
     case TypeKind::Struct: {
-      hasher.hash(&t->_struct.fields.length);
-      for (size_t i = 0; i < t->_struct.fields.length; i++) {
-        hasher.hash(t->_struct.fields.data.ptr[i]);
-      }
+      hasher.hash(&t->_struct.scope);
       break;
     }
     case TypeKind::Enum: {
-      hasher.hash(&t->_enum.repr_type);
+      hasher.hash(&t->_enum.scope);
       break;
     }
     case TypeKind::Union: {
-      hasher.hash(&t->_union.variants.length);
-      for (size_t i = 0; i < t->_union.variants.length; i++) {
-        hasher.hash(t->_union.variants.data.ptr[i]);
-      }
-      hasher.hash(&t->_union.repr_type);
+      hasher.hash(&t->_union.scope);
       break;
     }
     }
