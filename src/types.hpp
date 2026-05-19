@@ -6,6 +6,7 @@
 #include <cstdint>
 
 struct Type;
+struct Scope;
 
 struct IntegerType {
   bool is_untyped;
@@ -28,19 +29,23 @@ struct SliceType {
 struct FunctionType {
   ArrayList<Type *> arguments;
   Type *return_type;
+  Scope *scope;
 };
 
 struct StructType {
   ArrayList<Type *> fields;
+  Scope *scope;
 };
 
 struct EnumType {
   Type *repr_type;
+  Scope *scope;
 };
 
 struct UnionType {
   Type *repr_type;
   ArrayList<Type *> variants;
+  Scope *scope;
 };
 
 enum class TypeKind {

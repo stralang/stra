@@ -466,6 +466,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Evaluate Body
     Scope *fn_scope = scope->findScope(node);
+    fn_t.function.scope = fn_scope;
     if (node->function.body != nullptr) {
       evaluate(evaluator, node->function.body, fn_scope);
     } else if (!node->function.undefined) {
@@ -482,6 +483,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     // Prepare type
     Type struct_t = {.kind = TypeKind::Struct};
     struct_t._struct.fields.init(evaluator->allocator, 4);
+    struct_t._struct.scope = struct_scope;
 
     // Evaluate fields
     for (size_t i = 0; i < node->_struct.fields.length; i++) {
@@ -533,6 +535,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Get scope
     Scope *enum_scope = scope->findScope(node);
+    enum_t._enum.scope = enum_scope;
 
     // Evaluate members
     for (size_t i = 0; i < node->_enum.members.length; i++) {
@@ -576,6 +579,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
     // Get scope
     Scope *union_scope = scope->findScope(node);
+    union_t._union.scope = union_scope;
 
     // Evaluate variants
     for (size_t i = 0; i < node->_union.variants.length; i++) {
