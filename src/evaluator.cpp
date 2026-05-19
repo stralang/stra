@@ -157,8 +157,16 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Scope *scope) {
   case UnaryOperator::Reference: {
     Type out_type = {
         .kind = TypeKind::Pointer, .child = child_type, .is_constant = true};
-    node->value.type = evaluator->type_cache->get(out_type);
-    node->value.has_data = false;
+
+    node->value.has_data =
+        node->unary_operator.child->value.type->kind == TypeKind::TypeId;
+    if (node->value.has_data) {
+      out_type.child = node->unary_operator.child->value.data.type_value;
+      node->value.data.type_value = evaluator->type_cache->get(out_type);
+      node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    } else {
+      node->value.type = evaluator->type_cache->get(out_type);
+    }
     break;
   }
   case UnaryOperator::Dereference: {
@@ -726,13 +734,12 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       Type *expected_type = fn_type->function.arguments.data.ptr[0];
       Type *receiver_type = receiver->value.type;
       if (expected_type->kind == TypeKind::Pointer &&
-          receiver_type->kind != TypeKind::Pointer &&
-          !compareTypes(expected_type, receiver_type->child)) {
-        std::cerr << receiver->location << " Receiver `"
-                  << *receiver->value.type << "` cannot auto reference to `"
-                  << *expected_type << "`\n";
-        node->value.type = nullptr;
-        return;
+          receiver_type->kind != TypeKind::Pointer) {
+        expect(compareTypes(expected_type->child, receiver_type),
+               receiver->location,
+               " Receiver `" << *receiver->value.type
+                             << "` cannot auto reference to `" << *expected_type
+                             << "`");
       } else {
         expect(compareTypes(expected_type, receiver_type), receiver->location,
                "Receiver `" << *receiver->value.type << "` doesn't match `"
