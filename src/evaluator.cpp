@@ -10,7 +10,7 @@
 
 #define expect(ok, srcloc, msg)                                                \
   if (!(ok)) {                                                                 \
-    std::cerr << srcloc << " " msg << '\n';                                    \
+    std::cerr << srcloc << " " << msg << '\n';                                 \
     node->value.type = nullptr;                                                \
     return;                                                                    \
   }
@@ -634,7 +634,9 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     node->value.type = evaluator->type_cache->get(t),
     node->value.has_data = false;
     if (node->member.value != nullptr) {
+      evaluate(evaluator, node->member.value, scope);
       execute(evaluator, node->member.value, scope);
+
       Value *val = &node->member.value->value;
       expect(val->type != nullptr, node->member.value->location,
              "Failed to get member constant");
@@ -682,7 +684,9 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     if (node->slice.is_pointer) {
       t.slice.length = -1;
     } else if (node->slice.length != nullptr) {
+      evaluate(evaluator, node->slice.length, scope);
       Value val = execute(evaluator, node->slice.length, scope);
+
       expect(val.type != nullptr, node->slice.length->location,
              "Failed to get slice length");
       expect(val.type->kind == TypeKind::Integer, node->slice.length,
@@ -853,7 +857,9 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::Case: {
     Scope *case_scope = scope->findScope(node);
+    evaluate(evaluator, node->_case.constant, scope);
     execute(evaluator, node->_case.constant, scope);
+
     evaluate(evaluator, node->_case.body, case_scope);
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
@@ -878,6 +884,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Comptime: {
+    evaluate(evaluator, node->child, scope);
     execute(evaluator, node->child, scope);
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
