@@ -287,7 +287,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
 
     // Create Scope
     Scope *fn_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
-    fn_scope->init(parser->allocator, false, scope);
+    fn_scope->init(parser->allocator, true, scope);
     fn_scope->node = out;
 
     try(parser->nextToken());

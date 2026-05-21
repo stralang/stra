@@ -361,8 +361,13 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
+    Scope *compound_scope = scope->findScope(node);
+    if (compound_scope == nullptr) {
+      compound_scope = scope;
+    }
+
     for (size_t i = 0; i < node->children.length; i++) {
-      evaluate(evaluator, node->children.data.ptr[i], scope);
+      evaluate(evaluator, node->children.data.ptr[i], compound_scope);
     }
     break;
   }
