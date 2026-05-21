@@ -2,6 +2,7 @@
 #include "ast.hpp"
 #include "containers.hpp"
 #include "operator.hpp"
+#include "print.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
 #include <cassert>
@@ -477,6 +478,15 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
   out->field.definition = false;
   out->field.type = nullptr;
   out->field.initial = nullptr;
+
+  // Check for duplicate field
+  Symbol *duplicate_symbol =
+      scope->findSymbol(&out->field.name, &out->location);
+  if (duplicate_symbol != nullptr) {
+    std::cerr << "Field with name `" << out->field.name
+              << "` already exists within scope\n";
+    return nullptr;
+  }
 
   // Create Symbol
   Symbol *symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
