@@ -1,6 +1,7 @@
 #pragma once
 
 #include "containers.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -77,6 +78,124 @@ struct Type {
   };
   bool is_constant;
   uint64_t hashcode;
+
+  size_t sizeBits(size_t native_size) {
+    switch (this->kind) {
+    case TypeKind::Void: {
+      return 0;
+    }
+    case TypeKind::Bool: {
+      return 1;
+    }
+    case TypeKind::Integer: {
+      return this->integer.bits == -1 ? native_size : this->integer.bits;
+    }
+    case TypeKind::Float: {
+      return this->_float.bits;
+    }
+    case TypeKind::Pointer: {
+      return this->child->sizeBits(native_size);
+    }
+    case TypeKind::Slice: {
+      size_t elem_size = this->slice.type->sizeBits(native_size);
+      return this->slice.length > 0 ? (elem_size * this->slice.length)
+                                    : (elem_size + native_size);
+    }
+    case TypeKind::SIMD: {
+      return this->slice.type->sizeBits(native_size) * this->slice.length;
+    }
+    case TypeKind::TypeId: {
+      return 0;
+    }
+    case TypeKind::Function: {
+      return native_size;
+    }
+    case TypeKind::Struct: {
+      size_t total_size = 0;
+      size_t max_align = 0;
+      for (size_t i = 0; i < this->_struct.fields.length; i++) {
+        size_t elem_size =
+            this->_struct.fields.data.ptr[i]->sizeBits(native_size);
+        size_t elem_align =
+            this->_struct.fields.data.ptr[i]->alignBits(native_size);
+        size_t padding = elem_align - (total_size % elem_align);
+
+        total_size += padding + elem_size;
+        max_align = std::max(max_align, elem_align);
+      }
+
+      return total_size + max_align - (total_size % max_align);
+    }
+    case TypeKind::Enum: {
+      return this->_enum.repr_type->sizeBits(native_size);
+    }
+    case TypeKind::Union: {
+      size_t max_size = 0;
+      for (size_t i = 0; i < this->_union.variants.length; i++) {
+        max_size = std::max(
+            max_size, this->_union.variants.data.ptr[i]->sizeBits(native_size));
+      }
+      return max_size + this->_union.repr_type->sizeBits(native_size);
+    }
+    }
+
+    return 0;
+  }
+
+  size_t alignBits(size_t native_size) {
+    switch (this->kind) {
+    case TypeKind::Void: {
+      return 0;
+    }
+    case TypeKind::Bool: {
+      return 1;
+    }
+    case TypeKind::Integer: {
+      return this->integer.bits == -1 ? native_size : this->integer.bits;
+    }
+    case TypeKind::Float: {
+      return this->_float.bits;
+    }
+    case TypeKind::Pointer: {
+      return native_size;
+    }
+    case TypeKind::Slice: {
+      return this->slice.type->alignBits(native_size);
+    }
+    case TypeKind::SIMD: {
+      return this->slice.type->alignBits(native_size) * this->slice.length;
+    }
+    case TypeKind::TypeId: {
+      return 0;
+    }
+    case TypeKind::Function: {
+      return native_size;
+    }
+    case TypeKind::Struct: {
+      size_t max_align = 0;
+      for (size_t i = 0; i < this->_struct.fields.length; i++) {
+        max_align =
+            std::max(max_align,
+                     this->_struct.fields.data.ptr[i]->alignBits(native_size));
+      }
+      return max_align;
+    }
+    case TypeKind::Enum: {
+      return this->_enum.repr_type->alignBits(native_size);
+    }
+    case TypeKind::Union: {
+      size_t max_align = this->_union.repr_type->alignBits(native_size);
+      for (size_t i = 0; i < this->_union.variants.length; i++) {
+        max_align =
+            std::max(max_align,
+                     this->_union.variants.data.ptr[i]->alignBits(native_size));
+      }
+      return max_align;
+    }
+    }
+
+    return 0;
+  }
 };
 
 struct TypeCache {
