@@ -227,7 +227,6 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
            "cannot assign RHS `" << *rhs->value.type << "` to LHS `"
                                  << *lhs->value.type << "`");
 
-    // TODO: Check Types
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     node->value.has_data = false;
     return;
@@ -381,7 +380,11 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   case NodeKind::Integer: {
     Type t;
     t.kind = TypeKind::Integer;
-    t.integer.is_untyped = true;
+    t.integer = {
+        .is_untyped = true,
+        .is_signed = node->integer < 0,
+        .bits = 0,
+    };
 
     node->value.type = evaluator->type_cache->get(t);
     node->value.has_data = true;
@@ -391,7 +394,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   case NodeKind::Float: {
     Type t;
     t.kind = TypeKind::Float;
-    t._float.is_untyped = true;
+    t._float = {.is_untyped = true, .bits = 0};
 
     node->value.type = evaluator->type_cache->get(t);
     node->value.has_data = true;
@@ -401,8 +404,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   case NodeKind::Char: {
     Type t;
     t.kind = TypeKind::Integer;
-    t.integer.bits = 8;
-    t.integer.is_signed = false;
+    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
     node->value.type = evaluator->type_cache->get(t);
     node->value.has_data = true;
@@ -411,11 +413,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::String: {
     Type int_t = {.kind = TypeKind::Integer};
-    int_t.integer = IntegerType{
-        .is_untyped = false,
-        .is_signed = false,
-        .bits = 8,
-    };
+    int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
     Type slice_t = {.kind = TypeKind::Slice};
     slice_t.slice = SliceType{
@@ -462,7 +460,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
         return;
       }
 
-      node->value.has_data = true;
+      node->value.has_data = value->has_data;
       node->value.data = value->data;
     }
     break;
