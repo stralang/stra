@@ -17,7 +17,6 @@
 
 // Forward Declarations
 void evaluate(Evaluator *evaluator, Node *node, Scope *scope);
-extern Value execute(Evaluator *evaluator, Node *node, Scope *scope);
 
 bool compareTypes(Type *lhs, Type *rhs) {
   if (lhs->kind != rhs->kind) {
@@ -890,8 +889,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
   }
   case NodeKind::Comptime: {
     evaluate(evaluator, node->child, scope);
-    execute(evaluator, node->child, scope);
-    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    node->value = execute(evaluator, node->child, scope);
     break;
   }
   case NodeKind::Assembly: {

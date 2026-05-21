@@ -19,3 +19,5 @@ struct Evaluator {
 
   void eval();
 };
+
+Value execute(Evaluator *evaluator, Node *node, Scope *scope);
