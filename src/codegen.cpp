@@ -84,13 +84,21 @@ LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
                             type->function.arguments.length, false);
   }
   case TypeKind::Struct: {
+    LLVMTypeRef *cache = codegen->scope_to_type.get(type->_struct.scope);
+    if (cache != nullptr) {
+      return *cache;
+    }
+
     LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->alloc(
         sizeof(LLVMTypeRef) * type->_struct.fields.length);
     for (size_t i = 0; i < type->_struct.fields.length; i++) {
       field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
     }
 
-    return LLVMStructType(field_types, type->_struct.fields.length, false);
+    LLVMTypeRef ty =
+        LLVMStructType(field_types, type->_struct.fields.length, false);
+    codegen->scope_to_type.insert(type->_struct.scope, ty);
+    return ty;
   }
   case TypeKind::Enum: {
     return typeToLLVM(codegen, type->_enum.repr_type);
@@ -153,8 +161,19 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Name: {
+    Symbol *symbol = scope->findSymbol(&node->text, &node->location);
+    LLVMValueRef value = gen(codegen, builder, symbol->node, symbol->parent);
+    // TODO: A variable may not be generated for runtime
+    return value;
+  }
   // ...
   case NodeKind::Field: {
+    LLVMValueRef *cache = codegen->node_to_value.get(node);
+    if (cache != nullptr) {
+      return *cache;
+    }
+
     // TODO: Mangle name
     char *name = (char *)codegen->allocator->alloc(node->field.name.len);
     memcpy(name, node->field.name.ptr, node->field.name.len);
@@ -165,6 +184,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       LLVMValueRef func = gen(codegen, builder, node->field.initial, scope);
       LLVMSetValueName2(func, (const char *)node->field.name.ptr,
                         node->field.name.len);
+      codegen->node_to_value.insert(node, func);
       return func;
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
@@ -189,6 +209,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
         LLVMBuildStore(builder, initial, alloca);
       }
 
+      codegen->node_to_value.insert(node, alloca);
       return alloca;
     } else {
       // Global Variable
@@ -199,6 +220,9 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
         // module
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
+
+      codegen->node_to_value.insert(node, alloca);
+      return alloca;
     }
     break;
   }
@@ -254,6 +278,9 @@ void CodeGen::generate() {
   *(name + this->path.len) = 0;
 
   this->mod = LLVMModuleCreateWithName(name);
+
+  this->scope_to_type.init(this->allocator, 32);
+  this->node_to_value.init(this->allocator, 32);
 
   gen(this, nullptr, this->ast, this->scope);
 

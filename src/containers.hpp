@@ -166,7 +166,7 @@ template <typename K, typename V> struct HashMap {
       return nullptr;
     }
 
-    return slot->value;
+    return &slot->value;
   }
 
   void remove(K key) {
