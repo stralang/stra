@@ -33,10 +33,6 @@ Value execBinary(InteropState *state, Node *node, Scope *scope) {
     if (out.type->kind == TypeKind::Integer) {
       out.data.integer = node->_operator.lhs->value.data.integer +
                          node->_operator.rhs->value.data.integer;
-      std::cerr << "Executed addition: `"
-                << node->_operator.lhs->value.data.integer << " + "
-                << node->_operator.rhs->value.data.integer << " = "
-                << out.data.integer << "`\n";
     } else if (out.type->kind == TypeKind::Float) {
       out.data._float = node->_operator.lhs->value.data._float +
                         node->_operator.rhs->value.data._float;
