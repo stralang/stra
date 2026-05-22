@@ -729,12 +729,13 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
     break;
   }
   case TypeKind::Integer: {
+    if (type->integer.is_signed) {
+      os << " Signed";
+    }
+
     if (type->integer.is_untyped) {
       os << " Untyped";
     } else {
-      if (type->integer.is_signed) {
-        os << " Signed";
-      }
       os << " Bits: " << type->integer.bits;
     }
     break;

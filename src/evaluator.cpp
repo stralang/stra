@@ -316,7 +316,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
 
     expect(compareTypes(lhs_primitive, rhs_primitive), rhs->location,
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
-                   << *rhs->value.type);
+                   << *rhs->value.type << "`");
 
     Type out_type = *lhs->value.type;
     out_type.is_constant = true;
