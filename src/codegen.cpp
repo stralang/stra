@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include "operator.hpp"
 #include "print.hpp"
 #include "types.hpp"
 #include "llvm-c/Core.h"
@@ -6,8 +7,11 @@
 #include "llvm-c/Types.h"
 #include <cstddef>
 #include <cstring>
-#include <filesystem>
 #include <iostream>
+
+// Forward Declaration
+LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                 Scope *scope);
 
 LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
   switch (type->kind) {
@@ -147,6 +151,61 @@ LLVMValueRef valueToLLVM(CodeGen *codegen, Value *value) {
   return nullptr;
 }
 
+LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                      Scope *scope) {
+  Type *child_type = node->unary_operator.child->value.type;
+  if (child_type->kind == TypeKind::SIMD) {
+    child_type = child_type->slice.type;
+  }
+
+  LLVMValueRef value = gen(codegen, builder, node->unary_operator.child, scope);
+
+  switch (node->unary_operator.opcode) {
+  case UnaryOperator::Minus: {
+    if (child_type->kind == TypeKind::Integer) {
+      return LLVMBuildNeg(builder, value, "");
+    } else if (child_type->kind == TypeKind::Float) {
+      return LLVMBuildFNeg(builder, value, "");
+    }
+
+    break;
+  }
+  case UnaryOperator::Logical_Not: {
+    if (child_type->kind == TypeKind::Bool) {
+      return LLVMBuildNot(builder, value, "");
+    } else if (child_type->kind == TypeKind::Integer) {
+      LLVMValueRef zero =
+          LLVMConstInt(typeToLLVM(codegen, child_type), 0, false);
+      return LLVMBuildICmp(builder, LLVMIntEQ, value, zero, "");
+    } else if (child_type->kind == TypeKind::Float) {
+      LLVMValueRef zero = LLVMConstReal(typeToLLVM(codegen, child_type), 0.0);
+      return LLVMBuildFCmp(builder, LLVMRealOEQ, value, zero, "");
+    }
+    break;
+  }
+  case UnaryOperator::Bitwise_Not: {
+    if (child_type->kind == TypeKind::Integer) {
+      return LLVMBuildNot(builder, value, "");
+    }
+    break;
+  }
+  case UnaryOperator::Reference: {
+    return value;
+  }
+  case UnaryOperator::Dereference: {
+    return LLVMBuildLoad2(builder, typeToLLVM(codegen, child_type->child),
+                          value, "");
+  }
+  }
+
+  return nullptr;
+}
+
+LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                       Scope *scope) {
+  return nullptr;
+}
+
 LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope) {
   switch (node->kind) {
@@ -280,6 +339,18 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Member: {
     return valueToLLVM(codegen, &node->value);
+  }
+  case NodeKind::Import:
+  case NodeKind::Const:
+  case NodeKind::Slice: {
+    // BLANK
+    break;
+  }
+  case NodeKind::UnaryOperator: {
+    return genUnary(codegen, builder, node, scope);
+  }
+  case NodeKind::Operator: {
+    return genBinary(codegen, builder, node, scope);
   }
   }
 
