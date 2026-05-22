@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include "ast.hpp"
 #include "operator.hpp"
 #include "print.hpp"
 #include "types.hpp"
@@ -12,6 +13,8 @@
 // Forward Declaration
 LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope);
+LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                  Scope *scope);
 
 LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
   switch (type->kind) {
@@ -158,6 +161,10 @@ LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     child_type = child_type->slice.type;
   }
 
+  if (node->unary_operator.opcode == UnaryOperator::Reference) {
+    return addr(codegen, builder, node->unary_operator.child, scope);
+  }
+
   LLVMValueRef value = gen(codegen, builder, node->unary_operator.child, scope);
 
   switch (node->unary_operator.opcode) {
@@ -189,9 +196,6 @@ LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
-  case UnaryOperator::Reference: {
-    return value;
-  }
   case UnaryOperator::Dereference: {
     return LLVMBuildLoad2(builder, typeToLLVM(codegen, child_type->child),
                           value, "");
@@ -214,14 +218,12 @@ LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   // Assignment
   if (node->_operator.opcode == Operator::Assign) {
     LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
-    LLVMValueRef lhs_ptr = gen(codegen, builder, node->_operator.lhs, scope);
+    LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
     LLVMBuildStore(builder, rhs_value, lhs_ptr);
     return nullptr;
   }
 
   LLVMValueRef lhs_value = gen(codegen, builder, node->_operator.lhs, scope);
-  lhs_value =
-      LLVMBuildLoad2(builder, typeToLLVM(codegen, lhs_type), lhs_value, "");
 
   if (lhs_type->kind == TypeKind::SIMD) {
     lhs_type = lhs_type->child;
@@ -246,8 +248,6 @@ LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   }
 
   LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
-  rhs_value =
-      LLVMBuildLoad2(builder, typeToLLVM(codegen, rhs_type), rhs_value, "");
 
   switch (node->_operator.opcode) {
   case Operator::Add: {
@@ -406,6 +406,36 @@ LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
+LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                  Scope *scope) {
+  switch (node->kind) {
+  case NodeKind::Name: {
+    Symbol *symbol = scope->findSymbol(&node->text, &node->location);
+    LLVMValueRef *value = codegen->node_to_value.get(symbol->node);
+    if (value == nullptr) {
+      gen(codegen, builder, symbol->node, symbol->parent);
+      value = codegen->node_to_value.get(symbol->node);
+    }
+    // TODO: A variable may not be generated for runtime
+    return *value;
+  }
+  case NodeKind::UnaryOperator: {
+    if (node->unary_operator.opcode == UnaryOperator::Dereference) {
+      return gen(codegen, builder, node->unary_operator.child, scope);
+    }
+    break;
+  }
+  case NodeKind::Operator: {
+    if (node->_operator.opcode == Operator::MemberAccess) {
+      // TODO:
+    }
+    break;
+  }
+  }
+
+  return nullptr;
+}
+
 LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope) {
   switch (node->kind) {
@@ -422,9 +452,14 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
-    LLVMValueRef value = gen(codegen, builder, symbol->node, symbol->parent);
+    LLVMValueRef *value = codegen->node_to_value.get(symbol->node);
+    if (value == nullptr) {
+      gen(codegen, builder, symbol->node, symbol->parent);
+      value = codegen->node_to_value.get(symbol->node);
+    }
     // TODO: A variable may not be generated for runtime
-    return value;
+    return LLVMBuildLoad2(
+        builder, typeToLLVM(codegen, symbol->node->value.type), *value, "");
   }
   case NodeKind::Integer: {
     return valueToLLVM(codegen, &node->value);
@@ -441,7 +476,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Field: {
     LLVMValueRef *cache = codegen->node_to_value.get(node);
     if (cache != nullptr) {
-      return *cache;
+      return nullptr;
     }
 
     // TODO: Mangle name
@@ -455,7 +490,6 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       LLVMSetValueName2(func, (const char *)node->field.name.ptr,
                         node->field.name.len);
       codegen->node_to_value.insert(node, func);
-      return func;
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
       Type *real_type = node->value.data.type_value;
@@ -480,19 +514,17 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       codegen->node_to_value.insert(node, alloca);
-      return alloca;
     } else {
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
       if (!node->field.undefined) {
-        // TODO: Don't set initializer if the variable is outside of the current
-        // module
+        // TODO: Don't set initializer if the variable is outside of the
+        // current module
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
 
       codegen->node_to_value.insert(node, alloca);
-      return alloca;
     }
     break;
   }
@@ -501,7 +533,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
 
     if (!node->function.undefined) {
-      // TODO: Don't build body if the function is outside of the current module
+      // TODO: Don't build body if the function is outside of the current
+      // module
       LLVMBasicBlockRef entry = LLVMAppendBasicBlock(func, "entry");
       LLVMBuilderRef body_builder = LLVMCreateBuilder();
       LLVMPositionBuilderAtEnd(body_builder, entry);
