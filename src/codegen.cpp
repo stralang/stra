@@ -167,7 +167,18 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     // TODO: A variable may not be generated for runtime
     return value;
   }
-  // ...
+  case NodeKind::Integer: {
+    return valueToLLVM(codegen, &node->value);
+  }
+  case NodeKind::Float: {
+    return valueToLLVM(codegen, &node->value);
+  }
+  case NodeKind::Char: {
+    return valueToLLVM(codegen, &node->value);
+  }
+  case NodeKind::String: {
+    return valueToLLVM(codegen, &node->value);
+  }
   case NodeKind::Field: {
     LLVMValueRef *cache = codegen->node_to_value.get(node);
     if (cache != nullptr) {
