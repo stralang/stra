@@ -278,6 +278,9 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Member: {
+    return valueToLLVM(codegen, &node->value);
+  }
   }
 
   return nullptr;
