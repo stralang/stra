@@ -5,6 +5,7 @@
 #include "llvm-c/Types.h"
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
@@ -137,7 +138,8 @@ LLVMValueRef valueToLLVM(CodeGen *codegen, Value *value) {
   return nullptr;
 }
 
-void gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node, Scope *scope) {
+LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                 Scope *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
     Scope *compound_scope = scope->findScope(node);
@@ -150,7 +152,65 @@ void gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node, Scope *scope) {
     }
     break;
   }
+  // ...
+  case NodeKind::Field: {
+    // TODO: Mangle name
+    char *name = (char *)codegen->allocator->alloc(node->field.name.len);
+    memcpy(name, node->field.name.ptr, node->field.name.len);
+    name[node->field.name.len] = 0;
+
+    if (node->field.definition &&
+        node->field.initial->kind == NodeKind::Function) {
+      // Build function and set name
+      LLVMValueRef func = gen(codegen, builder, node->field.initial, scope);
+      LLVMSetValueName(func, name);
+      return func;
+    } else if (scope->location_aware) {
+      // Local Variable
+      LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
+      LLVMValueRef alloca = LLVMBuildAlloca(builder, type, name);
+
+      if (node->value.has_data) {
+        LLVMBuildStore(builder, valueToLLVM(codegen, &node->value), alloca);
+      } else if (!node->field.undefined) {
+        LLVMValueRef initial =
+            gen(codegen, builder, node->field.initial, scope);
+        LLVMBuildStore(builder, initial, alloca);
+      }
+
+      return alloca;
+    } else {
+      // Global Variable
+      LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
+      LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
+      if (!node->field.undefined) {
+        LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
+      }
+    }
+    break;
   }
+  case NodeKind::Function: {
+    LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
+    LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
+
+    if (!node->function.undefined) {
+      LLVMBasicBlockRef entry = LLVMAppendBasicBlock(func, "entry");
+      LLVMBuilderRef body_builder = LLVMCreateBuilder();
+      LLVMPositionBuilderAtEnd(body_builder, entry);
+
+      Scope *fn_scope = scope->findScope(node);
+      gen(codegen, body_builder, node->function.body, fn_scope);
+
+      if (LLVMGetBasicBlockTerminator(entry) == nullptr) {
+        LLVMBuildRetVoid(body_builder);
+      }
+    }
+
+    return func;
+  }
+  }
+
+  return nullptr;
 }
 
 void CodeGen::generate() {
@@ -159,6 +219,8 @@ void CodeGen::generate() {
   *(name + this->path.len) = 0;
 
   this->mod = LLVMModuleCreateWithName(name);
+
+  gen(this, nullptr, this->ast, this->scope);
 
   char *text = LLVMPrintModuleToString(this->mod);
   std::cout << text;
