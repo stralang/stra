@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include "print.hpp"
 #include "types.hpp"
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
@@ -159,12 +160,22 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     memcpy(name, node->field.name.ptr, node->field.name.len);
     name[node->field.name.len] = 0;
 
-    if (node->field.definition &&
-        node->field.initial->kind == NodeKind::Function) {
+    if (node->value.type->kind == TypeKind::Function) {
       // Build function and set name
       LLVMValueRef func = gen(codegen, builder, node->field.initial, scope);
-      LLVMSetValueName(func, name);
+      LLVMSetValueName2(func, (const char *)node->field.name.ptr,
+                        node->field.name.len);
       return func;
+    } else if (node->value.type->kind == TypeKind::TypeId) {
+      // Type
+      Type *real_type = node->value.data.type_value;
+      if (real_type->kind == TypeKind::Struct) {
+        LLVMTypeRef type = typeToLLVM(codegen, real_type);
+        // TODO: Set name
+      }
+
+      // Let the type generate it's children
+      gen(codegen, builder, node->field.initial, scope);
     } else if (scope->location_aware) {
       // Local Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
@@ -184,6 +195,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
       if (!node->field.undefined) {
+        // TODO: Don't set initializer if the variable is outside of the current
+        // module
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
     }
@@ -194,6 +207,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
 
     if (!node->function.undefined) {
+      // TODO: Don't build body if the function is outside of the current module
       LLVMBasicBlockRef entry = LLVMAppendBasicBlock(func, "entry");
       LLVMBuilderRef body_builder = LLVMCreateBuilder();
       LLVMPositionBuilderAtEnd(body_builder, entry);
@@ -207,6 +221,27 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     }
 
     return func;
+  }
+  case NodeKind::Struct: {
+    Scope *struct_scope = scope->findScope(node);
+    for (size_t i = 0; i < node->_struct.body.length; i++) {
+      gen(codegen, builder, node->_struct.body.data.ptr[i], struct_scope);
+    }
+    break;
+  }
+  case NodeKind::Enum: {
+    Scope *enum_scope = scope->findScope(node);
+    for (size_t i = 0; i < node->_enum.body.length; i++) {
+      gen(codegen, builder, node->_enum.body.data.ptr[i], enum_scope);
+    }
+    break;
+  }
+  case NodeKind::Union: {
+    Scope *union_scope = scope->findScope(node);
+    for (size_t i = 0; i < node->_union.body.length; i++) {
+      gen(codegen, builder, node->_union.body.data.ptr[i], union_scope);
+    }
+    break;
   }
   }
 
