@@ -82,9 +82,9 @@ bool compareTypes(Type *lhs, Type *rhs) {
     return true;
   }
   case TypeKind::Integer: {
-    bool term1 = lhs->integer.is_untyped | lhs->integer.is_signed |
+    bool term1 = lhs->integer.is_untyped || lhs->integer.is_signed ||
                  !rhs->integer.is_signed;
-    bool term2 = rhs->integer.is_untyped | rhs->integer.is_signed |
+    bool term2 = rhs->integer.is_untyped || rhs->integer.is_signed ||
                  !lhs->integer.is_signed;
 
     bool bits_match = lhs->integer.bits == rhs->integer.bits;
