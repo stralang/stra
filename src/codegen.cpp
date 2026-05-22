@@ -1,7 +1,157 @@
 #include "codegen.hpp"
+#include "types.hpp"
 #include "llvm-c/Core.h"
+#include "llvm-c/Target.h"
+#include "llvm-c/Types.h"
+#include <cstddef>
 #include <cstring>
 #include <iostream>
+
+LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
+  switch (type->kind) {
+  case TypeKind::Void: {
+    return LLVMVoidType();
+  }
+  case TypeKind::Bool: {
+    return LLVMInt1Type();
+  }
+  case TypeKind::Integer: {
+    size_t bits = type->integer.bits;
+    if (type->integer.bits == -1) {
+      LLVMTypeRef tmp_type = LLVMPointerType(LLVMInt1Type(), 0);
+      bits =
+          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_type);
+    }
+    return LLVMIntType(bits);
+  }
+  case TypeKind::Float: {
+    switch (type->_float.bits) {
+    case 16: {
+      return LLVMHalfType();
+    }
+    case 32: {
+      return LLVMFloatType();
+    }
+    case 64: {
+      return LLVMDoubleType();
+    }
+    case 128: {
+      return LLVMFP128Type();
+    }
+    }
+
+    return nullptr;
+  }
+  case TypeKind::Pointer: {
+    return LLVMPointerType(typeToLLVM(codegen, type->child), 0);
+  }
+  case TypeKind::Slice: {
+    LLVMTypeRef elem = typeToLLVM(codegen, type->slice.type);
+    if (type->slice.length > 0) {
+      return LLVMArrayType(elem, type->slice.length);
+    } else if (type->slice.length < 0) {
+      return LLVMPointerType(elem, 0);
+    } else {
+      LLVMTypeRef *types =
+          (LLVMTypeRef *)codegen->allocator->alloc(sizeof(LLVMTypeRef) * 2);
+      types[0] = LLVMPointerType(elem, 0);
+      size_t bits =
+          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), types[0]);
+      types[1] = LLVMIntType(bits);
+      return LLVMStructType(types, 2, false);
+    }
+    return nullptr;
+  }
+  case TypeKind::SIMD: {
+    return LLVMVectorType(typeToLLVM(codegen, type->slice.type),
+                          type->slice.length);
+  }
+  case TypeKind::TypeId: {
+    return nullptr;
+  }
+  case TypeKind::Function: {
+    LLVMTypeRef return_type = typeToLLVM(codegen, type->function.return_type);
+    LLVMTypeRef *param_types = (LLVMTypeRef *)codegen->allocator->alloc(
+        sizeof(LLVMTypeRef) * type->function.arguments.length);
+    for (size_t i = 0; i < type->function.arguments.length; i++) {
+      param_types[i] =
+          typeToLLVM(codegen, type->function.arguments.data.ptr[i]);
+    }
+
+    return LLVMFunctionType(return_type, param_types,
+                            type->function.arguments.length, false);
+  }
+  case TypeKind::Struct: {
+    LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->alloc(
+        sizeof(LLVMTypeRef) * type->_struct.fields.length);
+    for (size_t i = 0; i < type->_struct.fields.length; i++) {
+      field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
+    }
+
+    return LLVMStructType(field_types, type->_struct.fields.length, false);
+  }
+  case TypeKind::Enum: {
+    return typeToLLVM(codegen, type->_enum.repr_type);
+  }
+  case TypeKind::Union: {
+    LLVMTypeRef tmp_ptr = LLVMPointerType(LLVMInt1Type(), 0);
+    size_t native_size =
+        LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
+
+    size_t size = type->sizeBits(native_size);
+    return LLVMArrayType(LLVMInt8Type(), size);
+  }
+  }
+
+  return nullptr;
+}
+
+LLVMValueRef valueToLLVM(CodeGen *codegen, Value *value) {
+  if (!value->has_data) {
+    return nullptr;
+  }
+
+  switch (value->type->kind) {
+  case TypeKind::Integer: {
+    LLVMTypeRef type = typeToLLVM(codegen, value->type);
+    return LLVMConstInt(type, value->data.integer,
+                        value->type->integer.is_signed);
+  }
+  case TypeKind::Float: {
+    LLVMTypeRef type = typeToLLVM(codegen, value->type);
+    return LLVMConstReal(type, value->data._float);
+  }
+  case TypeKind::Slice: {
+    LLVMTypeRef elem_type = typeToLLVM(codegen, value->type->slice.type);
+    LLVMValueRef *values = (LLVMValueRef *)codegen->allocator->alloc(
+        sizeof(LLVMValueRef) * value->data.text.len);
+
+    for (size_t i = 0; i < value->data.text.len; i++) {
+      values[i] = LLVMConstInt(elem_type, value->data.text.ptr[i], false);
+    }
+
+    return LLVMConstArray(elem_type, values, value->data.text.len);
+  }
+  }
+
+  return nullptr;
+}
+
+void gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node, Scope *scope) {
+  switch (node->kind) {
+  case NodeKind::Compound: {
+    Scope *compound_scope = scope->findScope(node);
+    if (compound_scope == nullptr) {
+      compound_scope = scope;
+    }
+
+    for (size_t i = 0; i < node->children.length; i++) {
+      gen(codegen, builder, node->children.data.ptr[i], compound_scope);
+    }
+    break;
+  }
+  }
+}
 
 void CodeGen::generate() {
   char *name = (char *)allocator->alloc(sizeof(this->path.len + 1));
