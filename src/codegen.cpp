@@ -203,6 +203,206 @@ LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
 LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
                        Scope *scope) {
+  // Member Access
+  if (node->_operator.opcode == Operator::MemberAccess) {
+    // TODO: Member Access
+  }
+
+  Type *lhs_type = node->_operator.lhs->value.type;
+  Type *rhs_type = node->_operator.rhs->value.type;
+
+  // Assignment
+  if (node->_operator.opcode == Operator::Assign) {
+    LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
+    LLVMValueRef lhs_ptr = gen(codegen, builder, node->_operator.lhs, scope);
+    LLVMBuildStore(builder, rhs_value, lhs_ptr);
+    return nullptr;
+  }
+
+  LLVMValueRef lhs_value = gen(codegen, builder, node->_operator.lhs, scope);
+  lhs_value =
+      LLVMBuildLoad2(builder, typeToLLVM(codegen, lhs_type), lhs_value, "");
+
+  if (lhs_type->kind == TypeKind::SIMD) {
+    lhs_type = lhs_type->child;
+  }
+
+  // Cast
+  if (node->_operator.opcode == Operator::As) {
+    LLVMTypeRef dest_ty = typeToLLVM(codegen, rhs_type);
+    if (lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildIntCast2(builder, lhs_value, dest_ty,
+                               lhs_type->integer.is_signed, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFPCast(builder, lhs_value, dest_ty, "");
+    } else if (lhs_type->kind == TypeKind::Pointer) {
+      return LLVMBuildPointerCast(builder, lhs_value, dest_ty, "");
+    } else {
+      return LLVMBuildBitCast(builder, lhs_value, dest_ty, "");
+    }
+  } else if (node->_operator.opcode == Operator::Bitcast) {
+    return LLVMBuildBitCast(builder, lhs_value, typeToLLVM(codegen, rhs_type),
+                            "");
+  }
+
+  LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
+  rhs_value =
+      LLVMBuildLoad2(builder, typeToLLVM(codegen, rhs_type), rhs_value, "");
+
+  switch (node->_operator.opcode) {
+  case Operator::Add: {
+    if (lhs_type->kind == TypeKind::Integer ||
+        lhs_type->kind == TypeKind::Pointer) {
+      return LLVMBuildAdd(builder, lhs_value, rhs_value, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFAdd(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Sub: {
+    if (lhs_type->kind == TypeKind::Integer ||
+        lhs_type->kind == TypeKind::Pointer) {
+      return LLVMBuildSub(builder, lhs_value, rhs_value, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFSub(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Mul: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildMul(builder, lhs_value, rhs_value, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFMul(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Div: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildSDiv(builder, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildUDiv(builder, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFDiv(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Mod: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildSRem(builder, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildURem(builder, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFDiv(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Bitwise_Or: {
+    if (lhs_type->kind == TypeKind::Bool ||
+        lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildOr(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Bitwise_Xor: {
+    if (lhs_type->kind == TypeKind::Bool ||
+        lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildXor(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Bitwise_And: {
+    if (lhs_type->kind == TypeKind::Bool ||
+        lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildAnd(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Bitwise_LeftShift: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildShl(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::Bitwise_RightShift: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      return LLVMBuildLShr(builder, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::EqualTo: {
+    if (lhs_type->kind == TypeKind::Bool ||
+        lhs_type->kind == TypeKind::Integer ||
+        lhs_type->kind == TypeKind::Pointer) {
+      return LLVMBuildICmp(builder, LLVMIntEQ, lhs_value, rhs_value, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealOEQ, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::NotEqualTo: {
+    if (lhs_type->kind == TypeKind::Bool ||
+        lhs_type->kind == TypeKind::Integer ||
+        lhs_type->kind == TypeKind::Pointer) {
+      return LLVMBuildICmp(builder, LLVMIntNE, lhs_value, rhs_value, "");
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealONE, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::LessThen: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildICmp(builder, LLVMIntSLT, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildICmp(builder, LLVMIntULT, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealOLT, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::GreaterThen: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildICmp(builder, LLVMIntSGT, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildICmp(builder, LLVMIntUGT, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealOGT, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::LessThenOrEqualTo: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildICmp(builder, LLVMIntSLE, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildICmp(builder, LLVMIntULE, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealOLE, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  case Operator::GreaterThenOrEqualTo: {
+    if (lhs_type->kind == TypeKind::Integer) {
+      if (lhs_type->integer.is_signed) {
+        return LLVMBuildICmp(builder, LLVMIntSGE, lhs_value, rhs_value, "");
+      } else {
+        return LLVMBuildICmp(builder, LLVMIntUGE, lhs_value, rhs_value, "");
+      }
+    } else if (lhs_type->kind == TypeKind::Float) {
+      return LLVMBuildFCmp(builder, LLVMRealOGE, lhs_value, rhs_value, "");
+    }
+    break;
+  }
+  }
+
   return nullptr;
 }
 
