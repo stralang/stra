@@ -104,12 +104,8 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
 
 Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
                        Scope *scope) {
-  Node *out = atom;
-
-  if (parser->cur_token.kind == TokenKind::Operator) {
-    out = parseBinaryExpr(parser, out, min_precedence, scope);
-    try(out != nullptr);
-  }
+  Node *out = parseBinaryExpr(parser, atom, min_precedence, scope);
+  try(out != nullptr);
 
   return out;
 }
@@ -863,7 +859,8 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
     parser->nextToken();
   } else if (parser->prev_token.kind != TokenKind::LineDelimiter &&
              parser->prev_token.kind != TokenKind::BlockEnd) {
-    std::cerr << "Statement must end with either `;` or `}`\n";
+    std::cerr << parser->cur_token.location
+              << " Statement must end with either `;` or `}`\n";
     return nullptr;
   }
 

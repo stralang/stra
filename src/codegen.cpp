@@ -585,6 +585,24 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Operator: {
     return genBinary(codegen, builder, node, scope);
   }
+  case NodeKind::Call: {
+    Type *callee_type = node->call.callee->value.type;
+
+    LLVMValueRef *args = (LLVMValueRef *)codegen->allocator->alloc(
+        sizeof(LLVMValueRef) * callee_type->function.arguments.length);
+    for (size_t i = 0; i < callee_type->function.arguments.length; i++) {
+      args[i] = gen(codegen, builder, node->call.arguments.data.ptr[i], scope);
+    }
+
+    LLVMValueRef function = addr(codegen, builder, node->call.callee, scope);
+    LLVMValueRef ret =
+        LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type), function,
+                       args, callee_type->function.arguments.length, "");
+
+    return LLVMBuildLoad2(
+        builder, typeToLLVM(codegen, callee_type->function.return_type), ret,
+        "");
+  }
   }
 
   return nullptr;
