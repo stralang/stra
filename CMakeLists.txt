@@ -10,5 +10,39 @@ add_executable(stra
   src/parser.cpp
   src/comptime.cpp
   src/evaluator.cpp
+  src/codegen.cpp
   src/main.cpp
 )
+
+# Get LLVM
+find_program(LLVM_CONFIG llvm-config)
+if(NOT LLVM_CONFIG)
+  message(FATAL_ERROR, "llvm-config not found")
+endif()
+
+execute_process(
+  COMMAND ${LLVM_CONFIG} --version
+  OUTPUT_VARIABLE LLVM_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+  COMMAND ${LLVM_CONFIG} --includedir
+  OUTPUT_VARIABLE LLVM_INCLUDE_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+  COMMAND ${LLVM_CONFIG} --libdir
+  OUTPUT_VARIABLE LLVM_LIB_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+  COMMAND ${LLVM_CONFIG} --libs
+  OUTPUT_VARIABLE LLVM_LIBS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+include_directories(${LLVM_INCLUDE_DIR})
+target_link_libraries(stra ${LLVM_LIBS})

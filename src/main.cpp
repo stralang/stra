@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "ast.hpp"
+#include "codegen.hpp"
 #include "evaluator.hpp"
 #include "parser.hpp"
 #include "print.hpp"
@@ -37,7 +38,15 @@ int main(int argc, const char **argv) {
   };
   evaluator.eval();
 
-  std::cout << *parser.ast << "\n";
+  CodeGen codegen = {
+      .path = tokenizer.path,
+      .ast = parser.ast,
+      .scope = parser.scope,
+      .allocator = &allocator,
+  };
+  codegen.generate();
+
+  // std::cout << *parser.ast << "\n";
   // std::cout << *parser.scope << "\n";
 
   // while (true) {
