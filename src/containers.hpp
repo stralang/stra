@@ -150,7 +150,7 @@ template <typename K, typename V> struct HashMap {
     this->slots = (Slot *)allocator->alloc(sizeof(Slot) * this->slot_capacity);
     memset(this->slots, 0, sizeof(Slot) * this->slot_capacity);
   }
-  void deinit() { allocator->_free(this->slots); }
+  void deinit() { allocator->_free((uint8_t *)this->slots); }
 
   void insert(K key, V value) {
     uint64_t hashcode = hash(key);

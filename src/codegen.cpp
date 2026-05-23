@@ -5,6 +5,7 @@
 #include "types.hpp"
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
+#include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
 #include <cstring>
@@ -559,6 +560,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       if (LLVMGetBasicBlockTerminator(entry) == nullptr) {
         LLVMBuildRetVoid(body_builder);
       }
+
+      LLVMDisposeBuilder(body_builder);
     }
 
     return func;
@@ -630,17 +633,50 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 void CodeGen::generate() {
+  // Setup State
   char *name = (char *)allocator->alloc(sizeof(this->path.len + 1));
   memcpy(name, this->path.ptr, this->path.len);
   *(name + this->path.len) = 0;
 
-  this->mod = LLVMModuleCreateWithName(name);
-
   this->scope_to_type.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);
 
+  // Initialize LLVM
+  LLVMInitializeNativeTarget();
+
+  // Setup Module
+  this->mod = LLVMModuleCreateWithName(name);
+
+  // Setup target info
+  char *target_triple = LLVMGetDefaultTargetTriple();
+  LLVMTargetRef target = nullptr;
+  char *errors;
+  if (LLVMGetTargetFromTriple(target_triple, &target, &errors)) {
+    std::cerr << "Error getting target for codegen\n";
+    std::cerr << errors << "\n";
+    return;
+  }
+
+  LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine(
+      target, target_triple, "", "", LLVMCodeGenLevelDefault, LLVMRelocDefault,
+      LLVMCodeModelDefault);
+  LLVMTargetDataRef target_data = LLVMCreateTargetDataLayout(target_machine);
+  LLVMSetTarget(this->mod, target_triple);
+  char *data_layout_str = LLVMCopyStringRepOfTargetData(target_data);
+  LLVMSetDataLayout(this->mod, data_layout_str);
+
+  // Generate
   gen(this, nullptr, this->ast, this->scope);
 
+  // Cleanup
   char *text = LLVMPrintModuleToString(this->mod);
   std::cout << text;
+
+  this->scope_to_type.deinit();
+  this->node_to_value.deinit();
+
+  LLVMDisposeModule(this->mod);
+  LLVMDisposeTargetData(target_data);
+  LLVMDisposeTargetMachine(target_machine);
+  LLVMDisposeMessage(data_layout_str);
 }
