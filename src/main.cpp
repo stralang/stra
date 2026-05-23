@@ -39,7 +39,7 @@ int main(int argc, const char **argv) {
   evaluator.eval();
 
   CodeGen codegen = {
-      .path = tokenizer.path,
+      .source_path = tokenizer.path,
       .ast = parser.ast,
       .scope = parser.scope,
       .allocator = &allocator,

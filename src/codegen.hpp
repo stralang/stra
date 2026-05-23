@@ -7,7 +7,7 @@
 #include "llvm-c/Types.h"
 
 struct CodeGen {
-  String path;
+  String source_path;
   Node *ast;
   Scope *scope;
   Allocator *allocator;

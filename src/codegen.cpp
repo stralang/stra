@@ -519,7 +519,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
-      if (!node->field.undefined) {
+      if (!node->field.undefined &&
+          node->location.file.compare(codegen->source_path)) {
         // TODO: Don't set initializer if the variable is outside of the
         // current module
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
@@ -533,7 +534,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
 
-    if (!node->function.undefined) {
+    if (!node->function.undefined &&
+        node->location.file.compare(codegen->source_path)) {
       // TODO: Don't build body if the function is outside of the current
       // module
       LLVMBasicBlockRef entry = LLVMAppendBasicBlock(func, "entry");
@@ -634,9 +636,9 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
 void CodeGen::generate() {
   // Setup State
-  char *name = (char *)allocator->alloc(sizeof(this->path.len + 1));
-  memcpy(name, this->path.ptr, this->path.len);
-  *(name + this->path.len) = 0;
+  char *name = (char *)allocator->alloc(sizeof(this->source_path.len + 1));
+  memcpy(name, this->source_path.ptr, this->source_path.len);
+  *(name + this->source_path.len) = 0;
 
   this->scope_to_type.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);

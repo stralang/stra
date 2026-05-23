@@ -46,6 +46,11 @@ template <typename T> struct Slice {
   Slice<T> range(size_t start, size_t end) const {
     return Slice<T>{.len = end - start + 1, .ptr = this->ptr + start};
   }
+
+  bool compare(Slice<T> other) {
+    return this->len == other.len &&
+           memcmp(this->ptr, other.ptr, this->len) == 0;
+  }
 };
 
 using String = Slice<uint8_t>;
