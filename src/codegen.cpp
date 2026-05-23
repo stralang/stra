@@ -480,7 +480,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     }
 
     // TODO: Mangle name
-    char *name = (char *)codegen->allocator->alloc(node->field.name.len);
+    char *name = (char *)codegen->allocator->alloc(node->field.name.len + 1);
     memcpy(name, node->field.name.ptr, node->field.name.len);
     name[node->field.name.len] = 0;
 
@@ -539,6 +539,20 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       LLVMBuilderRef body_builder = LLVMCreateBuilder();
       LLVMPositionBuilderAtEnd(body_builder, entry);
 
+      // Prepare Parameters
+      for (size_t i = 0; i < node->function.parameters.length; i++) {
+        Node *key = node->function.parameters.data.ptr[i];
+        char *name = (char *)codegen->allocator->alloc(key->field.name.len + 1);
+        memcpy(name, key->field.name.ptr, key->field.name.len);
+        name[key->field.name.len] = 0;
+
+        LLVMValueRef alloca = LLVMBuildAlloca(
+            body_builder, typeToLLVM(codegen, key->value.type), name);
+        LLVMBuildStore(body_builder, LLVMGetParam(func, i), alloca);
+        codegen->node_to_value.insert(key, alloca);
+      }
+
+      // Generate body
       Scope *fn_scope = scope->findScope(node);
       gen(codegen, body_builder, node->function.body, fn_scope);
 
@@ -602,6 +616,15 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     return LLVMBuildLoad2(
         builder, typeToLLVM(codegen, callee_type->function.return_type), ret,
         "");
+  }
+  case NodeKind::Return: {
+    if (node->child == nullptr) {
+      LLVMBuildRetVoid(builder);
+    } else {
+      LLVMBuildRet(builder, gen(codegen, builder, node->child, scope));
+    }
+
+    break;
   }
   }
 

@@ -856,7 +856,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     Node *fn_node = scope->node;
     Type *expected_type;
     if (fn_node->function.return_type != nullptr) {
-      expected_type = fn_node->function.return_type->value.type;
+      expected_type = fn_node->function.return_type->value.data.type_value;
     } else {
       expected_type = evaluator->type_cache->get({.kind = TypeKind::Void});
     }
@@ -869,7 +869,8 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       expect(compareTypes(expected_type, node->child->value.type),
              node->child->location,
              "Unexpected return value. Got `"
-                 << node->child->value.type << "` Expected `" << expected_type);
+                 << *node->child->value.type << "` Expected `" << *expected_type
+                 << "`");
     }
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
