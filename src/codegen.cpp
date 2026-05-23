@@ -613,9 +613,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
         LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type), function,
                        args, callee_type->function.arguments.length, "");
 
-    return LLVMBuildLoad2(
-        builder, typeToLLVM(codegen, callee_type->function.return_type), ret,
-        "");
+    return ret;
   }
   case NodeKind::Return: {
     if (node->child == nullptr) {
