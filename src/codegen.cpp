@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iostream>
+#include <llvm-c/TargetMachine.h>
 
 // Forward Declaration
 LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
@@ -419,6 +420,13 @@ LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       gen(codegen, builder, symbol->node, symbol->parent);
       value = codegen->node_to_value.get(symbol->node);
     }
+
+    if (value == nullptr) {
+      std::cerr << node->location << " Couldn't find value `" << node->text
+                << "`. Aborting...\n";
+      std::abort();
+    }
+
     // TODO: A variable may not be generated for runtime
     return *value;
   }
@@ -460,6 +468,13 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       gen(codegen, builder, symbol->node, symbol->parent);
       value = codegen->node_to_value.get(symbol->node);
     }
+
+    if (value == nullptr) {
+      std::cerr << node->location << " Couldn't find value `" << node->text
+                << "`. Aborting...\n";
+      std::abort();
+    }
+
     // TODO: A variable may not be generated for runtime
     return LLVMBuildLoad2(
         builder, typeToLLVM(codegen, symbol->node->value.type), *value, "");
@@ -507,6 +522,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       // Local Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMBuildAlloca(builder, type, name);
+      codegen->node_to_value.insert(node, alloca);
 
       if (node->value.has_data) {
         LLVMBuildStore(builder, valueToLLVM(codegen, &node->value), alloca);
@@ -515,18 +531,16 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
             gen(codegen, builder, node->field.initial, scope);
         LLVMBuildStore(builder, initial, alloca);
       }
-
-      codegen->node_to_value.insert(node, alloca);
     } else {
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
+      codegen->node_to_value.insert(node, alloca);
+
       if (!node->field.undefined &&
           node->location.file.compare(codegen->source_path)) {
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
-
-      codegen->node_to_value.insert(node, alloca);
     }
     break;
   }

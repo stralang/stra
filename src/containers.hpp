@@ -146,12 +146,10 @@ template <typename K, typename V> struct HashMap {
   Allocator *allocator;
   Slot *slots;
   size_t slot_capacity;
-  size_t slot_count;
 
   void init(Allocator *allocator, size_t slot_capacity) {
     this->allocator = allocator;
     this->slot_capacity = slot_capacity;
-    this->slot_count = 0;
     this->slots = (Slot *)allocator->alloc(sizeof(Slot) * this->slot_capacity);
     memset(this->slots, 0, sizeof(Slot) * this->slot_capacity);
   }
@@ -186,16 +184,9 @@ template <typename K, typename V> struct HashMap {
   }
 
   uint64_t hash(K k) {
-    size_t len = sizeof(K);
-    uint8_t *bytes = (uint8_t *)&k;
-
-    uint64_t hash = 0xcbf29ce484222325;
-    for (size_t i = 0; i < len; i++) {
-      hash = hash ^ bytes[i];
-      hash = hash * 0x100000001b3;
-    }
-
-    return hash;
+    Hasher hasher;
+    hasher.hash(&k);
+    return hasher.state;
   }
 
   Slot *getSlot(uint64_t hashcode, bool get) {
@@ -203,7 +194,7 @@ template <typename K, typename V> struct HashMap {
     Slot *slot = this->slots + slot_idx;
 
     for (size_t i = 0; i < this->slot_capacity; i++) {
-      if ((!slot->alive && (get && !slot->tombstone)) ||
+      if ((!slot->alive && (!get || !slot->tombstone)) ||
           slot->hashcode == hashcode) {
         break;
       }
