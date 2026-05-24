@@ -569,8 +569,12 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       // Generate body
+      codegen->function_stack[codegen->function_stack_len] = func;
+      codegen->function_stack_len += 1;
+
       Scope *fn_scope = scope->findScope(node);
       gen(codegen, body_builder, node->function.body, fn_scope);
+      codegen->function_stack_len -= 1;
 
       if (LLVMGetBasicBlockTerminator(entry) == nullptr) {
         LLVMBuildRetVoid(body_builder);
@@ -642,6 +646,60 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
     break;
   }
+  case NodeKind::If: {
+    Scope *if_scope = scope->findScope(node);
+    LLVMValueRef parent_function =
+        codegen->function_stack[codegen->function_stack_len - 1];
+
+    // Blocks
+    LLVMBasicBlockRef then_block =
+        LLVMAppendBasicBlockInContext(codegen->ctx, parent_function, "if_then");
+    LLVMBasicBlockRef else_block = nullptr;
+    if (node->_if._else != nullptr) {
+      else_block = LLVMAppendBasicBlockInContext(codegen->ctx, parent_function,
+                                                 "else_body");
+    }
+
+    LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(
+        codegen->ctx, parent_function, "if_merge");
+
+    // Conditional
+    LLVMValueRef condition =
+        gen(codegen, builder, node->_if.conditional, if_scope);
+
+    if (else_block != nullptr) {
+      LLVMBuildCondBr(builder, condition, then_block, else_block);
+    } else {
+      LLVMBuildCondBr(builder, condition, then_block, merge_block);
+    }
+
+    // Body
+    LLVMPositionBuilderAtEnd(builder, then_block);
+    gen(codegen, builder, node->_if.body, if_scope);
+
+    if (LLVMGetBasicBlockTerminator(then_block) == nullptr) {
+      LLVMBuildBr(builder, merge_block);
+    }
+
+    // Else
+    if (else_block != nullptr) {
+      LLVMPositionBuilderAtEnd(builder, else_block);
+
+      Scope *else_scope = scope->findScope(node->_if._else);
+      if (else_scope == nullptr) {
+        else_scope = scope;
+      }
+      gen(codegen, builder, node->_if._else, scope);
+
+      if (LLVMGetBasicBlockTerminator(else_block) == nullptr) {
+        LLVMBuildBr(builder, merge_block);
+      }
+    }
+
+    // Merge
+    LLVMPositionBuilderAtEnd(builder, merge_block);
+    break;
+  }
   }
 
   return nullptr;
@@ -649,12 +707,14 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
 void CodeGen::generate() {
   // Setup State
-  char *name = (char *)allocator->alloc(sizeof(this->source_path.len + 1));
+  char *name =
+      (char *)allocator->alloc(sizeof(char) * this->source_path.len + 1);
   memcpy(name, this->source_path.ptr, this->source_path.len);
   *(name + this->source_path.len) = 0;
 
   this->scope_to_type.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);
+  this->function_stack_len = 0;
 
   // Initialize LLVM
   LLVMInitializeNativeTarget();

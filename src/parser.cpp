@@ -521,43 +521,44 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
 }
 
 Node *parseConditional(ASTParser *parser, Scope *scope) {
-  Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
-  out->token = parser->cur_token;
-  out->location = parser->cur_token.location;
-  out->kind = NodeKind::Compound;
-  out->children.init(parser->allocator, 2);
-
-  while (parser->cur_token.kind != TokenKind::BlockBegin) {
-    Node *child;
-
-    if (parser->cur_token.kind == TokenKind::Name) {
-      child = (Node *)parser->allocator->alloc(sizeof(Node));
-      child->token = parser->cur_token;
-      child->location = parser->cur_token.location;
-      child->kind = NodeKind::Name;
-      child->text = parser->cur_token.text;
-
-      try(parser->nextToken());
-      if (parser->cur_token.kind == TokenKind::TypeSeperator) {
-        child = parseField(parser, child, scope);
-      } else {
-        child = parsePartialExpr(parser,
-                                 (Precedence)((int32_t)Precedence::Assign + 1),
-                                 child, scope);
-      }
-    } else {
-      child = parseExpr(parser, Precedence::Assign, scope);
-    }
-
-    out->children.push(child);
-
-    if (parser->cur_token.kind != TokenKind::LineDelimiter) {
-      break;
-    }
-    try(parser->nextToken());
-  }
-
-  return out;
+  return parseExpr(parser, Precedence::Assign, scope);
+  // Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
+  // out->token = parser->cur_token;
+  // out->location = parser->cur_token.location;
+  // out->kind = NodeKind::Compound;
+  // out->children.init(parser->allocator, 2);
+  //
+  // while (parser->cur_token.kind != TokenKind::BlockBegin) {
+  //   Node *child;
+  //
+  //   if (parser->cur_token.kind == TokenKind::Name) {
+  //     child = (Node *)parser->allocator->alloc(sizeof(Node));
+  //     child->token = parser->cur_token;
+  //     child->location = parser->cur_token.location;
+  //     child->kind = NodeKind::Name;
+  //     child->text = parser->cur_token.text;
+  //
+  //     try(parser->nextToken());
+  //     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
+  //       child = parseField(parser, child, scope);
+  //     } else {
+  //       child = parsePartialExpr(parser,
+  //                                (Precedence)((int32_t)Precedence::Assign +
+  //                                1), child, scope);
+  //     }
+  //   } else {
+  //     child = parseExpr(parser, Precedence::Assign, scope);
+  //   }
+  //
+  //   out->children.push(child);
+  //
+  //   if (parser->cur_token.kind != TokenKind::LineDelimiter) {
+  //     break;
+  //   }
+  //   try(parser->nextToken());
+  // }
+  //
+  // return out;
 }
 
 Node *parseAttribute(ASTParser *parser, Scope *scope) {
