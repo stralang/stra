@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 
 struct Type;
 struct Scope;
@@ -204,6 +205,7 @@ struct TypeCache {
 
   void init(Allocator *allocator) {
     this->arena.init(allocator, sizeof(Type) * 256);
+    this->length = 0;
   }
   void deinit() { arena.deinit(); }
 
@@ -225,6 +227,7 @@ struct TypeCache {
     t.hashcode = hashcode;
     Type *allocation = (Type *)arena.alloc(sizeof(Type));
     *allocation = t;
+    this->length += 1;
     return allocation;
   }
 
