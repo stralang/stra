@@ -676,10 +676,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     // Body
     LLVMPositionBuilderAtEnd(builder, then_block);
     gen(codegen, builder, node->_if.body, if_scope);
-
-    if (LLVMGetBasicBlockTerminator(then_block) == nullptr) {
-      LLVMBuildBr(builder, merge_block);
-    }
+    LLVMBuildBr(builder, merge_block);
 
     // Else
     if (else_block != nullptr) {
@@ -695,6 +692,38 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
         LLVMBuildBr(builder, merge_block);
       }
     }
+
+    // Merge
+    LLVMPositionBuilderAtEnd(builder, merge_block);
+    break;
+  }
+  case NodeKind::For: {
+    Scope *for_scope = scope->findScope(node);
+    LLVMValueRef parent_function =
+        codegen->function_stack[codegen->function_stack_len - 1];
+
+    // Blocks
+    LLVMBasicBlockRef condition_block = LLVMAppendBasicBlockInContext(
+        codegen->ctx, parent_function, "for_condition");
+    LLVMBasicBlockRef do_block =
+        LLVMAppendBasicBlockInContext(codegen->ctx, parent_function, "for_do");
+    LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(
+        codegen->ctx, parent_function, "for_merge");
+
+    LLVMBuildBr(builder, condition_block);
+
+    // Conditional
+    LLVMPositionBuilderAtEnd(builder, condition_block);
+    LLVMValueRef condition =
+        gen(codegen, builder, node->_for.conditional, for_scope);
+
+    LLVMBuildCondBr(builder, condition, do_block, merge_block);
+
+    // Do
+    LLVMPositionBuilderAtEnd(builder, do_block);
+    gen(codegen, builder, node->_for.body, for_scope);
+
+    LLVMBuildBr(builder, condition_block);
 
     // Merge
     LLVMPositionBuilderAtEnd(builder, merge_block);
