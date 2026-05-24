@@ -15,6 +15,7 @@ struct CodeGen {
   HashMap<Scope *, LLVMTypeRef> scope_to_type;
   HashMap<Node *, LLVMValueRef> node_to_value;
 
+  LLVMContextRef ctx;
   LLVMModuleRef mod;
 
   void generate();

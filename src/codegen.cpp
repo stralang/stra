@@ -20,33 +20,34 @@ LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
   switch (type->kind) {
   case TypeKind::Void: {
-    return LLVMVoidType();
+    return LLVMVoidTypeInContext(codegen->ctx);
   }
   case TypeKind::Bool: {
-    return LLVMInt1Type();
+    return LLVMInt1TypeInContext(codegen->ctx);
   }
   case TypeKind::Integer: {
     size_t bits = type->integer.bits;
     if (type->integer.bits == -1) {
-      LLVMTypeRef tmp_type = LLVMPointerType(LLVMInt1Type(), 0);
+      LLVMTypeRef tmp_type =
+          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
       bits =
           LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_type);
     }
-    return LLVMIntType(bits);
+    return LLVMIntTypeInContext(codegen->ctx, bits);
   }
   case TypeKind::Float: {
     switch (type->_float.bits) {
     case 16: {
-      return LLVMHalfType();
+      return LLVMHalfTypeInContext(codegen->ctx);
     }
     case 32: {
-      return LLVMFloatType();
+      return LLVMFloatTypeInContext(codegen->ctx);
     }
     case 64: {
-      return LLVMDoubleType();
+      return LLVMDoubleTypeInContext(codegen->ctx);
     }
     case 128: {
-      return LLVMFP128Type();
+      return LLVMFP128TypeInContext(codegen->ctx);
     }
     }
 
@@ -67,8 +68,8 @@ LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
       types[0] = LLVMPointerType(elem, 0);
       size_t bits =
           LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), types[0]);
-      types[1] = LLVMIntType(bits);
-      return LLVMStructType(types, 2, false);
+      types[1] = LLVMIntTypeInContext(codegen->ctx, bits);
+      return LLVMStructTypeInContext(codegen->ctx, types, 2, false);
     }
     return nullptr;
   }
@@ -103,8 +104,8 @@ LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
       field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
     }
 
-    LLVMTypeRef ty =
-        LLVMStructType(field_types, type->_struct.fields.length, false);
+    LLVMTypeRef ty = LLVMStructTypeInContext(
+        codegen->ctx, field_types, type->_struct.fields.length, false);
     codegen->scope_to_type.insert(type->_struct.scope, ty);
     return ty;
   }
@@ -112,12 +113,13 @@ LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
     return typeToLLVM(codegen, type->_enum.repr_type);
   }
   case TypeKind::Union: {
-    LLVMTypeRef tmp_ptr = LLVMPointerType(LLVMInt1Type(), 0);
+    LLVMTypeRef tmp_ptr =
+        LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
     size_t native_size =
         LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
 
     size_t size = type->sizeBits(native_size);
-    return LLVMArrayType(LLVMInt8Type(), size);
+    return LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), size);
   }
   }
 
@@ -521,8 +523,6 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
       if (!node->field.undefined &&
           node->location.file.compare(codegen->source_path)) {
-        // TODO: Don't set initializer if the variable is outside of the
-        // current module
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
 
@@ -536,10 +536,9 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
     if (!node->function.undefined &&
         node->location.file.compare(codegen->source_path)) {
-      // TODO: Don't build body if the function is outside of the current
-      // module
-      LLVMBasicBlockRef entry = LLVMAppendBasicBlock(func, "entry");
-      LLVMBuilderRef body_builder = LLVMCreateBuilder();
+      LLVMBasicBlockRef entry =
+          LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
+      LLVMBuilderRef body_builder = LLVMCreateBuilderInContext(codegen->ctx);
       LLVMPositionBuilderAtEnd(body_builder, entry);
 
       // Prepare Parameters
@@ -647,7 +646,8 @@ void CodeGen::generate() {
   LLVMInitializeNativeTarget();
 
   // Setup Module
-  this->mod = LLVMModuleCreateWithName(name);
+  this->ctx = LLVMContextCreate();
+  this->mod = LLVMModuleCreateWithNameInContext(name, this->ctx);
 
   // Setup target info
   char *target_triple = LLVMGetDefaultTargetTriple();
