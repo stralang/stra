@@ -712,6 +712,11 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBuildBr(builder, condition_block);
 
+    // Loop Stack
+    codegen->loop_stack[codegen->loop_stack_len] = {
+        .condition = condition_block, ._do = do_block, .merge = merge_block};
+    codegen->loop_stack_len += 1;
+
     // Conditional
     LLVMPositionBuilderAtEnd(builder, condition_block);
     LLVMValueRef condition =
@@ -723,10 +728,13 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, do_block);
     gen(codegen, builder, node->_for.body, for_scope);
 
-    LLVMBuildBr(builder, condition_block);
+    if (LLVMGetBasicBlockTerminator(do_block) == nullptr) {
+      LLVMBuildBr(builder, condition_block);
+    }
 
     // Merge
     LLVMPositionBuilderAtEnd(builder, merge_block);
+    codegen->loop_stack_len -= 1;
     break;
   }
   case NodeKind::Switch: {
@@ -769,6 +777,18 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, merge_block);
     break;
   }
+  case NodeKind::Break: {
+    // TODO: Named Loop
+    LoopBlocks blocks = codegen->loop_stack[codegen->loop_stack_len - 1];
+    LLVMBuildBr(builder, blocks.merge);
+    break;
+  }
+  case NodeKind::Continue: {
+    // TODO: Named Loop
+    LoopBlocks blocks = codegen->loop_stack[codegen->loop_stack_len - 1];
+    LLVMBuildBr(builder, blocks.condition);
+    break;
+  }
   }
 
   return nullptr;
@@ -783,6 +803,7 @@ void CodeGen::generate() {
 
   this->scope_to_type.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);
+  this->loop_stack_len = 0;
   this->function_stack_len = 0;
 
   // Initialize LLVM
