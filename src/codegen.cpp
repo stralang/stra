@@ -970,7 +970,9 @@ void CodeGenModule::generate(CodeGenContext *context) {
       (char *)allocator->alloc(sizeof(char) * this->output_path.len + 1);
   memcpy(output_path, this->output_path.ptr, this->output_path.len);
   *(output_path + this->output_path.len) = 0;
-  if (LLVMWriteBitcodeToFile(this->mod, output_path) != 0) {
+  char *error = nullptr;
+  if (LLVMPrintModuleToFile(this->mod, output_path, &error)) {
+    std::cerr << "LLVM Error: " << error << "\n";
     std::cerr << "Failed to write llvm ir bitcode to file. Aborting.\n";
     std::abort();
   }
