@@ -448,7 +448,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     try(parser->cur_token.kind == TokenKind::ArrayEnd);
     try(parser->nextToken());
 
-    out->slice.type = parseExpr(parser, Precedence::Assign, scope);
+    out->slice.type =
+        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), scope);
     break;
   }
   case TokenKind::ScopeBegin: {
