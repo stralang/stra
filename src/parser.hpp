@@ -9,6 +9,7 @@ struct ASTParser {
   Node *ast;
   Scope *scope;
   ArrayList<Token> comments;
+  ArrayList<Node *> imports;
 
   Token prev_token;
   Token cur_token;

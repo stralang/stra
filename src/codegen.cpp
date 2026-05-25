@@ -547,6 +547,9 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Import: {
+    return addr(codegen, builder, node->import.node, node->import.scope);
+  }
   }
 
   return nullptr;
@@ -720,7 +723,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Member: {
     return valueToLLVM(codegen, &node->value);
   }
-  case NodeKind::Import:
+  case NodeKind::Import: {
+    return gen(codegen, builder, node->import.node, node->import.scope);
+  }
   case NodeKind::Const:
   case NodeKind::Slice: {
     // BLANK

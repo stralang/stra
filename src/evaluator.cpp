@@ -718,7 +718,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Import: {
-    // TODO: Import
+    evaluate(evaluator, node->import.node, node->import.scope);
     break;
   }
   case NodeKind::Const: {

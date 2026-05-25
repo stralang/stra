@@ -411,7 +411,10 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     try(parser->cur_token.kind == TokenKind::String);
 
     out->import.path = parser->cur_token.text;
+    out->import.node = nullptr;
+    out->import.scope = nullptr;
     try(parser->nextToken());
+    parser->imports.push(out);
     break;
   }
   case TokenKind::Comptime: {
@@ -912,6 +915,7 @@ void ASTParser::parse() {
   this->scope->parent = nullptr;
 
   this->comments.init(this->allocator, 16);
+  this->imports.init(this->allocator, 8);
   this->ast = parseStmtCompound(this, this->scope);
   this->scope->node = this->ast;
 }

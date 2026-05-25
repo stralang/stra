@@ -48,6 +48,8 @@ struct NodeMember {
 
 struct NodeImport {
   String path;
+  Node *node;
+  Scope *scope;
 };
 
 struct NodeSlice {
