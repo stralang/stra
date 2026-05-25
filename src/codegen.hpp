@@ -23,10 +23,15 @@ struct CodeGen {
   HashMap<Node *, LLVMValueRef> node_to_value;
 
   // Stacks
+  Node *defer_stack[64];
+  size_t defer_stack_len;
+
   LoopBlocks loop_stack[64];
+  size_t loop_defer_boundary[64];
   size_t loop_stack_len;
 
   LLVMValueRef function_stack[16];
+  size_t function_defer_boundary[16];
   size_t function_stack_len;
 
   // LLVM Context

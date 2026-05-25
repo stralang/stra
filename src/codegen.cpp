@@ -456,9 +456,13 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
       compound_scope = scope;
     }
 
+    size_t old_defer_len = codegen->defer_stack_len;
+
     for (size_t i = 0; i < node->children.length; i++) {
       gen(codegen, builder, node->children.data.ptr[i], compound_scope);
     }
+
+    codegen->defer_stack_len = old_defer_len;
     break;
   }
   case NodeKind::Name: {
@@ -570,6 +574,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
 
       // Generate body
       codegen->function_stack[codegen->function_stack_len] = func;
+      codegen->function_defer_boundary[codegen->function_stack_len] =
+          codegen->defer_stack_len;
       codegen->function_stack_len += 1;
 
       Scope *fn_scope = scope->findScope(node);
@@ -638,6 +644,16 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     return ret;
   }
   case NodeKind::Return: {
+    size_t defer_boundary =
+        codegen->function_defer_boundary[codegen->function_stack_len];
+    if (codegen->defer_stack_len - defer_boundary > 0) {
+      size_t i = codegen->defer_stack_len;
+      while (i > defer_boundary) {
+        i -= 1;
+        gen(codegen, builder, codegen->defer_stack[i], scope);
+      }
+    }
+
     if (node->child == nullptr) {
       LLVMBuildRetVoid(builder);
     } else {
@@ -715,6 +731,8 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     // Loop Stack
     codegen->loop_stack[codegen->loop_stack_len] = {
         .condition = condition_block, ._do = do_block, .merge = merge_block};
+    codegen->loop_defer_boundary[codegen->loop_stack_len] =
+        codegen->defer_stack_len;
     codegen->loop_stack_len += 1;
 
     // Conditional
@@ -777,16 +795,30 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, merge_block);
     break;
   }
-  case NodeKind::Break: {
+  case NodeKind::Break:
+  case NodeKind::Continue: {
+    size_t defer_boundary =
+        codegen->loop_defer_boundary[codegen->loop_stack_len];
+    if (codegen->defer_stack_len - defer_boundary > 0) {
+      size_t i = codegen->defer_stack_len;
+      while (i > defer_boundary) {
+        i -= 1;
+        gen(codegen, builder, codegen->defer_stack[i], scope);
+      }
+    }
+
     // TODO: Named Loop
     LoopBlocks blocks = codegen->loop_stack[codegen->loop_stack_len - 1];
-    LLVMBuildBr(builder, blocks.merge);
+    LLVMBasicBlockRef block = blocks.condition;
+    if (node->kind == NodeKind::Break) {
+      block = blocks.merge;
+    }
+    LLVMBuildBr(builder, block);
     break;
   }
-  case NodeKind::Continue: {
-    // TODO: Named Loop
-    LoopBlocks blocks = codegen->loop_stack[codegen->loop_stack_len - 1];
-    LLVMBuildBr(builder, blocks.condition);
+  case NodeKind::Defer: {
+    codegen->defer_stack[codegen->defer_stack_len] = node->child;
+    codegen->defer_stack_len += 1;
     break;
   }
   }
@@ -803,6 +835,7 @@ void CodeGen::generate() {
 
   this->scope_to_type.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);
+  this->defer_stack_len = 0;
   this->loop_stack_len = 0;
   this->function_stack_len = 0;
 
