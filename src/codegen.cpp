@@ -1,5 +1,6 @@
 #include "codegen.hpp"
 #include "ast.hpp"
+#include "containers.hpp"
 #include "operator.hpp"
 #include "print.hpp"
 #include "types.hpp"
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <iostream>
 #include <llvm-c/TargetMachine.h>
+#include <sstream>
 
 // Forward Declaration
 LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
@@ -408,6 +410,109 @@ LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   }
 
   return nullptr;
+}
+
+void genAssembly(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+                 Scope *scope) {
+  ArrayList<LLVMValueRef> inputs;
+  ArrayList<LLVMTypeRef> input_types;
+  ArrayList<LLVMValueRef> outputs;
+  ArrayList<LLVMTypeRef> output_types;
+  std::ostringstream assembly;
+  std::ostringstream constraints;
+  std::ostringstream clobbered;
+
+  inputs.init(codegen->allocator, 8);
+  input_types.init(codegen->allocator, 8);
+  outputs.init(codegen->allocator, 8);
+  output_types.init(codegen->allocator, 8);
+
+  // Convert AST to ASM
+  for (size_t i = 0; i < node->assembly.instructions.length; i++) {
+    if (i != 0) {
+      assembly << "\n";
+    }
+
+    NodeAssembly::Instruction *inst = node->assembly.instructions.data.ptr + i;
+    assembly << inst->name;
+
+    for (size_t a = 0; a < inst->arguments.length; a++) {
+      NodeAssembly::Argument *arg = inst->arguments.data.ptr + a;
+      if (a != 0) {
+        assembly << ",";
+      }
+
+      // Registers
+      if (arg->kind == NodeAssembly::Argument::Register) {
+        assembly << " %" << inst->name;
+        clobbered << ",~{" << inst->name << "}";
+        continue;
+      }
+
+      // Literals
+      if (arg->node->kind == NodeKind::Integer) {
+        assembly << " $$" << arg->node->value.data.integer;
+        continue;
+      }
+
+      // I/O
+      if (inputs.length != 0) {
+        constraints << ",";
+      }
+
+      LLVMValueRef arg_ptr = addr(codegen, builder, arg->node, scope);
+      LLVMTypeRef arg_type = typeToLLVM(codegen, arg->node->value.type);
+
+      if (arg->kind == NodeAssembly::Argument::Return) {
+        constraints << "=r,r";
+        outputs.push(arg_ptr);
+        output_types.push(arg_type);
+      } else {
+        constraints << "r";
+      }
+
+      LLVMValueRef arg_value = LLVMBuildLoad2(builder, arg_type, arg_ptr, "");
+      inputs.push(arg_value);
+      input_types.push(arg_type);
+      assembly << " $" << (inputs.length);
+    }
+  }
+
+  // Prepare
+  constraints << clobbered.str();
+
+  std::string assembly_str = assembly.str();
+  std::string constraints_str = constraints.str();
+
+  // Generate
+  LLVMTypeRef call_result = nullptr;
+  if (outputs.length == 0) {
+    call_result = LLVMVoidTypeInContext(codegen->ctx);
+  } else if (outputs.length == 1) {
+    call_result = output_types.data[0];
+  } else {
+    call_result = LLVMStructTypeInContext(codegen->ctx, output_types.data.ptr,
+                                          output_types.length, false);
+  }
+
+  LLVMTypeRef func_ty =
+      LLVMFunctionType(call_result, input_types.data.ptr, inputs.length, false);
+  LLVMValueRef inline_asm = LLVMGetInlineAsm(
+      func_ty, assembly_str.data(), assembly_str.size(), constraints_str.data(),
+      constraints_str.size(), true, true, LLVMInlineAsmDialectATT, false);
+
+  LLVMValueRef asm_result = LLVMBuildCall2(builder, func_ty, inline_asm,
+                                           inputs.data.ptr, inputs.length, "");
+
+  // Store Result
+  if (outputs.length == 1) {
+    LLVMBuildStore(builder, asm_result, outputs.data.ptr[0]);
+  } else {
+    for (size_t i = 0; i < outputs.length; i++) {
+      LLVMValueRef result = LLVMBuildExtractValue(builder, asm_result, i, "");
+      LLVMBuildStore(builder, result, outputs.data.ptr[i]);
+    }
+  }
 }
 
 LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
@@ -819,6 +924,10 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Defer: {
     codegen->defer_stack[codegen->defer_stack_len] = node->child;
     codegen->defer_stack_len += 1;
+    break;
+  }
+  case NodeKind::Assembly: {
+    genAssembly(codegen, builder, node, scope);
     break;
   }
   }
