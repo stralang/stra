@@ -823,7 +823,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
         return;
       }
 
-      evaluate(evaluator, arg, fn_scope);
+      evaluate(evaluator, arg, scope);
 
       Type *expected_type = fn_type->function.arguments.data.ptr[i];
       expect(compareTypes(expected_type, arg->value.type), arg->location,
