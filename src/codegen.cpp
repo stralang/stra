@@ -729,6 +729,46 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, merge_block);
     break;
   }
+  case NodeKind::Switch: {
+    // Blocks
+    LLVMBasicBlockRef merge_block =
+        LLVMCreateBasicBlockInContext(codegen->ctx, "switch_merge");
+
+    // Switch
+    LLVMValueRef value =
+        gen(codegen, builder, node->_switch.conditional, scope);
+    LLVMValueRef _switch = LLVMBuildSwitch(builder, value, merge_block,
+                                           node->_switch.cases.length);
+
+    LLVMValueRef parent_function =
+        codegen->function_stack[codegen->function_stack_len - 1];
+
+    // Cases
+    for (size_t i = 0; i < node->_switch.cases.length; i++) {
+      Node *_case = node->_switch.cases.data.ptr[i];
+      Scope *case_scope = scope->findScope(_case->_case.body);
+
+      // Body
+      LLVMBasicBlockRef case_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_function, "switch_case");
+      LLVMPositionBuilderAtEnd(builder, case_block);
+      gen(codegen, builder, _case->_case.body, case_scope);
+
+      if (LLVMGetBasicBlockTerminator(case_block) == nullptr) {
+        LLVMBuildBr(builder, merge_block);
+      }
+
+      // Add
+      LLVMValueRef constant =
+          valueToLLVM(codegen, &_case->_case.constant->value);
+      LLVMAddCase(_switch, constant, case_block);
+    }
+
+    // Merge
+    LLVMAppendExistingBasicBlock(parent_function, merge_block);
+    LLVMPositionBuilderAtEnd(builder, merge_block);
+    break;
+  }
   }
 
   return nullptr;

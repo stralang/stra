@@ -924,10 +924,10 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Case: {
-    Scope *case_scope = scope->findScope(node);
     evaluate(evaluator, node->_case.constant, scope);
     execute(evaluator, node->_case.constant, scope);
 
+    Scope *case_scope = scope->findScope(node->_case.body);
     evaluate(evaluator, node->_case.body, case_scope);
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
