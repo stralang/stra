@@ -38,13 +38,16 @@ int main(int argc, const char **argv) {
   };
   evaluator.eval();
 
-  CodeGen codegen = {
+  CodeGenContext codegen_ctx;
+  codegen_ctx.init();
+
+  CodeGenModule codegen = {
       .source_path = tokenizer.path,
       .ast = parser.ast,
       .scope = parser.scope,
       .allocator = &allocator,
   };
-  codegen.generate();
+  codegen.generate(&codegen_ctx);
 
   // std::cout << *parser.ast << "\n";
   // std::cout << *parser.scope << "\n";
@@ -57,5 +60,6 @@ int main(int argc, const char **argv) {
   //   std::cout << token << "\n";
   // }
 
+  codegen_ctx.deinit();
   tokenizer.deinit();
 }

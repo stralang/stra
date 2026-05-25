@@ -4,6 +4,8 @@
 #include "ast.hpp"
 #include "containers.hpp"
 #include "symbol.hpp"
+#include "llvm-c/Target.h"
+#include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
 
@@ -13,7 +15,19 @@ struct LoopBlocks {
   LLVMBasicBlockRef merge;
 };
 
-struct CodeGen {
+struct CodeGenContext {
+  LLVMContextRef ctx;
+
+  char *target_triple;
+  LLVMTargetMachineRef target_machine;
+  LLVMTargetDataRef target_data;
+  char *data_layout_str;
+
+  void init();
+  void deinit();
+};
+
+struct CodeGenModule {
   String source_path;
   Node *ast;
   Scope *scope;
@@ -38,5 +52,5 @@ struct CodeGen {
   LLVMContextRef ctx;
   LLVMModuleRef mod;
 
-  void generate();
+  void generate(CodeGenContext *context);
 };

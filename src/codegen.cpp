@@ -15,12 +15,12 @@
 #include <sstream>
 
 // Forward Declaration
-LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope);
-LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Scope *scope);
 
-LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
+LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
   switch (type->kind) {
   case TypeKind::Void: {
     return LLVMVoidTypeInContext(codegen->ctx);
@@ -129,7 +129,7 @@ LLVMTypeRef typeToLLVM(CodeGen *codegen, Type *type) {
   return nullptr;
 }
 
-LLVMValueRef valueToLLVM(CodeGen *codegen, Value *value) {
+LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
   if (!value->has_data) {
     return nullptr;
   }
@@ -160,8 +160,8 @@ LLVMValueRef valueToLLVM(CodeGen *codegen, Value *value) {
   return nullptr;
 }
 
-LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
-                      Scope *scope) {
+LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
+                      Node *node, Scope *scope) {
   Type *child_type = node->unary_operator.child->value.type;
   if (child_type->kind == TypeKind::SIMD) {
     child_type = child_type->slice.type;
@@ -211,8 +211,8 @@ LLVMValueRef genUnary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
-LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
-                       Scope *scope) {
+LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
+                       Node *node, Scope *scope) {
   // Member Access
   if (node->_operator.opcode == Operator::MemberAccess) {
     // TODO: Member Access
@@ -412,7 +412,7 @@ LLVMValueRef genBinary(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
-void genAssembly(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope) {
   ArrayList<LLVMValueRef> inputs;
   ArrayList<LLVMTypeRef> input_types;
@@ -515,7 +515,7 @@ void genAssembly(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   }
 }
 
-LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Scope *scope) {
   switch (node->kind) {
   case NodeKind::Name: {
@@ -552,7 +552,7 @@ LLVMValueRef addr(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
-LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
+LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Scope *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
@@ -935,7 +935,7 @@ LLVMValueRef gen(CodeGen *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
-void CodeGen::generate() {
+void CodeGenModule::generate(CodeGenContext *context) {
   // Setup State
   char *name =
       (char *)allocator->alloc(sizeof(char) * this->source_path.len + 1);
@@ -948,30 +948,13 @@ void CodeGen::generate() {
   this->loop_stack_len = 0;
   this->function_stack_len = 0;
 
-  // Initialize LLVM
-  LLVMInitializeNativeTarget();
-
   // Setup Module
-  this->ctx = LLVMContextCreate();
+  this->ctx = context->ctx;
   this->mod = LLVMModuleCreateWithNameInContext(name, this->ctx);
 
   // Setup target info
-  char *target_triple = LLVMGetDefaultTargetTriple();
-  LLVMTargetRef target = nullptr;
-  char *errors;
-  if (LLVMGetTargetFromTriple(target_triple, &target, &errors)) {
-    std::cerr << "Error getting target for codegen\n";
-    std::cerr << errors << "\n";
-    return;
-  }
-
-  LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine(
-      target, target_triple, "", "", LLVMCodeGenLevelDefault, LLVMRelocDefault,
-      LLVMCodeModelDefault);
-  LLVMTargetDataRef target_data = LLVMCreateTargetDataLayout(target_machine);
-  LLVMSetTarget(this->mod, target_triple);
-  char *data_layout_str = LLVMCopyStringRepOfTargetData(target_data);
-  LLVMSetDataLayout(this->mod, data_layout_str);
+  LLVMSetTarget(this->mod, context->target_triple);
+  LLVMSetDataLayout(this->mod, context->data_layout_str);
 
   // Generate
   gen(this, nullptr, this->ast, this->scope);
@@ -982,9 +965,34 @@ void CodeGen::generate() {
 
   this->scope_to_type.deinit();
   this->node_to_value.deinit();
+}
 
-  LLVMDisposeModule(this->mod);
-  LLVMDisposeTargetData(target_data);
-  LLVMDisposeTargetMachine(target_machine);
-  LLVMDisposeMessage(data_layout_str);
+void CodeGenContext::init() {
+  // Initialize
+  LLVMInitializeNativeTarget();
+
+  // Target Info
+  this->target_triple = LLVMGetDefaultTargetTriple();
+  LLVMTargetRef target = nullptr;
+  char *errors;
+  if (LLVMGetTargetFromTriple(this->target_triple, &target, &errors)) {
+    std::cerr << "Error getting target for codegen\n";
+    std::cerr << errors << "\n";
+    return;
+  }
+
+  this->target_machine = LLVMCreateTargetMachine(
+      target, target_triple, "", "", LLVMCodeGenLevelDefault, LLVMRelocDefault,
+      LLVMCodeModelDefault);
+  this->target_data = LLVMCreateTargetDataLayout(target_machine);
+  this->data_layout_str = LLVMCopyStringRepOfTargetData(target_data);
+
+  // Context
+  this->ctx = LLVMContextCreate();
+}
+
+void CodeGenContext::deinit() {
+  LLVMDisposeTargetData(this->target_data);
+  LLVMDisposeTargetMachine(this->target_machine);
+  LLVMDisposeMessage(this->data_layout_str);
 }
