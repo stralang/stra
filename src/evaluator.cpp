@@ -853,8 +853,9 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     expect(fn_scope != nullptr, node->location,
            "Return must be in a function scope");
 
-    Node *fn_node = scope->node;
+    Node *fn_node = fn_scope->node;
     Type *expected_type;
+
     if (fn_node->function.return_type != nullptr) {
       expected_type = fn_node->function.return_type->value.data.type_value;
     } else {
