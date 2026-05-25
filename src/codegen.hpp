@@ -29,6 +29,7 @@ struct CodeGenContext {
 
 struct CodeGenModule {
   String source_path;
+  String output_path;
   Node *ast;
   Scope *scope;
   Allocator *allocator;

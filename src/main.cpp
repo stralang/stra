@@ -1,11 +1,10 @@
 #include "allocator.hpp"
-#include "ast.hpp"
 #include "codegen.hpp"
+#include "containers.hpp"
 #include "evaluator.hpp"
 #include "parser.hpp"
-#include "print.hpp"
 #include "tokenizer.hpp"
-#include <iostream>
+#include <cstdlib>
 #include <string>
 
 int main(int argc, const char **argv) {
@@ -47,7 +46,10 @@ int main(int argc, const char **argv) {
       .scope = parser.scope,
       .allocator = &allocator,
   };
+  codegen.output_path = "out.bc";
   codegen.generate(&codegen_ctx);
+
+  std::system("clang out.bc -o out");
 
   // std::cout << *parser.ast << "\n";
   // std::cout << *parser.scope << "\n";

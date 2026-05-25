@@ -4,6 +4,7 @@
 #include "operator.hpp"
 #include "print.hpp"
 #include "types.hpp"
+#include "llvm-c/BitWriter.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
@@ -965,8 +966,14 @@ void CodeGenModule::generate(CodeGenContext *context) {
   gen(this, nullptr, this->ast, this->scope);
 
   // Cleanup
-  char *text = LLVMPrintModuleToString(this->mod);
-  std::cout << text;
+  char *output_path =
+      (char *)allocator->alloc(sizeof(char) * this->output_path.len + 1);
+  memcpy(output_path, this->output_path.ptr, this->output_path.len);
+  *(output_path + this->output_path.len) = 0;
+  if (LLVMWriteBitcodeToFile(this->mod, output_path) != 0) {
+    std::cerr << "Failed to write llvm ir bitcode to file. Aborting.\n";
+    std::abort();
+  }
 
   this->scope_to_type.deinit();
   this->node_to_value.deinit();

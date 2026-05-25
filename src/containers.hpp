@@ -28,6 +28,17 @@ template <typename T> struct Slice {
   size_t len;
   T *ptr;
 
+  Slice<uint8_t> &operator=(const char *s) {
+    this->ptr = (uint8_t *)s;
+    this->len = strlen(s);
+    return *this;
+  }
+  Slice<uint8_t> &operator=(std::string s) {
+    this->ptr = (uint8_t *)s.data();
+    this->len = s.size();
+    return *this;
+  }
+
   T &operator[](size_t index) {
     if (index >= this->len) {
       std::cerr << "Index out of bounds" << std::endl;
