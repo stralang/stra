@@ -3,6 +3,7 @@
 #include "containers.hpp"
 #include "evaluator.hpp"
 #include "parser.hpp"
+#include "print.hpp"
 #include "tokenizer.hpp"
 #include <cstddef>
 #include <cstdlib>
@@ -74,7 +75,7 @@ int main(int argc, const char **argv) {
 
   // Emit AST
   if (args.mode == EmitMode::AST) {
-    std::cout << parser.ast << "\n";
+    std::cout << *parser.ast << "\n";
     return 0;
   }
 
@@ -90,7 +91,7 @@ int main(int argc, const char **argv) {
 
   // Emit Evaluted AST
   if (args.mode == EmitMode::EvaluatedAST) {
-    std::cout << parser.ast << "\n";
+    std::cout << *parser.ast << "\n";
     return 0;
   }
 
