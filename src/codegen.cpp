@@ -238,7 +238,9 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   // Cast
   if (node->_operator.opcode == Operator::As) {
-    LLVMTypeRef dest_ty = typeToLLVM(codegen, rhs_type);
+    LLVMTypeRef dest_ty =
+        typeToLLVM(codegen, node->_operator.rhs->value.data.type_value);
+
     if (lhs_type->kind == TypeKind::Integer) {
       return LLVMBuildIntCast2(builder, lhs_value, dest_ty,
                                lhs_type->integer.is_signed, "");
@@ -250,8 +252,9 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
       return LLVMBuildBitCast(builder, lhs_value, dest_ty, "");
     }
   } else if (node->_operator.opcode == Operator::Bitcast) {
-    return LLVMBuildBitCast(builder, lhs_value, typeToLLVM(codegen, rhs_type),
-                            "");
+    LLVMTypeRef dest_ty =
+        typeToLLVM(codegen, node->_operator.rhs->value.data.type_value);
+    return LLVMBuildBitCast(builder, lhs_value, dest_ty, "");
   }
 
   LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
