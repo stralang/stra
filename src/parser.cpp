@@ -6,7 +6,9 @@
 #include "symbol.hpp"
 #include "token.hpp"
 #include <cassert>
+#include <cstring>
 #include <iostream>
+#include <string>
 
 #define try(is_ok)                                                             \
   if (!(is_ok)) {                                                              \
@@ -923,6 +925,17 @@ void ASTParser::parse() {
   this->symbol->children.init(this->allocator, 8);
   this->symbol->children.init(this->allocator, 8);
   this->symbol->parent = nullptr;
+
+  // Setup symbol mangled name
+  {
+    std::string len_str = std::to_string(this->tokenizer.path.len);
+    this->symbol->mangled_name.len = len_str.size() + this->tokenizer.path.len;
+    this->symbol->mangled_name.ptr =
+        (uint8_t *)allocator->alloc(this->symbol->mangled_name.len);
+    memcpy(this->symbol->mangled_name.ptr, len_str.data(), len_str.size());
+    memcpy(this->symbol->mangled_name.ptr + len_str.size(),
+           this->tokenizer.path.ptr, this->tokenizer.path.len);
+  }
 
   this->comments.init(this->allocator, 16);
   this->imports.init(this->allocator, 8);

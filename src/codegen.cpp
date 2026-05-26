@@ -634,8 +634,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
 
     if (name.ptr == nullptr) {
-      // TODO: Mangle name
-      name = node->field.name;
+      name = field_symbol->mangleName(codegen->allocator);
     }
 
     // Generate Value
