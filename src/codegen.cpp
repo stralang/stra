@@ -548,6 +548,72 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Index: {
+    LLVMValueRef slice = addr(codegen, builder, node->index.slice, scope);
+    Type *slice_type = node->index.slice->value.type;
+
+    LLVMValueRef length = nullptr;
+    LLVMValueRef ptr = slice;
+    LLVMTypeRef type = nullptr;
+
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), 0, false);
+    if (slice_type->slice.length > 0) {
+      // Array (compile-time length)
+      type = typeToLLVM(codegen, slice_type);
+
+      LLVMTypeRef tmp_type =
+          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
+      uint64_t native_int =
+          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_type);
+
+      length = LLVMConstInt(LLVMIntTypeInContext(codegen->ctx, native_int),
+                            slice_type->slice.length, false);
+    } else if (slice_type->slice.length == 0) {
+      // Slice (runtime length)
+      length = LLVMBuildExtractValue(builder, slice, 1, "");
+
+      indices[1] = indices[0];
+
+      ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+                          indices, 2, "");
+      type = LLVMPointerType(typeToLLVM(codegen, slice_type->slice.type), 0);
+
+    } else {
+      // Pointer (no length)
+      type = LLVMPointerType(typeToLLVM(codegen, slice_type->slice.type), 0);
+    }
+
+    LLVMValueRef index = gen(codegen, builder, node->index.index, scope);
+
+    // Runtime length check
+    if (length != nullptr) {
+      LLVMValueRef func =
+          codegen->function_stack[codegen->function_stack_len - 1];
+      LLVMBasicBlockRef fail = LLVMAppendBasicBlockInContext(
+          codegen->ctx, func, "bounds_check_fail");
+      LLVMBasicBlockRef success = LLVMAppendBasicBlockInContext(
+          codegen->ctx, func, "bounds_check_success");
+
+      LLVMValueRef in_bounds =
+          LLVMBuildICmp(builder, LLVMIntUGT, length, index, "");
+      LLVMBuildCondBr(builder, in_bounds, success, fail);
+
+      // Generate Fail
+      LLVMPositionBuilderAtEnd(builder, fail);
+
+      // TODO: Panic
+      // FIXME: As of writing there is no way to handle a panic
+      LLVMBuildUnreachable(builder); // this doesn't crash
+
+      // Generate Success
+      LLVMPositionBuilderAtEnd(builder, success);
+    }
+
+    // Index
+    indices[1] = index;
+    return LLVMBuildGEP2(builder, type, ptr, indices, 2, "");
+  }
   case NodeKind::Import: {
     return addr(codegen, builder, node->import.node, node->import.scope);
   }
@@ -778,6 +844,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                        args, callee_type->function.arguments.length, "");
 
     return ret;
+  }
+  case NodeKind::Index: {
+    LLVMValueRef ptr = addr(codegen, builder, node, scope);
+    return LLVMBuildLoad2(builder, typeToLLVM(codegen, node->value.type), ptr,
+                          "");
   }
   case NodeKind::Return: {
     size_t defer_boundary =
