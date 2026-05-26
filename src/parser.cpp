@@ -475,9 +475,10 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
 
   out->kind = NodeKind::Field;
   out->field.name = out->text;
-  out->field.definition = false;
   out->field.type = nullptr;
   out->field.initial = nullptr;
+  out->field.attributes = nullptr;
+  out->field.definition = false;
 
   // Check for duplicate field
   Symbol *duplicate_symbol =
@@ -582,15 +583,14 @@ Node *parseAttribute(ASTParser *parser, Scope *scope) {
     Node *attribute = (Node *)parser->allocator->alloc(sizeof(Node));
     attribute->token = parser->cur_token;
     attribute->location = parser->cur_token.location;
-    attribute->kind = NodeKind::Name;
-    attribute->text = parser->cur_token.text;
+    attribute->kind = NodeKind::Member;
+    attribute->member.name = parser->cur_token.text;
+    attribute->member.value = nullptr;
 
     try(parser->nextToken());
     if (parser->cur_token.kind == TokenKind::Operator &&
         parser->cur_token._operator == Operator::Assign) {
       try(parser->nextToken());
-      attribute->kind = NodeKind::Member;
-      attribute->member.name = attribute->text;
       attribute->member.value = parseExpr(parser, Precedence::Assign, scope);
     }
 
@@ -853,9 +853,19 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
     break;
   }
   case TokenKind::Attribute: {
-    out = parseAttribute(parser, scope);
+    Node *attr = parseAttribute(parser, scope);
+    try(attr);
+
+    out = parseStmt(parser, scope);
     try(out);
-    return out; // attributes don't end with `;` nor `}`
+
+    if (out->kind == NodeKind::Field) {
+      out->field.attributes = attr;
+    } else {
+      std::cout << "Cannot append attributes to `" << out->kind << "`\n";
+    }
+
+    break;
   }
   }
 

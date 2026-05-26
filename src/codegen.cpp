@@ -610,16 +610,36 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       return nullptr;
     }
 
-    // TODO: Mangle name
-    char *name = (char *)codegen->allocator->alloc(node->field.name.len + 1);
-    memcpy(name, node->field.name.ptr, node->field.name.len);
-    name[node->field.name.len] = 0;
+    // Get Name
+    String name = {.ptr = nullptr};
+    if (node->field.attributes != nullptr) {
+      Node *link_name_node = nullptr;
+      for (size_t i = 0; i < node->field.attributes->children.length; i++) {
+        Node *attr = node->field.attributes->children.data.ptr[i];
+        if (!attr->member.name.compare("link_name")) {
+          continue;
+        }
 
+        link_name_node = attr->member.value;
+        break;
+      }
+
+      if (link_name_node != nullptr &&
+          link_name_node->kind == NodeKind::String) {
+        name = link_name_node->text;
+      }
+    }
+
+    if (name.ptr == nullptr) {
+      // TODO: Mangle name
+      name = node->field.name;
+    }
+
+    // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
       // Build function and set name
       LLVMValueRef func = gen(codegen, builder, node->field.initial, scope);
-      LLVMSetValueName2(func, (const char *)node->field.name.ptr,
-                        node->field.name.len);
+      LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
@@ -634,7 +654,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     } else if (scope->location_aware) {
       // Local Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
-      LLVMValueRef alloca = LLVMBuildAlloca(builder, type, name);
+      LLVMValueRef alloca = LLVMBuildAlloca(builder, type, "");
+      LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, alloca);
 
       if (node->value.has_data) {
@@ -647,7 +668,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     } else {
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
-      LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, name);
+      LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, "");
+      LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, alloca);
 
       if (!node->field.undefined &&

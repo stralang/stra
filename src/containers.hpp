@@ -62,6 +62,11 @@ template <typename T> struct Slice {
     return this->len == other.len &&
            memcmp(this->ptr, other.ptr, this->len) == 0;
   }
+
+  bool compare(const char *other) {
+    size_t olen = strlen(other);
+    return this->len == olen && memcmp(this->ptr, other, this->len) == 0;
+  }
 };
 
 using String = Slice<uint8_t>;

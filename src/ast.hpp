@@ -13,6 +13,8 @@ struct NodeField {
   String name;
   Node *type;
   Node *initial;
+
+  Node *attributes;
   bool definition;
   bool undefined;
 };

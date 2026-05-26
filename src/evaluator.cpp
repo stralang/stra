@@ -492,6 +492,10 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Field: {
+    if (node->field.attributes != nullptr) {
+      evaluate(evaluator, node->field.attributes, scope);
+    }
+
     if (node->field.type != nullptr) {
       evaluate(evaluator, node->field.type, scope);
       Value *value = &node->field.type->value;
@@ -969,6 +973,21 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
         }
 
         evaluate(evaluator, arg->node, scope);
+      }
+    }
+    break;
+  }
+  case NodeKind::Attribute: {
+    for (size_t i = 0; i < node->children.length; i++) {
+      Node *child = node->children.data.ptr[i];
+      if (child->member.name.compare("link_name")) {
+        expect(child->member.value != nullptr, node->location,
+               "`link_name` attribute expects value");
+        expect(child->member.value->kind == NodeKind::String, node->location,
+               "`link_name` attribute expects string value");
+      } else if (child->member.name.compare("builtin")) {
+        expect(child->member.value == nullptr, node->location,
+               "`builtin` attribute expects no value");
       }
     }
     break;
