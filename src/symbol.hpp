@@ -7,23 +7,15 @@
 #include <cstddef>
 #include <cstring>
 
-struct Scope;
-
 struct Symbol {
-  Scope *parent;
-  Node *node;
-};
-
-struct Scope {
   bool location_aware;
-  Scope *parent;
-  ArrayList<Scope *> children;
-  ArrayList<Symbol *> symbols;
+  Symbol *parent;
+  ArrayList<Symbol *> children;
   Node *node;
 
   Symbol *findSymbol(String *name, SrcLoc *location) {
-    for (size_t i = 0; i < this->symbols.length; i++) {
-      Symbol *child = this->symbols.data.ptr[i];
+    for (size_t i = 0; i < this->children.length; i++) {
+      Symbol *child = this->children.data.ptr[i];
       String *child_name = &child->node->field.name;
       if (child_name->len != name->len ||
           memcmp(child_name->ptr, name->ptr, name->len) != 0) {
@@ -44,10 +36,9 @@ struct Scope {
     return nullptr;
   }
 
-  Scope *findScope(Node *node) {
-
+  Symbol *findSymbolByNode(Node *node) {
     for (size_t i = 0; i < this->children.length; i++) {
-      Scope *child = this->children.data.ptr[i];
+      Symbol *child = this->children.data.ptr[i];
       if (child->node != node) {
         continue;
       }
@@ -56,18 +47,17 @@ struct Scope {
     }
 
     if (this->parent != nullptr) {
-      return this->parent->findScope(node);
+      return this->parent->findSymbolByNode(node);
     } else if (this->node == node) {
       return this;
     }
     return nullptr;
   }
 
-  void init(Allocator *allocator, bool location_aware, Scope *parent) {
+  void init(Allocator *allocator, bool location_aware, Symbol *parent) {
     this->location_aware = location_aware;
     this->parent = parent;
     this->children.init(allocator, 8);
-    this->symbols.init(allocator, 8);
 
     parent->children.push(this);
   }

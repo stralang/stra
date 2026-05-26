@@ -31,10 +31,10 @@ struct CodeGenModule {
   String source_path;
   String output_path;
   Node *ast;
-  Scope *scope;
+  Symbol *symbol;
   Allocator *allocator;
 
-  HashMap<Scope *, LLVMTypeRef> scope_to_type;
+  HashMap<Symbol *, LLVMTypeRef> scope_to_type;
   HashMap<Node *, LLVMValueRef> node_to_value;
 
   // Stacks

@@ -11,13 +11,13 @@ struct InteropState {
   size_t max_steps = 1000000;
 };
 
-Value exec(InteropState *state, Node *node, Scope *scope);
+Value exec(InteropState *state, Node *node, Symbol *scope);
 
-Value execUnary(InteropState *state, Node *node, Scope *scope) {
+Value execUnary(InteropState *state, Node *node, Symbol *scope) {
   return Value{.type = nullptr, .has_data = false};
 }
 
-Value execBinary(InteropState *state, Node *node, Scope *scope) {
+Value execBinary(InteropState *state, Node *node, Symbol *scope) {
   exec(state, node->_operator.lhs, scope);
   exec(state, node->_operator.rhs, scope);
 
@@ -62,7 +62,7 @@ Value execBinary(InteropState *state, Node *node, Scope *scope) {
   return out;
 }
 
-Value exec(InteropState *state, Node *node, Scope *scope) {
+Value exec(InteropState *state, Node *node, Symbol *scope) {
   state->steps += 1;
   state->depth += 1;
   if (state->steps > state->max_steps) {
@@ -75,7 +75,7 @@ Value exec(InteropState *state, Node *node, Scope *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Scope *compound_scope = scope->findScope(node);
+    Symbol *compound_scope = scope->findSymbolByNode(node);
     if (compound_scope == nullptr) {
       compound_scope = scope;
     }
@@ -128,7 +128,7 @@ Value exec(InteropState *state, Node *node, Scope *scope) {
   return out;
 }
 
-Value execute(Evaluator *evaluator, Node *node, Scope *scope) {
+Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
   InteropState state = {
       .evaluator = evaluator,
   };

@@ -7,7 +7,7 @@
 
 struct Evaluator {
   Node *ast;
-  Scope *scope;
+  Symbol *symbol;
 
   TypeCache *type_cache;
   HashMap<Node *, Type *> type_mapping;
@@ -20,4 +20,4 @@ struct Evaluator {
   void eval();
 };
 
-Value execute(Evaluator *evaluator, Node *node, Scope *scope);
+Value execute(Evaluator *evaluator, Node *node, Symbol *scope);

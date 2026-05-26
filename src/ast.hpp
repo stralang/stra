@@ -8,6 +8,7 @@
 #include <cstdint>
 
 struct Node;
+struct Symbol;
 
 struct NodeField {
   String name;
@@ -51,7 +52,7 @@ struct NodeMember {
 struct NodeImport {
   String path;
   Node *node;
-  Scope *scope;
+  Symbol *scope;
 };
 
 struct NodeSlice {

@@ -14,13 +14,13 @@
   }
 
 // Forward Declarations [
-Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope);
-Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope);
-Node *parseStmtCompound(ASTParser *parser, Scope *scope);
+Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope);
+Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope);
+Node *parseStmtCompound(ASTParser *parser, Symbol *scope);
 // ] Forward Declarations
 
 Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
-                      Scope *scope) {
+                      Symbol *scope) {
   Node *out = atom;
 
   while (true) {
@@ -103,7 +103,7 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
 }
 
 Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
-                       Scope *scope) {
+                       Symbol *scope) {
   Node *out = parseBinaryExpr(parser, atom, min_precedence, scope);
   try(out != nullptr);
 
@@ -116,7 +116,7 @@ struct FieldsAndBodyResult {
   ArrayList<Node *> body;
 };
 
-FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Scope *scope) {
+FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Symbol *scope) {
   ArrayList<Node *> fields;
   ArrayList<Node *> body;
   fields.init(parser->allocator, 8);
@@ -163,7 +163,7 @@ FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Scope *scope) {
   return {true, fields, body};
 }
 
-FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Scope *scope) {
+FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
   ArrayList<Node *> fields;
   ArrayList<Node *> body;
   fields.init(parser->allocator, 8);
@@ -224,7 +224,7 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Scope *scope) {
   return {true, fields, body};
 }
 
-Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
+Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
   Node *out;
 
   if (parser->cur_token.kind != TokenKind::ScopeBegin) {
@@ -283,7 +283,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     out->function.undefined = false;
 
     // Create Scope
-    Scope *fn_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *fn_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     fn_scope->init(parser->allocator, true, scope);
     fn_scope->node = out;
 
@@ -337,7 +337,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     try(parser->nextToken());
 
     // Create Scope
-    Scope *record_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *record_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     record_scope->init(parser->allocator, false, scope);
     record_scope->node = out;
 
@@ -364,7 +364,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     try(parser->nextToken());
 
     // Create Scope
-    Scope *record_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *record_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     record_scope->init(parser->allocator, false, scope);
     record_scope->node = out;
 
@@ -391,7 +391,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
     try(parser->nextToken());
 
     // Create Scope
-    Scope *record_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *record_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     record_scope->init(parser->allocator, false, scope);
     record_scope->node = out;
 
@@ -469,7 +469,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Scope *scope) {
 
 // The `name_prealloc` argument must contain the name of the variable, and is
 // used as a preallocated node for the output
-Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
+Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   Node *out = name_prealloc;
   try(out->kind == NodeKind::Name);
 
@@ -490,10 +490,9 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
   }
 
   // Create Symbol
-  Symbol *symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
-  symbol->parent = scope;
-  symbol->node = out;
-  scope->symbols.push(symbol);
+  Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
+  field_symbol->init(parser->allocator, false, scope);
+  field_symbol->node = out;
 
   // Parse Type
   try(parser->cur_token.kind == TokenKind::TypeSeperator);
@@ -501,8 +500,8 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
   if (parser->cur_token.kind != TokenKind::TypeSeperator &&
       (parser->cur_token.kind != TokenKind::Operator ||
        parser->cur_token._operator != Operator::Assign)) {
-    out->field.type =
-        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), scope);
+    out->field.type = parseExpr(
+        parser, (Precedence)((int32_t)Precedence::Assign + 1), field_symbol);
     try(out->field.type);
   }
 
@@ -515,7 +514,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
 
     out->field.undefined = parser->cur_token.kind == TokenKind::Undefined;
     if (!out->field.undefined) {
-      out->field.initial = parseExpr(parser, Precedence::Assign, scope);
+      out->field.initial = parseExpr(parser, Precedence::Assign, field_symbol);
       try(out->field.initial);
     } else {
       try(parser->nextToken());
@@ -525,7 +524,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Scope *scope) {
   return out;
 }
 
-Node *parseConditional(ASTParser *parser, Scope *scope) {
+Node *parseConditional(ASTParser *parser, Symbol *scope) {
   return parseExpr(parser, Precedence::Assign, scope);
   // Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   // out->token = parser->cur_token;
@@ -566,7 +565,7 @@ Node *parseConditional(ASTParser *parser, Scope *scope) {
   // return out;
 }
 
-Node *parseAttribute(ASTParser *parser, Scope *scope) {
+Node *parseAttribute(ASTParser *parser, Symbol *scope) {
   Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   out->token = parser->cur_token;
   out->location = parser->cur_token.location;
@@ -607,7 +606,7 @@ Node *parseAttribute(ASTParser *parser, Scope *scope) {
   return out;
 }
 
-Node *parseStmt(ASTParser *parser, Scope *scope) {
+Node *parseStmt(ASTParser *parser, Symbol *scope) {
   Node *out = nullptr;
 
   switch (parser->cur_token.kind) {
@@ -650,7 +649,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
     out->kind = NodeKind::If;
 
     // Create Scope
-    Scope *if_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *if_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     if_scope->init(parser->allocator, true, scope);
     if_scope->node = out;
 
@@ -671,7 +670,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
         out->_if._else = parseStmt(parser, scope);
       } else if (parser->cur_token.kind == TokenKind::BlockBegin) {
         // Create Scope
-        Scope *else_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+        Symbol *else_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
         else_scope->init(parser->allocator, true, scope);
 
         // Parse Body
@@ -692,7 +691,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
     out->kind = NodeKind::For;
 
     // Create Scope
-    Scope *for_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *for_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     for_scope->init(parser->allocator, true, scope);
     for_scope->node = out;
 
@@ -731,7 +730,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
       try(parser->nextToken());
 
       // Create Scope
-      Scope *case_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+      Symbol *case_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
       case_scope->init(parser->allocator, true, scope);
 
       // Parse Body
@@ -844,7 +843,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
   }
   case TokenKind::BlockBegin: {
     // Create Scope
-    Scope *child_scope = (Scope *)parser->allocator->alloc(sizeof(Scope));
+    Symbol *child_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
     child_scope->init(parser->allocator, true, scope);
 
     // Parse Body
@@ -883,7 +882,7 @@ Node *parseStmt(ASTParser *parser, Scope *scope) {
 }
 
 // The passed `scope` should be preallocated for this node
-Node *parseStmtCompound(ASTParser *parser, Scope *scope) {
+Node *parseStmtCompound(ASTParser *parser, Symbol *scope) {
   Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   out->kind = NodeKind::Compound;
   out->token = parser->cur_token;
@@ -919,16 +918,16 @@ void ASTParser::parse() {
     return;
   }
 
-  this->scope = (Scope *)this->allocator->alloc(sizeof(Scope));
-  this->scope->location_aware = false;
-  this->scope->children.init(this->allocator, 8);
-  this->scope->symbols.init(this->allocator, 8);
-  this->scope->parent = nullptr;
+  this->symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
+  this->symbol->location_aware = false;
+  this->symbol->children.init(this->allocator, 8);
+  this->symbol->children.init(this->allocator, 8);
+  this->symbol->parent = nullptr;
 
   this->comments.init(this->allocator, 16);
   this->imports.init(this->allocator, 8);
-  this->ast = parseStmtCompound(this, this->scope);
-  this->scope->node = this->ast;
+  this->ast = parseStmtCompound(this, this->symbol);
+  this->symbol->node = this->ast;
 }
 
 bool ASTParser::nextToken() {

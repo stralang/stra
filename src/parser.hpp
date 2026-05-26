@@ -7,7 +7,7 @@
 struct ASTParser {
   Tokenizer tokenizer;
   Node *ast;
-  Scope *scope;
+  Symbol *symbol;
   ArrayList<Token> comments;
   ArrayList<Node *> imports;
 

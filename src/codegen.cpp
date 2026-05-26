@@ -17,9 +17,9 @@
 
 // Forward Declaration
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                 Scope *scope);
+                 Symbol *scope);
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                  Scope *scope);
+                  Symbol *scope);
 
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
   switch (type->kind) {
@@ -162,7 +162,7 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
 }
 
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                      Node *node, Scope *scope) {
+                      Node *node, Symbol *scope) {
   Type *child_type = node->unary_operator.child->value.type;
   if (child_type->kind == TypeKind::SIMD) {
     child_type = child_type->slice.type;
@@ -213,7 +213,7 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 }
 
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                       Node *node, Scope *scope) {
+                       Node *node, Symbol *scope) {
   // Member Access
   if (node->_operator.opcode == Operator::MemberAccess) {
     // TODO: Member Access
@@ -414,7 +414,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
 }
 
 void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                 Scope *scope) {
+                 Symbol *scope) {
   ArrayList<LLVMValueRef> inputs;
   ArrayList<LLVMTypeRef> input_types;
   ArrayList<LLVMValueRef> outputs;
@@ -517,7 +517,7 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                  Scope *scope) {
+                  Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
@@ -557,10 +557,10 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                 Scope *scope) {
+                 Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
-    Scope *compound_scope = scope->findScope(node);
+    Symbol *compound_scope = scope->findSymbolByNode(node);
     if (compound_scope == nullptr) {
       compound_scope = scope;
     }
@@ -610,6 +610,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       return nullptr;
     }
 
+    // Get Symbol
+    Symbol *field_symbol = scope->findSymbolByNode(node);
+
     // Get Name
     String name = {.ptr = nullptr};
     if (node->field.attributes != nullptr) {
@@ -638,7 +641,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
       // Build function and set name
-      LLVMValueRef func = gen(codegen, builder, node->field.initial, scope);
+      LLVMValueRef func =
+          gen(codegen, builder, node->field.initial, field_symbol);
       LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
     } else if (node->value.type->kind == TypeKind::TypeId) {
@@ -650,7 +654,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       // Let the type generate it's children
-      gen(codegen, builder, node->field.initial, scope);
+      gen(codegen, builder, node->field.initial, field_symbol);
     } else if (scope->location_aware) {
       // Local Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
@@ -662,7 +666,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
         LLVMBuildStore(builder, valueToLLVM(codegen, &node->value), alloca);
       } else if (!node->field.undefined) {
         LLVMValueRef initial =
-            gen(codegen, builder, node->field.initial, scope);
+            gen(codegen, builder, node->field.initial, field_symbol);
         LLVMBuildStore(builder, initial, alloca);
       }
     } else {
@@ -709,7 +713,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           codegen->defer_stack_len;
       codegen->function_stack_len += 1;
 
-      Scope *fn_scope = scope->findScope(node);
+      Symbol *fn_scope = scope->findSymbolByNode(node);
       gen(codegen, body_builder, node->function.body, fn_scope);
       codegen->function_stack_len -= 1;
 
@@ -723,21 +727,21 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return func;
   }
   case NodeKind::Struct: {
-    Scope *struct_scope = scope->findScope(node);
+    Symbol *struct_scope = scope->findSymbolByNode(node);
     for (size_t i = 0; i < node->_struct.body.length; i++) {
       gen(codegen, builder, node->_struct.body.data.ptr[i], struct_scope);
     }
     break;
   }
   case NodeKind::Enum: {
-    Scope *enum_scope = scope->findScope(node);
+    Symbol *enum_scope = scope->findSymbolByNode(node);
     for (size_t i = 0; i < node->_enum.body.length; i++) {
       gen(codegen, builder, node->_enum.body.data.ptr[i], enum_scope);
     }
     break;
   }
   case NodeKind::Union: {
-    Scope *union_scope = scope->findScope(node);
+    Symbol *union_scope = scope->findSymbolByNode(node);
     for (size_t i = 0; i < node->_union.body.length; i++) {
       gen(codegen, builder, node->_union.body.data.ptr[i], union_scope);
     }
@@ -796,7 +800,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     break;
   }
   case NodeKind::If: {
-    Scope *if_scope = scope->findScope(node);
+    Symbol *if_scope = scope->findSymbolByNode(node);
     LLVMValueRef parent_function =
         codegen->function_stack[codegen->function_stack_len - 1];
 
@@ -831,7 +835,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (else_block != nullptr) {
       LLVMPositionBuilderAtEnd(builder, else_block);
 
-      Scope *else_scope = scope->findScope(node->_if._else);
+      Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
       if (else_scope == nullptr) {
         else_scope = scope;
       }
@@ -847,7 +851,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     break;
   }
   case NodeKind::For: {
-    Scope *for_scope = scope->findScope(node);
+    Symbol *for_scope = scope->findSymbolByNode(node);
     LLVMValueRef parent_function =
         codegen->function_stack[codegen->function_stack_len - 1];
 
@@ -905,7 +909,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Cases
     for (size_t i = 0; i < node->_switch.cases.length; i++) {
       Node *_case = node->_switch.cases.data.ptr[i];
-      Scope *case_scope = scope->findScope(_case->_case.body);
+      Symbol *case_scope = scope->findSymbolByNode(_case->_case.body);
 
       // Body
       LLVMBasicBlockRef case_block = LLVMAppendBasicBlockInContext(
@@ -985,7 +989,7 @@ void CodeGenModule::generate(CodeGenContext *context) {
   LLVMSetDataLayout(this->mod, context->data_layout_str);
 
   // Generate
-  gen(this, nullptr, this->ast, this->scope);
+  gen(this, nullptr, this->ast, this->symbol);
 
   // Cleanup
   char *output_path =

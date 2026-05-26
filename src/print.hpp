@@ -18,7 +18,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token);
 std::ostream &operator<<(std::ostream &os, const NodeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Node &node);
 
-std::ostream &operator<<(std::ostream &os, const Scope &scope);
+std::ostream &operator<<(std::ostream &os, const Symbol &symbol);
 
 std::ostream &operator<<(std::ostream &os, const TypeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Type &type);

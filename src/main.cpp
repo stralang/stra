@@ -83,7 +83,7 @@ int main(int argc, const char **argv) {
   TypeCache type_cache;
   Evaluator evaluator = {
       .ast = parser.ast,
-      .scope = parser.scope,
+      .symbol = parser.symbol,
       .type_cache = &type_cache,
       .allocator = &allocator,
   };
@@ -102,7 +102,7 @@ int main(int argc, const char **argv) {
   CodeGenModule codegen = {
       .source_path = tokenizer.path,
       .ast = parser.ast,
-      .scope = parser.scope,
+      .symbol = parser.symbol,
       .allocator = &allocator,
   };
   codegen.output_path = "out.ll";

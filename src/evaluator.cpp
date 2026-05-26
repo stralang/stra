@@ -20,7 +20,7 @@
   }
 
 // Forward Declarations
-void evaluate(Evaluator *evaluator, Node *node, Scope *scope);
+void evaluate(Evaluator *evaluator, Node *node, Symbol *scope);
 
 Type *getBuiltinType(TypeCache *type_cache, String name) {
   std::string str((const char *)name.ptr, name.len);
@@ -148,7 +148,7 @@ bool compareTypes(Type *lhs, Type *rhs) {
   return false;
 }
 
-void evaluateUnary(Evaluator *evaluator, Node *node, Scope *scope) {
+void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->unary_operator.child, scope);
 
   Type *child_type = node->unary_operator.child->value.type;
@@ -234,7 +234,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Scope *scope) {
   }
 }
 
-void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
+void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->_operator.lhs, scope);
   Node *lhs = node->_operator.lhs;
   if (node->_operator.opcode == Operator::MemberAccess) {
@@ -243,7 +243,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
       lhs_type = lhs->value.data.type_value;
     }
 
-    Scope *access_scope = nullptr;
+    Symbol *access_scope = nullptr;
     switch (lhs_type->kind) {
     case TypeKind::Function: {
       access_scope = lhs_type->function.scope;
@@ -410,14 +410,14 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Scope *scope) {
   }
 }
 
-void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
+void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   if (node->value.type != nullptr) {
     return;
   }
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Scope *compound_scope = scope->findScope(node);
+    Symbol *compound_scope = scope->findSymbolByNode(node);
     if (compound_scope == nullptr) {
       compound_scope = scope;
     }
@@ -496,8 +496,10 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
       evaluate(evaluator, node->field.attributes, scope);
     }
 
+    Symbol *field_symbol = scope->findSymbolByNode(node);
+
     if (node->field.type != nullptr) {
-      evaluate(evaluator, node->field.type, scope);
+      evaluate(evaluator, node->field.type, field_symbol);
       Value *value = &node->field.type->value;
       expect(value->type != nullptr, node->field.type->location,
              "Failed to evaluate field type");
@@ -508,7 +510,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     }
 
     if (node->field.initial != nullptr) {
-      evaluate(evaluator, node->field.initial, scope);
+      evaluate(evaluator, node->field.initial, field_symbol);
       Value *value = &node->field.initial->value;
       expect(value->type != nullptr, node->field.initial->location,
              "Failed to evaluate field initial");
@@ -535,7 +537,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Function: {
-    Scope *fn_scope = scope->findScope(node);
+    Symbol *fn_scope = scope->findSymbolByNode(node);
     node->value.has_data = false;
 
     // Prepare type
@@ -580,7 +582,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Struct: {
-    Scope *struct_scope = scope->findScope(node);
+    Symbol *struct_scope = scope->findSymbolByNode(node);
     node->value.has_data = true;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
@@ -607,7 +609,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Enum: {
-    Scope *enum_scope = scope->findScope(node);
+    Symbol *enum_scope = scope->findSymbolByNode(node);
     node->value.has_data = true;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
@@ -651,7 +653,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Union: {
-    Scope *union_scope = scope->findScope(node);
+    Symbol *union_scope = scope->findSymbolByNode(node);
     node->value.has_data = true;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
 
@@ -788,7 +790,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
            "Callee must be a function. Got `" << *callee->value.type << "`");
 
     Type *fn_type = callee->value.type;
-    Scope *fn_scope = fn_type->function.scope;
+    Symbol *fn_scope = fn_type->function.scope;
     Node *method = scope->node;
 
     // Get receiver
@@ -849,7 +851,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::Return: {
-    Scope *fn_scope = scope;
+    Symbol *fn_scope = scope;
     while (fn_scope != nullptr && fn_scope->node->kind != NodeKind::Function) {
       fn_scope = fn_scope->parent;
     }
@@ -882,7 +884,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::If: {
-    Scope *if_scope = scope->findScope(node);
+    Symbol *if_scope = scope->findSymbolByNode(node);
 
     evaluate(evaluator, node->_if.conditional, if_scope);
     expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
@@ -891,7 +893,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     evaluate(evaluator, node->_if.body, if_scope);
 
     if (node->_if._else != nullptr) {
-      Scope *else_scope = scope->findScope(node->_if._else);
+      Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
       evaluate(evaluator, node->_if._else, else_scope);
     }
 
@@ -899,7 +901,7 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     break;
   }
   case NodeKind::For: {
-    Scope *for_scope = scope->findScope(node);
+    Symbol *for_scope = scope->findSymbolByNode(node);
     evaluate(evaluator, node->_for.conditional, for_scope);
     expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
            node->_if.conditional->location, "Conditional must be Bool");
@@ -932,14 +934,14 @@ void evaluate(Evaluator *evaluator, Node *node, Scope *scope) {
     evaluate(evaluator, node->_case.constant, scope);
     execute(evaluator, node->_case.constant, scope);
 
-    Scope *case_scope = scope->findScope(node->_case.body);
+    Symbol *case_scope = scope->findSymbolByNode(node->_case.body);
     evaluate(evaluator, node->_case.body, case_scope);
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     break;
   }
   case NodeKind::Break:
   case NodeKind::Continue: {
-    Scope *loop_scope = scope;
+    Symbol *loop_scope = scope;
     while (loop_scope != nullptr && loop_scope->node->kind != NodeKind::For) {
       // TODO: handle named loop
       loop_scope = loop_scope->parent;
@@ -1000,5 +1002,5 @@ void Evaluator::eval() {
   this->type_mapping.init(this->allocator, 64);
   this->stack.init(this->allocator, 16);
 
-  evaluate(this, this->ast, this->scope);
+  evaluate(this, this->ast, this->symbol);
 }

@@ -649,28 +649,22 @@ std::ostream &operator<<(std::ostream &os, const Node &node) {
   return os;
 }
 
-void print_scope_impl(std::ostream &os, const Scope *scope, size_t depth) {
+void print_scope_impl(std::ostream &os, const Symbol *scope, size_t depth) {
   std::string indent;
   indent.append(depth * 2, ' ');
 
-  os << indent << scope->node->location << " Scope\n";
-
-  os << indent << "  Symbols: \n";
-  for (size_t i = 0; i < scope->symbols.length; i++) {
-    Symbol *symbol = scope->symbols.data.ptr[i];
-    os << indent << "    " << symbol->node->location << " \""
-       << symbol->node->field.name << "\"\n";
-  }
+  os << indent << scope->node->location << " \"" << scope->node->field.name
+     << "\"\n";
 
   os << indent << "  Children: \n";
   for (size_t i = 0; i < scope->children.length; i++) {
-    Scope *child = scope->children.data.ptr[i];
-    print_scope_impl(os, child, depth + 2);
+    Symbol *symbol = symbol->children.data.ptr[i];
+    print_scope_impl(os, symbol, depth + 1);
   }
 }
 
-std::ostream &operator<<(std::ostream &os, const Scope &scope) {
-  print_scope_impl(os, &scope, 0);
+std::ostream &operator<<(std::ostream &os, const Symbol &symbol) {
+  print_scope_impl(os, &symbol, 0);
   return os;
 }
 
