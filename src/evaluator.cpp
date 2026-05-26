@@ -847,6 +847,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     evaluate(evaluator, slice, scope);
     evaluate(evaluator, index, scope);
 
+    expect(index->value.type->kind == TypeKind::Integer &&
+               !index->value.type->integer.is_signed &&
+               index->value.type->integer.bits == -1,
+           index->location, "Index must be of type `usize`");
+
     node->value.type = slice->value.type->slice.type;
     break;
   }
