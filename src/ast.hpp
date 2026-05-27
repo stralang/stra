@@ -140,6 +140,7 @@ struct Value {
 enum class NodeKind {
   Compound,
   Name,
+  Bool,
   Integer,
   Float,
   Char,

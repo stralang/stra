@@ -478,6 +478,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Value builtin_value = getBuiltinValue(evaluator->type_cache, node->text);
     if (builtin_value.type != nullptr) {
       node->value = builtin_value;
+      if (node->value.type->kind == TypeKind::Bool) {
+        node->kind = NodeKind::Bool;
+      }
     } else {
       Symbol *symbol = scope->findSymbol(&node->text, &node->location);
       expect(symbol != nullptr, node->location,

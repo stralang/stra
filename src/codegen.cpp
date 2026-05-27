@@ -347,6 +347,12 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
+  case Operator::Logical_Or: {
+    return LLVMBuildOr(builder, lhs_value, rhs_value, "");
+  }
+  case Operator::Logical_And: {
+    return LLVMBuildAnd(builder, lhs_value, rhs_value, "");
+  }
   case Operator::EqualTo: {
     if (lhs_type->kind == TypeKind::Bool ||
         lhs_type->kind == TypeKind::Integer ||
@@ -664,6 +670,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // TODO: A variable may not be generated for runtime
     return LLVMBuildLoad2(
         builder, typeToLLVM(codegen, symbol->node->value.type), *value, "");
+  }
+  case NodeKind::Bool: {
+    return valueToLLVM(codegen, &node->value);
   }
   case NodeKind::Integer: {
     return valueToLLVM(codegen, &node->value);

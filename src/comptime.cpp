@@ -151,6 +151,130 @@ Value execBinary(InteropState *state, Node *node, Symbol *scope) {
     }
     break;
   }
+  case Operator::Logical_Or: {
+    if (out.type->kind == TypeKind::Bool) {
+      out.data._bool = node->_operator.lhs->value.data._bool ||
+                       node->_operator.rhs->value.data._bool;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Logical_And: {
+    if (out.type->kind == TypeKind::Bool) {
+      out.data._bool = node->_operator.lhs->value.data._bool &&
+                       node->_operator.rhs->value.data._bool;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::EqualTo: {
+    if (out.type->kind == TypeKind::Bool) {
+      out.data._bool = node->_operator.lhs->value.data._bool ==
+                       node->_operator.rhs->value.data._bool;
+    } else if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer ==
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float ==
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::NotEqualTo: {
+    if (out.type->kind == TypeKind::Bool) {
+      out.data._bool = node->_operator.lhs->value.data._bool !=
+                       node->_operator.rhs->value.data._bool;
+    } else if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer !=
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float !=
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::LessThen: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer <
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float <
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::GreaterThen: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer >
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float >
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::LessThenOrEqualTo: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer <=
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float <=
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::GreaterThenOrEqualTo: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data.integer <=
+                       node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out.data._bool = node->_operator.lhs->value.data._float <=
+                       node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << node->_operator.opcode << " for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
   }
 
   return out;
@@ -195,6 +319,7 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
     out = symbol->node->value;
     break;
   }
+  case NodeKind::Bool:
   case NodeKind::Integer:
   case NodeKind::Float:
   case NodeKind::Char:
@@ -214,6 +339,17 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
   }
   case NodeKind::Operator: {
     out = execBinary(state, node, scope);
+    if (out.has_data) {
+      if (out.type->kind == TypeKind::Bool) {
+        node->kind = NodeKind::Bool;
+      } else if (out.type->kind == TypeKind::Integer) {
+        node->kind = NodeKind::Integer;
+        node->integer = node->value.data.integer;
+      } else if (out.type->kind == TypeKind::Float) {
+        node->kind = NodeKind::Float;
+        node->_float = node->value.data._float;
+      }
+    }
     break;
   }
   }
