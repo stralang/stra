@@ -222,6 +222,10 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       return LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs_type), value,
                            indices, 2, "");
     }
+  } else if (lhs->value.type->kind == TypeKind::Enum) {
+    Symbol *enum_symbol = lhs_type->_enum.scope;
+    impl_children = &enum_symbol->node->_enum.body;
+    impl_scope = enum_symbol;
   } else if (lhs->value.type->kind == TypeKind::Union) {
     Symbol *union_symbol = lhs_type->_union.scope;
     Node *union_node = union_symbol->node;
