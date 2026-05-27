@@ -291,7 +291,7 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
         continue;
       }
 
-      return addr(codegen, builder, body, impl_scope);
+      return addr(codegen, builder, node->_operator.rhs, impl_scope);
     }
   }
 
