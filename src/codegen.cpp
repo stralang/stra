@@ -589,13 +589,26 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   ArrayList<LLVMValueRef> outputs;
   ArrayList<LLVMTypeRef> output_types;
   std::ostringstream assembly;
-  std::ostringstream constraints;
+  std::ostringstream return_constaints;
+  std::ostringstream read_constraints;
   std::ostringstream clobbered;
 
   inputs.init(codegen->allocator, 8);
   input_types.init(codegen->allocator, 8);
   outputs.init(codegen->allocator, 8);
   output_types.init(codegen->allocator, 8);
+
+  // Count
+  size_t total_outputs = 0;
+  for (size_t i = 0; i < node->assembly.instructions.length; i++) {
+    NodeAssembly::Instruction *inst = node->assembly.instructions.data.ptr + i;
+    for (size_t a = 0; a < inst->arguments.length; a++) {
+      NodeAssembly::Argument *arg = inst->arguments.data.ptr + a;
+      if (arg->kind == NodeAssembly::Argument::Return) {
+        total_outputs += 1;
+      }
+    }
+  }
 
   // Convert AST to ASM
   for (size_t i = 0; i < node->assembly.instructions.length; i++) {
@@ -614,8 +627,8 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       // Registers
       if (arg->kind == NodeAssembly::Argument::Register) {
-        assembly << " %" << inst->name;
-        clobbered << ",~{" << inst->name << "}";
+        assembly << " %" << arg->reg;
+        clobbered << ",~{" << arg->reg << "}";
         continue;
       }
 
@@ -627,32 +640,33 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       // I/O
       if (inputs.length != 0) {
-        constraints << ",";
+        read_constraints << ",";
       }
 
       LLVMValueRef arg_ptr = addr(codegen, builder, arg->node, scope);
       LLVMTypeRef arg_type = typeToLLVM(codegen, arg->node->value.type);
 
       if (arg->kind == NodeAssembly::Argument::Return) {
-        constraints << "=r,r";
+        return_constaints << "=r,";
+        read_constraints << "r";
         outputs.push(arg_ptr);
         output_types.push(arg_type);
       } else {
-        constraints << "r";
+        read_constraints << "r";
       }
 
       LLVMValueRef arg_value = LLVMBuildLoad2(builder, arg_type, arg_ptr, "");
       inputs.push(arg_value);
       input_types.push(arg_type);
-      assembly << " $" << (inputs.length);
+      assembly << " $" << (inputs.length - 1 + total_outputs);
     }
   }
 
   // Prepare
-  constraints << clobbered.str();
+  return_constaints << read_constraints.str() << clobbered.str();
 
   std::string assembly_str = assembly.str();
-  std::string constraints_str = constraints.str();
+  std::string constraints_str = return_constaints.str();
 
   // Generate
   LLVMTypeRef call_result = nullptr;
