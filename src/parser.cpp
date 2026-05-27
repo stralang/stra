@@ -922,10 +922,9 @@ void ASTParser::parse() {
   }
 
   this->symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
+  this->symbol->parent = nullptr;
   this->symbol->location_aware = false;
   this->symbol->children.init(this->allocator, 8);
-  this->symbol->children.init(this->allocator, 8);
-  this->symbol->parent = nullptr;
 
   // Setup symbol mangled name
   {

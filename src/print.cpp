@@ -653,12 +653,15 @@ void print_scope_impl(std::ostream &os, const Symbol *scope, size_t depth) {
   std::string indent;
   indent.append(depth * 2, ' ');
 
-  os << indent << scope->node->location << " \"" << scope->node->field.name
-     << "\"\n";
+  os << indent << scope->node->location;
+  if (scope->node->kind == NodeKind::Field) {
+    os << " \"" << scope->node->field.name << "\"";
+  }
+  os << "\n";
 
   os << indent << "  Children: \n";
   for (size_t i = 0; i < scope->children.length; i++) {
-    Symbol *symbol = symbol->children.data.ptr[i];
+    Symbol *symbol = scope->children.data.ptr[i];
     print_scope_impl(os, symbol, depth + 1);
   }
 }
