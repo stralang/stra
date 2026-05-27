@@ -628,6 +628,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     }
     break;
   }
+  case TokenKind::ScopeBegin:
   case TokenKind::Operator: {
     out = parseExpr(parser, Precedence::Assign, scope);
     break;
