@@ -22,7 +22,7 @@
 // Forward Declarations
 void evaluate(Evaluator *evaluator, Node *node, Symbol *scope);
 
-Type *getBuiltinType(TypeCache *type_cache, String name) {
+Value getBuiltinValue(TypeCache *type_cache, String name) {
   std::string str((const char *)name.ptr, name.len);
 
   Type *out_type = nullptr;
@@ -66,7 +66,22 @@ Type *getBuiltinType(TypeCache *type_cache, String name) {
     }
   }
 
-  return out_type;
+  Value value = {.type = nullptr, .has_data = false};
+  if (out_type != nullptr) {
+    value.type = type_cache->get({.kind = TypeKind::TypeId});
+    value.has_data = true;
+    value.data.type_value = out_type;
+  } else if (str.compare("true") == 0) {
+    value.type = type_cache->get({.kind = TypeKind::Bool});
+    value.has_data = true;
+    value.data._bool = true;
+  } else if (str.compare("false") == 0) {
+    value.type = type_cache->get({.kind = TypeKind::Bool});
+    value.has_data = true;
+    value.data._bool = false;
+  }
+
+  return value;
 }
 
 bool compareTypes(Type *lhs, Type *rhs) {
@@ -460,11 +475,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Name: {
-    Type *builtin_type = getBuiltinType(evaluator->type_cache, node->text);
-    if (builtin_type != nullptr) {
-      node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
-      node->value.has_data = true;
-      node->value.data.type_value = builtin_type;
+    Value builtin_value = getBuiltinValue(evaluator->type_cache, node->text);
+    if (builtin_value.type != nullptr) {
+      node->value = builtin_value;
     } else {
       Symbol *symbol = scope->findSymbol(&node->text, &node->location);
       expect(symbol != nullptr, node->location,

@@ -136,6 +136,10 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
   }
 
   switch (value->type->kind) {
+  case TypeKind::Bool: {
+    return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), value->data._bool,
+                        false);
+  }
   case TypeKind::Integer: {
     LLVMTypeRef type = typeToLLVM(codegen, value->type);
     return LLVMConstInt(type, value->data.integer,

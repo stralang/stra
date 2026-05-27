@@ -130,6 +130,7 @@ struct Value {
   union {
     Type *type_value;
     String text;
+    bool _bool;
     int64_t integer;
     double _float;
     Node *node;
