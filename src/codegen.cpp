@@ -260,7 +260,7 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
       indices[0] = LLVMConstInt(index_ty, 0, false);
       indices[1] = LLVMConstInt(index_ty, 1, false);
-      LLVMValueRef data = LLVMBuildGEP2(
+      LLVMValueRef data_ptr = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, lhs->value.type), value, indices, 2, "");
 
       // TODO: Check tag?
@@ -269,7 +269,8 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       Type *union_type = union_node->value.data.type_value;
       LLVMTypeRef dest_ty = typeToLLVM(
           codegen, union_type->_union.variants.data.ptr[variant_idx]);
-      return LLVMBuildBitCast(builder, data, LLVMPointerType(dest_ty, 0), "");
+      return LLVMBuildBitCast(builder, data_ptr, LLVMPointerType(dest_ty, 0),
+                              "");
     }
   } else if (lhs->value.type->kind == TypeKind::TypeId) {
     Type *real_ty = lhs->value.data.type_value;
@@ -385,8 +386,55 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
   // Assignment
   if (node->_operator.opcode == Operator::Assign) {
     LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
-    LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
-    LLVMBuildStore(builder, rhs_value, lhs_ptr);
+
+    if (node->_operator.lhs->kind == NodeKind::Operator &&
+        node->_operator.lhs->_operator.lhs->value.type->kind ==
+            TypeKind::Union) {
+      Type *union_type = node->_operator.lhs->_operator.lhs->value.type;
+      LLVMValueRef union_ptr =
+          addr(codegen, builder, node->_operator.lhs->_operator.lhs, scope);
+
+      // Get tag id
+      size_t tag_id = 0;
+      Type *var_type = nullptr;
+      for (size_t i = 0; i < union_type->_union.variants.length; i++) {
+        var_type = union_type->_union.variants.data.ptr[i];
+        if (node->_operator.rhs->value.type == var_type) {
+          tag_id = i;
+          break;
+        }
+      }
+
+      LLVMValueRef indices[2];
+      LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
+      indices[0] = LLVMConstInt(index_ty, 0, false);
+
+      // Set Tag
+      indices[1] = indices[0];
+      LLVMValueRef tag_ptr = LLVMBuildGEP2(
+          builder, typeToLLVM(codegen, union_type), union_ptr, indices, 2, "");
+
+      LLVMTypeRef repr_type = typeToLLVM(codegen, union_type->_union.repr_type);
+      LLVMValueRef tag_const = LLVMConstInt(
+          repr_type, tag_id, union_type->_union.repr_type->integer.is_signed);
+      LLVMBuildStore(builder, tag_const, tag_ptr);
+
+      // Set Value
+      indices[1] = LLVMConstInt(index_ty, 1, false);
+      LLVMValueRef data_ptr = LLVMBuildGEP2(
+          builder, typeToLLVM(codegen, union_type), union_ptr, indices, 2, "");
+
+      LLVMTypeRef tmp_ptr =
+          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
+      size_t native_size =
+          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
+
+      LLVMBuildStore(builder, rhs_value, data_ptr);
+    } else {
+      LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
+      LLVMBuildStore(builder, rhs_value, lhs_ptr);
+    }
+
     return nullptr;
   }
 
