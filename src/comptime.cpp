@@ -57,6 +57,100 @@ Value execBinary(InteropState *state, Node *node, Symbol *scope) {
     }
     break;
   }
+  case Operator::Mul: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer *
+                         node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.data._float = node->_operator.lhs->value.data._float *
+                        node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << "Multiplication for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Div: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer /
+                         node->_operator.rhs->value.data.integer;
+    } else if (out.type->kind == TypeKind::Float) {
+      out.data._float = node->_operator.lhs->value.data._float /
+                        node->_operator.rhs->value.data._float;
+    } else {
+      std::cerr << "Division for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Mod: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer %
+                         node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Bitwise_Or: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer |
+                         node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Bitwise_Xor: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer ^
+                         node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Bitwise_And: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer &
+                         node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Bitwise_LeftShift: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer
+                         << node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
+  case Operator::Bitwise_RightShift: {
+    if (out.type->kind == TypeKind::Integer) {
+      out.data.integer = node->_operator.lhs->value.data.integer >>
+                         node->_operator.rhs->value.data.integer;
+    } else {
+      std::cerr << "Modulo for `" << *out.type
+                << "` is not implemented. Aborting\n";
+      std::abort();
+    }
+    break;
+  }
   }
 
   return out;
