@@ -676,7 +676,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
              "Failed to evaluate enum repr type");
       expect(repr_val->type->kind == TypeKind::TypeId,
              node->_enum.repr_type->location, "Enum repr type must be a type");
-      expect(repr_val->type->child->kind == TypeKind::Integer,
+      expect(repr_val->data.type_value->kind == TypeKind::Integer,
              node->_enum.repr_type->location,
              "Enum repr type is not an integer");
 

@@ -222,30 +222,6 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       return LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs_type), value,
                            indices, 2, "");
     }
-  } else if (lhs_type->kind == TypeKind::Enum) {
-    Symbol *enum_symbol = lhs_type->_enum.scope;
-    Node *enum_node = enum_symbol->node;
-
-    // Child stuff
-    impl_children = &enum_node->_enum.body;
-    impl_scope = enum_symbol;
-
-    // Find constant
-    size_t member_idx = SIZE_MAX;
-    for (size_t i = 0; i < enum_node->_enum.members.length; i++) {
-      Node *member = enum_node->_enum.members.data.ptr[i];
-      if (member->member.name.compare(node->_operator.rhs->text)) {
-        member_idx = i;
-        break;
-      }
-    }
-
-    if (member_idx != SIZE_MAX) {
-      int64_t value =
-          enum_node->_enum.members.data.ptr[member_idx]->value.data.integer;
-      return LLVMConstInt(typeToLLVM(codegen, enum_node->value.type), value,
-                          enum_node->value.type->integer.is_signed);
-    }
   } else if (lhs->value.type->kind == TypeKind::Union) {
     Symbol *union_symbol = lhs_type->_union.scope;
     Node *union_node = union_symbol->node;
@@ -297,7 +273,7 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       Symbol *enum_symbol = real_ty->_enum.scope;
       impl_children = &enum_symbol->node->_enum.body;
       impl_scope = enum_symbol;
-    } else if (real_ty->kind == TypeKind::Struct) {
+    } else if (real_ty->kind == TypeKind::Union) {
       Symbol *union_symbol = real_ty->_union.scope;
       impl_children = &union_symbol->node->_union.body;
       impl_scope = union_symbol;
@@ -374,6 +350,22 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
                        Node *node, Symbol *scope) {
   // Member Access
   if (node->_operator.opcode == Operator::MemberAccess) {
+    // Get enum value
+    Value *lhs_value = &node->_operator.lhs->value;
+    if (lhs_value->type->kind == TypeKind::Enum ||
+        (lhs_value->type->kind == TypeKind::TypeId &&
+         lhs_value->data.type_value->kind == TypeKind::Enum)) {
+      Type *real_ty = lhs_value->type;
+      if (lhs_value->type->kind == TypeKind::TypeId) {
+        real_ty = lhs_value->data.type_value;
+      }
+
+      int64_t value = node->value.data.integer;
+      Type *repr_ty = real_ty->_enum.repr_type;
+      return LLVMConstInt(typeToLLVM(codegen, repr_ty), value,
+                          repr_ty->integer.is_signed);
+    }
+
     LLVMValueRef ptr = genMemberAccess(codegen, builder, node, scope);
     return LLVMBuildLoad2(builder, typeToLLVM(codegen, node->value.type), ptr,
                           "");

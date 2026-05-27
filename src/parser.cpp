@@ -203,6 +203,10 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
 
       fields.push(field);
 
+      Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
+      field_symbol->init(parser->allocator, false, scope);
+      field_symbol->node = field;
+
       allow_member = parser->cur_token.kind == TokenKind::CommaDelimiter;
       if (allow_member && !parser->nextToken()) {
         return {false};
