@@ -3,6 +3,7 @@
 #include "containers.hpp"
 #include "operator.hpp"
 #include "print.hpp"
+#include "symbol.hpp"
 #include "types.hpp"
 #include "llvm-c/BitWriter.h"
 #include "llvm-c/Core.h"
@@ -10,6 +11,7 @@
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <llvm-c/TargetMachine.h>
@@ -122,8 +124,13 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     size_t native_size =
         LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
 
-    size_t size = type->sizeBits(native_size);
-    return LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), size);
+    size_t data_size =
+        type->sizeBits(native_size) - type->_union.repr_type->integer.bits;
+    LLVMTypeRef tys[2];
+    tys[0] = LLVMIntTypeInContext(codegen->ctx,
+                                  type->_union.repr_type->integer.bits);
+    tys[1] = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);
+    return LLVMStructTypeInContext(codegen->ctx, tys, 2, false);
   }
   }
 
@@ -160,6 +167,132 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
 
     return LLVMConstArray(elem_type, values, value->data.text.len);
   }
+  }
+
+  return nullptr;
+}
+
+LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
+                             Node *node, Symbol *scope) {
+  Node *lhs = node->_operator.lhs;
+
+  ArrayList<Node *> *impl_children = nullptr;
+  Symbol *impl_scope = nullptr;
+
+  if (lhs->value.type->kind == TypeKind::Struct) {
+    Symbol *struct_symbol = lhs->value.type->_struct.scope;
+    Node *struct_node = struct_symbol->node;
+
+    // Child stuff
+    impl_children = &struct_node->_struct.body;
+    impl_scope = struct_symbol;
+
+    // Find Field
+    size_t field_idx = SIZE_MAX;
+    for (size_t i = 0; i < struct_node->_struct.fields.length; i++) {
+      Node *field = struct_node->_struct.fields.data.ptr[i];
+      if (field->field.name.compare(node->_operator.rhs->text)) {
+        field_idx = i;
+        break;
+      }
+    }
+
+    // Get element
+    if (field_idx != SIZE_MAX) {
+      LLVMValueRef value = addr(codegen, builder, lhs, scope);
+      LLVMValueRef indices[2];
+      LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
+      indices[0] = LLVMConstInt(index_ty, 0, false);
+      indices[1] = LLVMConstInt(index_ty, field_idx, false);
+      return LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs->value.type), value,
+                           indices, 2, "");
+    }
+  } else if (lhs->value.type->kind == TypeKind::Enum) {
+    Symbol *enum_symbol = lhs->value.type->_enum.scope;
+    Node *enum_node = enum_symbol->node;
+
+    // Child stuff
+    impl_children = &enum_node->_enum.body;
+    impl_scope = enum_symbol;
+
+    // Find constant
+    size_t member_idx = SIZE_MAX;
+    for (size_t i = 0; i < enum_node->_enum.members.length; i++) {
+      Node *member = enum_node->_enum.members.data.ptr[i];
+      if (member->member.name.compare(node->_operator.rhs->text)) {
+        member_idx = i;
+        break;
+      }
+    }
+
+    if (member_idx != SIZE_MAX) {
+      int64_t value =
+          enum_node->_enum.members.data.ptr[member_idx]->value.data.integer;
+      return LLVMConstInt(typeToLLVM(codegen, enum_node->value.type), value,
+                          enum_node->value.type->integer.is_signed);
+    }
+  } else if (lhs->value.type->kind == TypeKind::Union) {
+    Symbol *union_symbol = lhs->value.type->_union.scope;
+    Node *union_node = union_symbol->node;
+
+    // Child stuff
+    impl_children = &union_node->_union.body;
+    impl_scope = union_symbol;
+
+    // Find Type
+    size_t variant_idx = SIZE_MAX;
+    for (size_t i = 0; i < union_node->_union.variants.length; i++) {
+      Node *variant = union_node->_union.variants.data.ptr[i];
+      if (variant->field.name.compare(node->text)) {
+        variant_idx = i;
+        break;
+      }
+    }
+
+    // Cast
+    if (variant_idx != SIZE_MAX) {
+      // Get data field
+      LLVMValueRef value = addr(codegen, builder, lhs, scope);
+      LLVMValueRef indices[2];
+      LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
+      indices[0] = LLVMConstInt(index_ty, 0, false);
+      indices[1] = LLVMConstInt(index_ty, 1, false);
+      LLVMValueRef data = LLVMBuildGEP2(
+          builder, typeToLLVM(codegen, lhs->value.type), value, indices, 2, "");
+
+      // Cast
+      LLVMTypeRef dest_ty = typeToLLVM(
+          codegen,
+          union_node->value.type->_union.variants.data.ptr[variant_idx]);
+      return LLVMBuildBitCast(builder, data, dest_ty, "");
+    }
+  } else if (lhs->value.type->kind == TypeKind::TypeId) {
+    Type *real_ty = lhs->value.data.type_value;
+    if (real_ty->kind == TypeKind::Struct) {
+      Symbol *struct_symbol = real_ty->_struct.scope;
+      impl_children = &struct_symbol->node->_struct.body;
+      impl_scope = struct_symbol;
+    } else if (real_ty->kind == TypeKind::Enum) {
+      Symbol *enum_symbol = real_ty->_enum.scope;
+      impl_children = &enum_symbol->node->_enum.body;
+      impl_scope = enum_symbol;
+    } else if (real_ty->kind == TypeKind::Struct) {
+      Symbol *union_symbol = real_ty->_union.scope;
+      impl_children = &union_symbol->node->_union.body;
+      impl_scope = union_symbol;
+    }
+  }
+
+  // Find and generate child
+  if (impl_children != nullptr) {
+    for (size_t i = 0; i < impl_children->length; i++) {
+      Node *body = impl_children->data.ptr[i];
+      if (!body->field.name.compare(node->_operator.rhs->text)) {
+        continue;
+      }
+
+      return addr(codegen, builder, body, impl_scope);
+    }
   }
 
   return nullptr;
@@ -220,7 +353,9 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
                        Node *node, Symbol *scope) {
   // Member Access
   if (node->_operator.opcode == Operator::MemberAccess) {
-    // TODO: Member Access
+    LLVMValueRef ptr = genMemberAccess(codegen, builder, node, scope);
+    return LLVMBuildLoad2(builder, typeToLLVM(codegen, node->value.type), ptr,
+                          "");
   }
 
   Type *lhs_type = node->_operator.lhs->value.type;
@@ -557,7 +692,7 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Operator: {
     if (node->_operator.opcode == Operator::MemberAccess) {
-      // TODO:
+      return genMemberAccess(codegen, builder, node, scope);
     }
     break;
   }
@@ -745,7 +880,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       if (node->value.has_data) {
         LLVMBuildStore(builder, valueToLLVM(codegen, &node->value), alloca);
-      } else if (!node->field.undefined) {
+      } else if (!node->field.undefined && node->field.initial != nullptr) {
         LLVMValueRef initial =
             gen(codegen, builder, node->field.initial, field_symbol);
         LLVMBuildStore(builder, initial, alloca);
