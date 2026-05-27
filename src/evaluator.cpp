@@ -276,6 +276,38 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->_operator.rhs, scope);
   Node *rhs = node->_operator.rhs;
 
+  // Convert from untyped
+  if (lhs->value.type->kind == rhs->value.type->kind) {
+    bool lhs_untyped = false;
+    bool rhs_untyped = false;
+    if (lhs->value.type->kind == TypeKind::Integer) {
+      lhs_untyped = lhs->value.type->integer.is_untyped;
+    } else if (lhs->value.type->kind == TypeKind::Float) {
+      lhs_untyped = lhs->value.type->_float.is_untyped;
+    }
+    if (rhs->value.type->kind == TypeKind::Integer) {
+      rhs_untyped = rhs->value.type->integer.is_untyped;
+    } else if (rhs->value.type->kind == TypeKind::Float) {
+      rhs_untyped = rhs->value.type->_float.is_untyped;
+    }
+
+    if (lhs_untyped && rhs_untyped) {
+      node->value = execute(evaluator, node, scope);
+      if (lhs->value.type->kind == TypeKind::Integer) {
+        node->kind = NodeKind::Integer;
+        node->integer = node->value.data.integer;
+      } else {
+        node->kind = NodeKind::Float;
+        node->_float = node->value.data._float;
+      }
+      return;
+    } else if (lhs_untyped) {
+      lhs->value.type = rhs->value.type;
+    } else if (rhs_untyped) {
+      rhs->value.type = lhs->value.type;
+    }
+  }
+
   // Assign
   if (node->_operator.opcode == Operator::Assign) {
     expect(!lhs->value.type->is_constant, lhs->location,
