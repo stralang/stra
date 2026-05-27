@@ -126,6 +126,8 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
 
     size_t data_size =
         type->sizeBits(native_size) - type->_union.repr_type->integer.bits;
+    data_size = (data_size + 7) / 8; // Bits to Bytes
+
     LLVMTypeRef tys[2];
     tys[0] = LLVMIntTypeInContext(codegen->ctx,
                                   type->_union.repr_type->integer.bits);
@@ -238,7 +240,7 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
     size_t variant_idx = SIZE_MAX;
     for (size_t i = 0; i < union_node->_union.variants.length; i++) {
       Node *variant = union_node->_union.variants.data.ptr[i];
-      if (variant->field.name.compare(node->text)) {
+      if (variant->field.name.compare(node->_operator.rhs->text)) {
         variant_idx = i;
         break;
       }
@@ -261,11 +263,13 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMValueRef data = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, lhs->value.type), value, indices, 2, "");
 
+      // TODO: Check tag?
+
       // Cast
+      Type *union_type = union_node->value.data.type_value;
       LLVMTypeRef dest_ty = typeToLLVM(
-          codegen,
-          union_node->value.type->_union.variants.data.ptr[variant_idx]);
-      return LLVMBuildBitCast(builder, data, dest_ty, "");
+          codegen, union_type->_union.variants.data.ptr[variant_idx]);
+      return LLVMBuildBitCast(builder, data, LLVMPointerType(dest_ty, 0), "");
     }
   } else if (lhs->value.type->kind == TypeKind::TypeId) {
     Type *real_ty = lhs->value.data.type_value;
