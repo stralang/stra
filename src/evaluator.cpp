@@ -597,7 +597,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     // Evaluate parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *param = node->function.parameters.data.ptr[i];
-      evaluate(evaluator, param, scope);
+      evaluate(evaluator, param, fn_scope);
       Value *val = &param->value;
       expect(val->type != nullptr, param->location,
              "Failed to evaluate function parameter");
@@ -869,9 +869,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     // Evaluate arguments
-    for (size_t i = initial_idx; i < node->call.arguments.length; i++) {
+    for (size_t i = 0; i < node->call.arguments.length; i++) {
       Node *arg = node->call.arguments.data.ptr[i];
-      if (i > fn_type->function.arguments.length) {
+      if (i > fn_type->function.arguments.length - initial_idx) {
         std::cerr << arg->location << " Too many arguments\n";
         node->value.type = nullptr;
         return;
@@ -879,7 +879,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       evaluate(evaluator, arg, scope);
 
-      Type *expected_type = fn_type->function.arguments.data.ptr[i];
+      Type *expected_type =
+          fn_type->function.arguments.data.ptr[i + initial_idx];
       expect(compareTypes(expected_type, arg->value.type), arg->location,
              "Argument `" << *arg->value.type << "` doesn't match expected `"
                           << *expected_type << "`");

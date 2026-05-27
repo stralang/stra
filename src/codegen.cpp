@@ -983,10 +983,37 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Call: {
     Type *callee_type = node->call.callee->value.type;
 
+    // Get receiver
+    LLVMValueRef receiver = nullptr;
+    size_t has_receiver = 0;
+    if (node->call.callee->kind == NodeKind::Operator &&
+        node->call.callee->_operator.opcode == Operator::MemberAccess &&
+        node->call.callee->_operator.lhs->value.type->kind !=
+            TypeKind::TypeId) {
+      receiver =
+          addr(codegen, builder, node->call.callee->_operator.lhs, scope);
+      has_receiver = 1;
+
+      // Load
+      Symbol *func_symbol = node->call.callee->value.type->function.scope;
+      Node *arg0 = func_symbol->node->function.parameters.data.ptr[0];
+      if (arg0->value.type->kind != TypeKind::Pointer) {
+        receiver = LLVMBuildLoad2(
+            builder, typeToLLVM(codegen, arg0->value.type), receiver, "");
+      }
+    }
+
+    // Arguments
     LLVMValueRef *args = (LLVMValueRef *)codegen->allocator->alloc(
-        sizeof(LLVMValueRef) * callee_type->function.arguments.length);
-    for (size_t i = 0; i < callee_type->function.arguments.length; i++) {
-      args[i] = gen(codegen, builder, node->call.arguments.data.ptr[i], scope);
+        sizeof(LLVMValueRef) *
+        (callee_type->function.arguments.length + has_receiver));
+    if (receiver != nullptr) {
+      args[0] = receiver;
+    }
+
+    for (size_t i = 0; i < node->call.arguments.length; i++) {
+      Node *arg = node->call.arguments.data.ptr[i];
+      args[i + has_receiver] = gen(codegen, builder, arg, scope);
     }
 
     LLVMValueRef function = addr(codegen, builder, node->call.callee, scope);
