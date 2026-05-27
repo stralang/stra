@@ -256,6 +256,8 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type *lhs_type = lhs->value.type;
     if (lhs_type->kind == TypeKind::TypeId) {
       lhs_type = lhs->value.data.type_value;
+    } else if (lhs_type->kind == TypeKind::Pointer) {
+      lhs_type = lhs_type->child; // Auto Dereference
     }
 
     Symbol *access_scope = nullptr;
