@@ -1066,7 +1066,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       gen(codegen, body_builder, node->function.body, fn_scope);
       codegen->function_stack_len -= 1;
 
-      if (LLVMGetBasicBlockTerminator(entry) == nullptr) {
+      LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(body_builder);
+      if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
         LLVMBuildRetVoid(body_builder);
       }
 
@@ -1210,7 +1211,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Body
     LLVMPositionBuilderAtEnd(builder, then_block);
     gen(codegen, builder, node->_if.body, if_scope);
-    LLVMBuildBr(builder, merge_block);
+
+    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
+    if (LLVMGetBasicBlockTerminator(insert_block)) {
+      LLVMBuildBr(builder, merge_block);
+    }
 
     // Else
     if (else_block != nullptr) {
@@ -1222,8 +1227,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
       gen(codegen, builder, node->_if._else, scope);
 
-      if (LLVMGetBasicBlockTerminator(else_block) == nullptr) {
-        LLVMBuildBr(builder, merge_block);
+      insert_block = LLVMGetInsertBlock(builder);
+      if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+        LLVMBuildBr(builder, insert_block);
       }
     }
 
@@ -1264,7 +1270,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, do_block);
     gen(codegen, builder, node->_for.body, for_scope);
 
-    if (LLVMGetBasicBlockTerminator(do_block) == nullptr) {
+    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
+    if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
       LLVMBuildBr(builder, condition_block);
     }
 
@@ -1298,7 +1305,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMPositionBuilderAtEnd(builder, case_block);
       gen(codegen, builder, _case->_case.body, case_scope);
 
-      if (LLVMGetBasicBlockTerminator(case_block) == nullptr) {
+      LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
+      if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
         LLVMBuildBr(builder, merge_block);
       }
 
