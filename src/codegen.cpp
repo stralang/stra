@@ -259,11 +259,45 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMValueRef indices[2];
       LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
       indices[0] = LLVMConstInt(index_ty, 0, false);
+
+      // Check Tag
+      {
+        indices[1] = indices[0];
+        LLVMValueRef tag_ptr =
+            LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs->value.type), value,
+                          indices, 2, "");
+        LLVMTypeRef repr_type =
+            typeToLLVM(codegen, lhs->value.type->_union.repr_type);
+        LLVMValueRef runtime_tag =
+            LLVMBuildLoad2(builder, repr_type, tag_ptr, "");
+
+        LLVMValueRef func =
+            codegen->function_stack[codegen->function_stack_len - 1];
+        LLVMBasicBlockRef fail =
+            LLVMAppendBasicBlockInContext(codegen->ctx, func, "tag_check_fail");
+        LLVMBasicBlockRef success = LLVMAppendBasicBlockInContext(
+            codegen->ctx, func, "tag_check_success");
+
+        // Condition
+        LLVMValueRef grab_tag =
+            LLVMConstInt(repr_type, variant_idx,
+                         lhs->value.type->_union.repr_type->integer.is_signed);
+        LLVMValueRef is_valid =
+            LLVMBuildICmp(builder, LLVMIntEQ, runtime_tag, grab_tag, "");
+        LLVMBuildCondBr(builder, is_valid, success, fail);
+
+        // Fail
+        LLVMPositionBuilderAtEnd(builder, fail);
+        LLVMBuildUnreachable(builder); // FIXME: there is no panic handling yet
+
+        // Success
+        LLVMPositionBuilderAtEnd(builder, success);
+      }
+
+      // Get Data
       indices[1] = LLVMConstInt(index_ty, 1, false);
       LLVMValueRef data_ptr = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, lhs->value.type), value, indices, 2, "");
-
-      // TODO: Check tag?
 
       // Cast
       Type *union_type = union_node->value.data.type_value;
