@@ -554,15 +554,38 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type int_t = {.kind = TypeKind::Integer};
     int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
+    // Parse text
+    uint8_t *real_text = (uint8_t *)evaluator->allocator->alloc(node->text.len);
+    size_t len = 0;
+    bool escape = false;
+    for (size_t i = 0; i < node->text.len; i++) {
+      uint8_t c = node->text.ptr[i];
+      if (escape) {
+        if (c == '0') {
+          c = '\0';
+        } else if (c == 'n') {
+          c = '\n';
+        }
+        escape = false;
+      } else if (c == '\\') {
+        escape = true;
+        continue;
+      }
+
+      real_text[len] = c;
+      len += 1;
+    }
+
+    // Set Value
     Type slice_t = {.kind = TypeKind::Slice};
     slice_t.slice = SliceType{
-        .length = (int64_t)node->text.len,
+        .length = (int64_t)len,
         .type = evaluator->type_cache->get(int_t),
     };
 
     node->value.type = evaluator->type_cache->get(slice_t);
     node->value.has_data = true;
-    node->value.data = {.text = node->text};
+    node->value.data.text = {.len = len, .ptr = real_text};
     break;
   }
   case NodeKind::Field: {
