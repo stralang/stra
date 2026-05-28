@@ -386,13 +386,10 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
   // Assignment
   if (node->_operator.opcode == Operator::Assign) {
     LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
+    LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
 
-    if (node->_operator.lhs->kind == NodeKind::Operator &&
-        node->_operator.lhs->_operator.lhs->value.type->kind ==
-            TypeKind::Union) {
-      Type *union_type = node->_operator.lhs->_operator.lhs->value.type;
-      LLVMValueRef union_ptr =
-          addr(codegen, builder, node->_operator.lhs->_operator.lhs, scope);
+    if (node->_operator.lhs->value.type->kind == TypeKind::Union) {
+      Type *union_type = node->_operator.lhs->value.type;
 
       // Get tag id
       size_t tag_id = 0;
@@ -412,7 +409,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
       // Set Tag
       indices[1] = indices[0];
       LLVMValueRef tag_ptr = LLVMBuildGEP2(
-          builder, typeToLLVM(codegen, union_type), union_ptr, indices, 2, "");
+          builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
 
       LLVMTypeRef repr_type = typeToLLVM(codegen, union_type->_union.repr_type);
       LLVMValueRef tag_const = LLVMConstInt(
@@ -422,7 +419,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
       // Set Value
       indices[1] = LLVMConstInt(index_ty, 1, false);
       LLVMValueRef data_ptr = LLVMBuildGEP2(
-          builder, typeToLLVM(codegen, union_type), union_ptr, indices, 2, "");
+          builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
 
       LLVMTypeRef tmp_ptr =
           LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
@@ -431,7 +428,6 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
       LLVMBuildStore(builder, rhs_value, data_ptr);
     } else {
-      LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
       LLVMBuildStore(builder, rhs_value, lhs_ptr);
     }
 

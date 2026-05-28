@@ -330,9 +330,29 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     expect(!lhs->value.type->is_constant, lhs->location,
            "Cannot assign to constant");
 
-    expect(compareTypes(lhs->value.type, rhs->value.type), rhs->location,
-           "cannot assign RHS `" << *rhs->value.type << "` to LHS `"
-                                 << *lhs->value.type << "`");
+    if (lhs->value.type->kind == TypeKind::Union) {
+      bool contains = false;
+      for (size_t i = 0; i < lhs->value.type->_union.variants.length; i++) {
+        if (compareTypes(lhs->value.type->_union.variants.data.ptr[i],
+                         rhs->value.type)) {
+          contains = true;
+          break;
+        }
+      }
+
+      expect(contains, rhs->location,
+             "Union doesn't contain the type matching RHS `" << *rhs->value.type
+                                                             << "`");
+    } else if (lhs->kind == NodeKind::Operator &&
+               lhs->_operator.lhs->value.type->kind == TypeKind::Union) {
+      expect(false, rhs->location,
+             "Cannot assign to union member. assign directly to the union "
+             "instead");
+    } else {
+      expect(compareTypes(lhs->value.type, rhs->value.type), rhs->location,
+             "cannot assign RHS `" << *rhs->value.type << "` to LHS `"
+                                   << *lhs->value.type << "`");
+    }
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     node->value.has_data = false;
