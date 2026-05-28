@@ -50,6 +50,10 @@ struct UnionType {
   Symbol *scope;
 };
 
+struct Namespace {
+  Symbol *scope;
+};
+
 enum class TypeKind {
   Void,
   Bool,
@@ -62,7 +66,8 @@ enum class TypeKind {
   Function,
   Struct,
   Enum,
-  Union
+  Union,
+  Namespace,
 };
 
 struct Type {
@@ -76,6 +81,7 @@ struct Type {
     StructType _struct;
     EnumType _enum;
     UnionType _union;
+    Namespace _namespace;
   };
   bool is_constant;
   uint64_t hashcode;
@@ -138,6 +144,9 @@ struct Type {
       }
       return max_size + this->_union.repr_type->sizeBits(native_size);
     }
+    case TypeKind::Namespace: {
+      break;
+    }
     }
 
     return 0;
@@ -192,6 +201,9 @@ struct Type {
                      this->_union.variants.data.ptr[i]->alignBits(native_size));
       }
       return max_align;
+    }
+    case TypeKind::Namespace: {
+      break;
     }
     }
 
@@ -274,6 +286,10 @@ struct TypeCache {
     }
     case TypeKind::Union: {
       hasher.hash(&t->_union.scope);
+      break;
+    }
+    case TypeKind::Namespace: {
+      hasher.hash(&t->_namespace.scope);
       break;
     }
     }

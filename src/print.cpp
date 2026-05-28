@@ -10,7 +10,8 @@ std::ostream &operator<<(std::ostream &os, const String &str) {
 }
 
 std::ostream &operator<<(std::ostream &os, const SrcLoc &location) {
-  return os << "[" << location.line << ":" << location.column << "]";
+  return os << "[`" << location.file << "` " << location.line << ":"
+            << location.column << "]";
 }
 
 std::ostream &operator<<(std::ostream &os, const Operator &op) {
@@ -709,6 +710,9 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
   case TypeKind::Union: {
     return os << "Union";
   }
+  case TypeKind::Namespace: {
+    return os << "Namespace";
+  }
   }
   return os;
 }
@@ -805,6 +809,9 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
       }
     }
     os << "}`";
+    break;
+  }
+  case TypeKind::Namespace: {
     break;
   }
   }

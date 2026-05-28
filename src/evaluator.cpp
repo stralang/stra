@@ -278,9 +278,13 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
       access_scope = lhs_type->_union.scope;
       break;
     }
+    case TypeKind::Namespace: {
+      access_scope = lhs_type->_namespace.scope;
+      break;
+    }
     default: {
       expect(false, lhs->location,
-             "LHS must be a Function, Struct, Enum, or Union. Got `"
+             "LHS must be a Function, Struct, Enum, Union, or Namespace. Got `"
                  << *lhs_type << "`");
     }
     }
@@ -795,6 +799,14 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case NodeKind::Import: {
     evaluate(evaluator, node->import.node, node->import.scope);
+
+    // Type
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+
+    Type ty = {.kind = TypeKind::Namespace,
+               ._namespace = {.scope = node->import.scope}};
+    node->value.data.type_value = evaluator->type_cache->get(ty);
     break;
   }
   case NodeKind::Const: {

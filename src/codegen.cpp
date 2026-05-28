@@ -329,6 +329,10 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       Symbol *union_symbol = real_ty->_union.scope;
       impl_children = &union_symbol->node->_union.body;
       impl_scope = union_symbol;
+    } else if (real_ty->kind == TypeKind::Namespace) {
+      Symbol *namespace_symbol = real_ty->_namespace.scope;
+      impl_children = &namespace_symbol->node->children;
+      impl_scope = namespace_symbol;
     }
   }
 
