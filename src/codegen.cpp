@@ -34,10 +34,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
   case TypeKind::Integer: {
     size_t bits = type->integer.bits;
     if (type->integer.bits == -1) {
-      LLVMTypeRef tmp_type =
-          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
-      bits =
-          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_type);
+      bits = codegen->pointer_size;
     }
     return LLVMIntTypeInContext(codegen->ctx, bits);
   }
@@ -72,9 +69,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
       LLVMTypeRef *types =
           (LLVMTypeRef *)codegen->allocator->alloc(sizeof(LLVMTypeRef) * 2);
       types[0] = LLVMPointerType(elem, 0);
-      size_t bits =
-          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), types[0]);
-      types[1] = LLVMIntTypeInContext(codegen->ctx, bits);
+      types[1] = LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
       return LLVMStructTypeInContext(codegen->ctx, types, 2, false);
     }
     return nullptr;
@@ -88,11 +83,28 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
   }
   case TypeKind::Function: {
     LLVMTypeRef return_type = typeToLLVM(codegen, type->function.return_type);
+    size_t return_size =
+        type->function.return_type->sizeBits(codegen->pointer_size);
+    if (type->function.return_type->kind == TypeKind::Struct &&
+        return_size <= codegen->pointer_size) {
+      // Simplify to integer
+      return_type = LLVMIntTypeInContext(codegen->ctx, return_size);
+    }
+
     LLVMTypeRef *param_types = (LLVMTypeRef *)codegen->allocator->alloc(
         sizeof(LLVMTypeRef) * type->function.arguments.length);
+
     for (size_t i = 0; i < type->function.arguments.length; i++) {
-      param_types[i] =
-          typeToLLVM(codegen, type->function.arguments.data.ptr[i]);
+      Type *arg_type = type->function.arguments.data.ptr[i];
+      size_t size = arg_type->sizeBits(codegen->pointer_size);
+
+      LLVMValueRef value;
+      if (arg_type->kind == TypeKind::Struct && size <= codegen->pointer_size) {
+        // Simplify to integer
+        param_types[i] = LLVMIntTypeInContext(codegen->ctx, size);
+      } else {
+        param_types[i] = typeToLLVM(codegen, arg_type);
+      }
     }
 
     return LLVMFunctionType(return_type, param_types,
@@ -119,20 +131,15 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     return typeToLLVM(codegen, type->_enum.repr_type);
   }
   case TypeKind::Union: {
-    LLVMTypeRef tmp_ptr =
-        LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
-    size_t native_size =
-        LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
-
     // Raw/C-Style Union
     if (type->_union.repr_type->kind == TypeKind::Void) {
       LLVMTypeRef ty = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx),
-                                     type->sizeBits(native_size));
+                                     type->sizeBits(codegen->pointer_size));
       return LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
     }
 
-    size_t data_size =
-        type->sizeBits(native_size) - type->_union.repr_type->integer.bits;
+    size_t data_size = type->sizeBits(codegen->pointer_size) -
+                       type->_union.repr_type->integer.bits;
     data_size = (data_size + 7) / 8; // Bits to Bytes
 
     LLVMTypeRef tys[2];
@@ -474,12 +481,6 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
       indices[1] = LLVMConstInt(index_ty, data_offset, false);
       LLVMValueRef data_ptr = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
-
-      LLVMTypeRef tmp_ptr =
-          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
-      size_t native_size =
-          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
-
       LLVMBuildStore(builder, rhs_value, data_ptr);
     } else {
       LLVMBuildStore(builder, rhs_value, lhs_ptr);
@@ -843,13 +844,9 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       // Array (compile-time length)
       type = typeToLLVM(codegen, slice_type);
 
-      LLVMTypeRef tmp_type =
-          LLVMPointerType(LLVMInt1TypeInContext(codegen->ctx), 0);
-      uint64_t native_int =
-          LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_type);
-
-      length = LLVMConstInt(LLVMIntTypeInContext(codegen->ctx, native_int),
-                            slice_type->slice.length, false);
+      length = LLVMConstInt(
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          slice_type->slice.length, false);
     } else if (slice_type->slice.length == 0) {
       // Slice (runtime length)
       length = LLVMBuildExtractValue(builder, slice, 1, "");
@@ -1147,13 +1144,39 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     for (size_t i = 0; i < node->call.arguments.length; i++) {
       Node *arg = node->call.arguments.data.ptr[i];
-      args[i + has_receiver] = gen(codegen, builder, arg, scope);
+      size_t size = arg->value.type->sizeBits(codegen->pointer_size);
+
+      LLVMValueRef value;
+      if (arg->value.type->kind == TypeKind::Struct &&
+          size <= codegen->pointer_size) {
+        // Simplify to integer
+        LLVMTypeRef dest_ty = LLVMIntTypeInContext(codegen->ctx, size);
+        value = addr(codegen, builder, arg, scope);
+        value = LLVMBuildLoad2(builder, dest_ty, value, "");
+      } else {
+        value = gen(codegen, builder, arg, scope);
+      }
+
+      args[i + has_receiver] = value;
     }
 
     LLVMValueRef function = addr(codegen, builder, node->call.callee, scope);
     LLVMValueRef ret =
         LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type), function,
                        args, callee_type->function.arguments.length, "");
+
+    // Complicate from Integer
+    size_t return_size =
+        callee_type->function.return_type->sizeBits(codegen->pointer_size);
+    if (callee_type->function.return_type->kind == TypeKind::Struct &&
+        return_size <= codegen->pointer_size) {
+      LLVMTypeRef alloc_ty = LLVMIntTypeInContext(codegen->ctx, return_size);
+      LLVMValueRef alloca = LLVMBuildAlloca(builder, alloc_ty, "");
+      LLVMBuildStore(builder, ret, alloca);
+
+      LLVMTypeRef ty = typeToLLVM(codegen, callee_type->function.return_type);
+      ret = LLVMBuildLoad2(builder, ty, alloca, "");
+    }
 
     return ret;
   }
@@ -1176,7 +1199,19 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (node->child == nullptr) {
       LLVMBuildRetVoid(builder);
     } else {
-      LLVMBuildRet(builder, gen(codegen, builder, node->child, scope));
+      LLVMValueRef value;
+      size_t return_size =
+          node->child->value.type->sizeBits(codegen->pointer_size);
+      if (node->child->value.type->kind == TypeKind::Struct &&
+          return_size <= codegen->pointer_size) {
+        value = addr(codegen, builder, node->child, scope);
+        LLVMTypeRef dest_ty = LLVMIntTypeInContext(codegen->ctx, return_size);
+        value = LLVMBuildLoad2(builder, dest_ty, value, "");
+      } else {
+        value = gen(codegen, builder, node->child, scope);
+      }
+
+      LLVMBuildRet(builder, value);
     }
 
     break;
@@ -1376,6 +1411,11 @@ void CodeGenModule::generate(CodeGenContext *context) {
   // Setup target info
   LLVMSetTarget(this->mod, context->target_triple);
   LLVMSetDataLayout(this->mod, context->data_layout_str);
+
+  // Get Pointer size
+  LLVMTypeRef tmp_ptr = LLVMPointerType(LLVMInt1TypeInContext(this->ctx), 0);
+  this->pointer_size =
+      LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(this->mod), tmp_ptr);
 
   // Generate
   gen(this, nullptr, this->ast, this->symbol);

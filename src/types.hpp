@@ -125,13 +125,13 @@ struct Type {
             this->_struct.fields.data.ptr[i]->sizeBits(native_size);
         size_t elem_align =
             this->_struct.fields.data.ptr[i]->alignBits(native_size);
-        size_t padding = elem_align - (total_size % elem_align);
+        size_t padding = elem_align - (elem_align - (total_size % elem_align));
 
         total_size += padding + elem_size;
         max_align = std::max(max_align, elem_align);
       }
 
-      return total_size + max_align - (total_size % max_align);
+      return total_size + (max_align - max_align - (total_size % max_align));
     }
     case TypeKind::Enum: {
       return this->_enum.repr_type->sizeBits(native_size);

@@ -50,6 +50,7 @@ struct CodeGenModule {
   size_t function_stack_len;
 
   // LLVM Context
+  size_t pointer_size;
   LLVMContextRef ctx;
   LLVMModuleRef mod;
 
