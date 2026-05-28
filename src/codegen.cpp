@@ -124,6 +124,13 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     size_t native_size =
         LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(codegen->mod), tmp_ptr);
 
+    // Raw/C-Style Union
+    if (type->_union.repr_type->kind == TypeKind::Void) {
+      LLVMTypeRef ty = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx),
+                                     type->sizeBits(native_size));
+      return LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
+    }
+
     size_t data_size =
         type->sizeBits(native_size) - type->_union.repr_type->integer.bits;
     data_size = (data_size + 7) / 8; // Bits to Bytes
@@ -261,7 +268,9 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       indices[0] = LLVMConstInt(index_ty, 0, false);
 
       // Check Tag
-      {
+      size_t data_offset = 0;
+      if (lhs->value.type->_union.repr_type->kind != TypeKind::Void) {
+        data_offset += 1;
         indices[1] = indices[0];
         LLVMValueRef tag_ptr =
             LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs->value.type), value,
@@ -295,7 +304,7 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
       }
 
       // Get Data
-      indices[1] = LLVMConstInt(index_ty, 1, false);
+      indices[1] = LLVMConstInt(index_ty, data_offset, false);
       LLVMValueRef data_ptr = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, lhs->value.type), value, indices, 2, "");
 
@@ -440,18 +449,25 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
       indices[0] = LLVMConstInt(index_ty, 0, false);
 
-      // Set Tag
-      indices[1] = indices[0];
-      LLVMValueRef tag_ptr = LLVMBuildGEP2(
-          builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
+      size_t data_offset = 0;
+      if (node->_operator.lhs->value.type->_union.repr_type->kind !=
+          TypeKind::Void) {
+        data_offset += 1;
 
-      LLVMTypeRef repr_type = typeToLLVM(codegen, union_type->_union.repr_type);
-      LLVMValueRef tag_const = LLVMConstInt(
-          repr_type, tag_id, union_type->_union.repr_type->integer.is_signed);
-      LLVMBuildStore(builder, tag_const, tag_ptr);
+        // Set Tag
+        indices[1] = indices[0];
+        LLVMValueRef tag_ptr = LLVMBuildGEP2(
+            builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
+
+        LLVMTypeRef repr_type =
+            typeToLLVM(codegen, union_type->_union.repr_type);
+        LLVMValueRef tag_const = LLVMConstInt(
+            repr_type, tag_id, union_type->_union.repr_type->integer.is_signed);
+        LLVMBuildStore(builder, tag_const, tag_ptr);
+      }
 
       // Set Value
-      indices[1] = LLVMConstInt(index_ty, 1, false);
+      indices[1] = LLVMConstInt(index_ty, data_offset, false);
       LLVMValueRef data_ptr = LLVMBuildGEP2(
           builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
 
