@@ -150,6 +150,7 @@ enum class NodeKind {
   Struct,
   Enum,
   Union,
+  Namespace,
   Member,
   Import,
   Const,

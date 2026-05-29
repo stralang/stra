@@ -797,6 +797,23 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
     break;
   }
+  case NodeKind::Namespace: {
+    Symbol *namespace_scope = scope->findSymbolByNode(node);
+
+    // Setup Type
+    Type ty = {.kind = TypeKind::Namespace};
+    ty._namespace.scope = namespace_scope;
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    node->value.has_data = true;
+    node->value.data.type_value = evaluator->type_cache->get(ty);
+
+    // Evaluate Children
+    for (size_t i = 0; i < node->children.length; i++) {
+      evaluate(evaluator, node->children.data.ptr[i], namespace_scope);
+    }
+    break;
+  }
   case NodeKind::Member: {
     Type t = {.kind = TypeKind::Integer};
     t.integer = {.is_untyped = true};

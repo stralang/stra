@@ -474,6 +474,17 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
   return out;
 }
 
+Node *parseNamespace(ASTParser *parser, Symbol *scope) {
+  Symbol *namespace_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
+  namespace_symbol->init(parser->allocator, false, scope);
+
+  Node *out = parseStmtCompound(parser, scope);
+  out->kind = NodeKind::Namespace;
+  namespace_symbol->node = out;
+
+  return out;
+}
+
 // The `name_prealloc` argument must contain the name of the variable, and is
 // used as a preallocated node for the output
 Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
@@ -520,7 +531,11 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
     try(parser->nextToken());
 
     out->field.undefined = parser->cur_token.kind == TokenKind::Undefined;
-    if (!out->field.undefined) {
+    if (out->field.definition &&
+        parser->cur_token.kind == TokenKind::BlockBegin) {
+      out->field.initial = parseNamespace(parser, field_symbol);
+      try(out->field.initial);
+    } else if (!out->field.undefined) {
       out->field.initial = parseExpr(parser, Precedence::Assign, field_symbol);
       try(out->field.initial);
     } else {

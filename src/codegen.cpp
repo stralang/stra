@@ -1088,6 +1088,13 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Namespace: {
+    Symbol *namespace_scope = scope->findSymbolByNode(node);
+    for (size_t i = 0; i < node->children.length; i++) {
+      gen(codegen, builder, node->children.data.ptr[i], namespace_scope);
+    }
+    break;
+  }
   case NodeKind::Member: {
     return valueToLLVM(codegen, &node->value);
   }

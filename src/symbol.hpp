@@ -6,7 +6,6 @@
 #include "token.hpp"
 #include <cstddef>
 #include <cstring>
-#include <sstream>
 #include <string>
 
 struct Symbol {
@@ -21,6 +20,10 @@ struct Symbol {
   Symbol *findSymbol(String *name, SrcLoc *location) {
     for (size_t i = 0; i < this->children.length; i++) {
       Symbol *child = this->children.data.ptr[i];
+      if (child->node == nullptr || child->node->kind != NodeKind::Field) {
+        continue;
+      }
+
       String *child_name = &child->node->field.name;
       if (child_name->len != name->len ||
           memcmp(child_name->ptr, name->ptr, name->len) != 0) {
