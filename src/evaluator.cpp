@@ -163,6 +163,24 @@ bool compareTypes(Type *lhs, Type *rhs) {
   return false;
 }
 
+/// Checks if `src` can auto convert to `dst`
+/// Returns `dst` if it can convert, otherwise `src`
+Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst) {
+  if (src->kind != dst->kind) {
+    return src;
+  }
+
+  if (src->kind == TypeKind::Integer && src->integer.is_untyped) {
+    if (dst->integer.is_signed || !src->integer.is_signed) {
+      return dst;
+    }
+  } else if (src->kind == TypeKind::Float && src->_float.is_untyped) {
+    return dst;
+  }
+
+  return src;
+}
+
 void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->unary_operator.child, scope);
 
@@ -608,6 +626,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     if (node->field.initial != nullptr) {
       evaluate(evaluator, node->field.initial, field_symbol);
+
       Value *value = &node->field.initial->value;
       expect(value->type != nullptr, node->field.initial->location,
              "Failed to evaluate field initial");
@@ -619,13 +638,17 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         } else {
           node->value.type = value->type;
         }
-      } else if (!compareTypes(node->value.type, value->type)) {
-        std::cerr << node->field.initial->location
-                  << " Field initial doesn't match type. ";
-        std::cerr << "Field Type: `" << *node->value.type << "` ";
-        std::cerr << "Initial Type: `" << *value->type << "`\n";
-        node->value.type = nullptr;
-        return;
+      } else {
+        node->field.initial->value.type = autoConvert(
+            evaluator, node->field.initial->value.type, value->type);
+        if (!compareTypes(node->value.type, value->type)) {
+          std::cerr << node->field.initial->location
+                    << " Field initial doesn't match type. ";
+          std::cerr << "Field Type: `" << *node->value.type << "` ";
+          std::cerr << "Initial Type: `" << *value->type << "`\n";
+          node->value.type = nullptr;
+          return;
+        }
       }
 
       node->value.has_data = value->has_data;
@@ -951,10 +974,12 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         return;
       }
 
-      evaluate(evaluator, arg, scope);
-
       Type *expected_type =
           fn_type->function.arguments.data.ptr[i + initial_idx];
+
+      evaluate(evaluator, arg, scope);
+      arg->value.type = autoConvert(evaluator, arg->value.type, expected_type);
+
       expect(compareTypes(expected_type, arg->value.type), arg->location,
              "Argument `" << *arg->value.type << "` doesn't match expected `"
                           << *expected_type << "`");
@@ -969,6 +994,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Node *index = node->index.index;
     evaluate(evaluator, slice, scope);
     evaluate(evaluator, index, scope);
+
+    Type *usize_ty = evaluator->type_cache->get(
+        {.kind = TypeKind::Integer,
+         .integer = {.is_untyped = false, .is_signed = false, .bits = -1}});
+    index->value.type = autoConvert(evaluator, index->value.type, usize_ty);
 
     expect(index->value.type->kind == TypeKind::Integer &&
                !index->value.type->integer.is_signed &&
@@ -1001,6 +1031,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
              "Function expects return value");
     } else {
       evaluate(evaluator, node->child, scope);
+      node->child->value.type =
+          autoConvert(evaluator, node->child->value.type, expected_type);
+
       expect(compareTypes(expected_type, node->child->value.type),
              node->child->location,
              "Unexpected return value. Got `"
