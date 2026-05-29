@@ -11,6 +11,7 @@ add_executable(stra
   src/comptime.cpp
   src/evaluator.cpp
   src/codegen.cpp
+  src/codegen_abi.cpp
   src/main.cpp
 )
 
