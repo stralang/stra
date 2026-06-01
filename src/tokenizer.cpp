@@ -88,7 +88,7 @@ void numberFromString(Token *token, String slice, bool is_float,
   // Base
   size_t base = 10;
   size_t offset = 0;
-  if (slice[0] == '0') {
+  if (slice[0] == '0' && slice.len > 1) {
     char c = slice[1];
     if (c == 'b') {
       base = 2;
