@@ -2,6 +2,7 @@
 #include "token.hpp"
 #include <cassert>
 #include <charconv>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -62,6 +63,63 @@ void Tokenizer::init() {
 }
 
 void Tokenizer::deinit() { free((void *)this->source.ptr); }
+
+void numberFromString(Token *token, String slice, bool is_float,
+                      size_t e_offset) {
+  if (is_float) {
+    double value = 0.0;
+    auto [_ptr, _ec] = std::from_chars(
+        (const char *)slice.ptr, (const char *)(slice.ptr + e_offset), value);
+
+    // Scientific e notation
+    if (e_offset < slice.len) {
+      double multiplyer = 0.0;
+      auto [_mul_ptr, _mul_ec] =
+          std::from_chars((const char *)(slice.ptr + e_offset + 1),
+                          (const char *)(slice.ptr + slice.len), value);
+      value *= std::pow(10.0, multiplyer);
+    }
+
+    token->kind = TokenKind::Float;
+    token->_float = value;
+    return;
+  }
+
+  // Base
+  size_t base = 10;
+  size_t offset = 0;
+  if (slice[0] == '0') {
+    char c = slice[1];
+    if (c == 'b') {
+      base = 2;
+      offset = 2;
+    } else if (c == 'o') {
+      base = 8;
+      offset = 2;
+    } else if (c == 'x') {
+      base = 16;
+      offset = 2;
+    }
+  }
+
+  // Convert
+  int64_t value = 0;
+  auto [_ptr, _ec] =
+      std::from_chars((const char *)(slice.ptr + offset),
+                      (const char *)(slice.ptr + e_offset), value, base);
+
+  // Scientific e notation
+  if (e_offset < slice.len) {
+    int64_t multiplyer = 0;
+    auto [_mul_ptr, _mul_ec] =
+        std::from_chars((const char *)(slice.ptr + e_offset + 1),
+                        (const char *)(slice.ptr + slice.len), multiplyer);
+    value *= std::pow(10, multiplyer);
+  }
+
+  token->kind = TokenKind::Integer;
+  token->integer = value;
+}
 
 Token Tokenizer::next() {
   if (this->index >= this->source.len) {
@@ -150,34 +208,27 @@ Token Tokenizer::next() {
       }
 
       bool is_float = false;
-      while ((c >= '0' && c <= '9') || c == '.') {
+      size_t e_offset = 0;
+      while ((c >= '0' && c <= '9') || c == '.' || c == 'x' || c == 'o' ||
+             c == 'b' || c == 'e') {
         if (c == '.') {
           if (is_float)
             return token;
 
           is_float = true;
+        } else if (c == 'e') {
+          e_offset = this->index - start;
         }
 
         c = this->nextChar();
       }
 
-      if (is_float) {
-        double value = 0.0;
-        auto [ptr, ec] = std::from_chars(
-            (const char *)(this->source.ptr + start),
-            (const char *)(this->source.ptr + this->index), value);
-
-        token.kind = TokenKind::Float;
-        token._float = value;
-      } else {
-        int64_t value = 0;
-        auto [ptr, ec] = std::from_chars(
-            (const char *)(this->source.ptr + start),
-            (const char *)(this->source.ptr + this->index), value);
-
-        token.kind = TokenKind::Integer;
-        token.integer = value;
+      if (e_offset == 0) {
+        e_offset = this->index - 1;
       }
+
+      numberFromString(&token, this->source.range(start, this->index - 1),
+                       is_float, e_offset);
       return token;
     }
   }
