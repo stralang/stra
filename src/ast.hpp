@@ -178,13 +178,16 @@ enum class NodeKind {
   Assembly,
 
   Attribute,
-  Comment,
+  CommentGroup,
 };
 
 struct Node {
   Token token;
   SrcLoc location;
   Value value;
+
+  Node *doc_comments;
+  Node *line_comments;
 
   NodeKind kind;
   union {
@@ -211,5 +214,6 @@ struct Node {
     NodeSwitch _switch;
     NodeCase _case;
     NodeAssembly assembly;
+    ArrayList<Token> comment_group;
   };
 };

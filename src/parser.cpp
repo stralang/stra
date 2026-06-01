@@ -702,8 +702,27 @@ Node *parseAttribute(ASTParser *parser, Symbol *scope) {
   return out;
 }
 
+Node *parseCommentGroup(ASTParser *parser) {
+  if (parser->cur_token.kind != TokenKind::Comment) {
+    return nullptr;
+  }
+
+  Node *comment_group = (Node *)parser->allocator->alloc(sizeof(Node));
+  comment_group->kind = NodeKind::CommentGroup;
+  comment_group->comment_group.init(parser->allocator, 2);
+
+  while (parser->cur_token.kind == TokenKind::Comment) {
+    comment_group->comment_group.push(parser->cur_token);
+    try(parser->nextToken());
+  }
+
+  return comment_group;
+}
+
 Node *parseStmt(ASTParser *parser, Symbol *scope) {
   Node *out = nullptr;
+
+  Node *doc_comments = parseCommentGroup(parser);
 
   switch (parser->cur_token.kind) {
   case TokenKind::Name: {
@@ -977,6 +996,13 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     return nullptr;
   }
 
+  // Comments
+  out->doc_comments = doc_comments;
+  if (parser->cur_token.kind == TokenKind::Comment &&
+      parser->cur_token.location.line == out->location.line) {
+    out->line_comments = parseCommentGroup(parser);
+  }
+
   return out;
 }
 
@@ -1033,7 +1059,6 @@ void ASTParser::parse() {
            this->tokenizer.path.ptr, this->tokenizer.path.len);
   }
 
-  this->comments.init(this->allocator, 16);
   this->imports.init(this->allocator, 8);
   this->ast = parseStmtCompound(this, this->symbol);
   this->symbol->node = this->ast;
@@ -1041,11 +1066,6 @@ void ASTParser::parse() {
 
 bool ASTParser::nextToken() {
   Token next_token = this->tokenizer.next();
-  while (next_token.kind == TokenKind::Comment) {
-    this->comments.push(next_token);
-    next_token = this->tokenizer.next();
-  }
-
   this->prev_token = this->cur_token;
   this->cur_token = next_token;
   return this->cur_token.kind != TokenKind::Eof;

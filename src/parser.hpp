@@ -8,7 +8,6 @@ struct ASTParser {
   Tokenizer tokenizer;
   Node *ast;
   Symbol *symbol;
-  ArrayList<Token> comments;
   ArrayList<Node *> imports;
 
   Token prev_token;
