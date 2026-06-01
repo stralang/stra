@@ -184,6 +184,7 @@ enum class NodeKind {
 struct Node {
   Token token;
   SrcLoc location;
+  SrcLoc end_location;
   Value value;
 
   Node *doc_comments;

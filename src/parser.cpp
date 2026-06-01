@@ -65,6 +65,7 @@ Node *parseInitializer(ASTParser *parser, Node *record, Symbol *scope) {
       }
     }
 
+    setter->end_location = parser->cur_token.location;
     out->initializer.setters.push(setter);
 
     if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
@@ -73,12 +74,13 @@ Node *parseInitializer(ASTParser *parser, Node *record, Symbol *scope) {
     try(parser->nextToken());
   }
 
+  out->end_location = parser->cur_token.location;
   try(parser->cur_token.kind == TokenKind::BlockEnd);
   try(parser->nextToken());
   return out;
 }
 
-Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
+Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
                       Symbol *scope, bool allow_init) {
   Node *out = atom;
 
@@ -158,22 +160,15 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
     out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->kind = NodeKind::Operator;
     out->token = parser->cur_token;
-    out->location = out->token.location;
     out->_operator.opcode = opcode;
     out->_operator.lhs = tmp_atom;
 
     try(parser->nextToken());
     out->_operator.rhs = parseExpr(parser, precedence, scope, allow_init);
     try(out->_operator.rhs != nullptr);
+
+    out->end_location = out->_operator.rhs->end_location;
   }
-
-  return out;
-}
-
-Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
-                       Symbol *scope, bool allow_init) {
-  Node *out = parseBinaryExpr(parser, atom, min_precedence, scope, allow_init);
-  try(out != nullptr);
 
   return out;
 }
@@ -209,6 +204,7 @@ FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Symbol *scope) {
         return {false};
       }
 
+      field->end_location = parser->cur_token.location;
       fields.push(field);
       allow_field = parser->cur_token.kind == TokenKind::CommaDelimiter;
       if (allow_field && !parser->nextToken()) {
@@ -217,6 +213,7 @@ FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Symbol *scope) {
       continue;
     }
 
+    field->end_location = parser->cur_token.location;
     body.push(field);
     if (parser->cur_token.kind == TokenKind::LineDelimiter) {
       if (!parser->nextToken()) {
@@ -267,6 +264,7 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
             parseExpr(parser, Precedence::Assign, scope, true);
       }
 
+      field->end_location = parser->cur_token.location;
       fields.push(field);
 
       Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
@@ -284,6 +282,7 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
     field = parseField(parser, field, scope);
     body.push(field);
 
+    field->end_location = parser->cur_token.location;
     if (parser->cur_token.kind == TokenKind::LineDelimiter) {
       if (!parser->nextToken()) {
         return {false};
@@ -539,7 +538,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
   }
   }
 
-  out = parsePartialExpr(parser, min_precedence, out, scope, allow_init);
+  out = parseBinaryExpr(parser, min_precedence, out, scope, allow_init);
   try(out != nullptr);
 
   return out;
@@ -641,7 +640,7 @@ Node *parseConditional(ASTParser *parser, Symbol *scope) {
   //     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
   //       child = parseField(parser, child, scope);
   //     } else {
-  //       child = parsePartialExpr(parser,
+  //       child = parseBinaryExpr(parser,
   //                                (Precedence)((int32_t)Precedence::Assign +
   //                                1), child, scope);
   //     }
@@ -698,6 +697,7 @@ Node *parseAttribute(ASTParser *parser, Symbol *scope) {
   }
 
   try(parser->cur_token.kind == TokenKind::ScopeEnd);
+  out->end_location = parser->cur_token.location;
   parser->nextToken();
   return out;
 }
@@ -708,6 +708,7 @@ Node *parseCommentGroup(ASTParser *parser) {
   }
 
   Node *comment_group = (Node *)parser->allocator->alloc(sizeof(Node));
+  comment_group->location = parser->cur_token.location;
   comment_group->kind = NodeKind::CommentGroup;
   comment_group->comment_group.init(parser->allocator, 2);
 
@@ -716,6 +717,7 @@ Node *parseCommentGroup(ASTParser *parser) {
     try(parser->nextToken());
   }
 
+  comment_group->end_location = parser->prev_token.location;
   return comment_group;
 }
 
@@ -736,7 +738,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
       out = parseField(parser, out, scope);
     } else {
-      out = parsePartialExpr(parser, Precedence::Assign, out, scope, true);
+      out = parseBinaryExpr(parser, Precedence::Assign, out, scope, true);
     }
     break;
   }
@@ -988,9 +990,12 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
 
   try(out);
   if (parser->cur_token.kind == TokenKind::LineDelimiter) {
+    out->end_location = parser->cur_token.location;
     parser->nextToken();
-  } else if (parser->prev_token.kind != TokenKind::LineDelimiter &&
-             parser->prev_token.kind != TokenKind::BlockEnd) {
+  } else if (parser->prev_token.kind == TokenKind::LineDelimiter ||
+             parser->prev_token.kind == TokenKind::BlockEnd) {
+    out->end_location = parser->prev_token.location;
+  } else {
     std::cerr << parser->cur_token.location
               << " Statement must end with either `;` or `}`\n";
     return nullptr;
@@ -999,7 +1004,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
   // Comments
   out->doc_comments = doc_comments;
   if (parser->cur_token.kind == TokenKind::Comment &&
-      parser->cur_token.location.line == out->location.line) {
+      parser->cur_token.location.line == out->end_location.line) {
     out->line_comments = parseCommentGroup(parser);
   }
 
@@ -1030,6 +1035,7 @@ Node *parseStmtCompound(ASTParser *parser, Symbol *scope) {
   }
 
   // Pass Marker
+  out->end_location = parser->cur_token.location;
   if (parser->cur_token.kind == TokenKind::BlockEnd) {
     parser->nextToken();
   }
