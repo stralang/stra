@@ -1002,13 +1002,14 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, alloca);
 
+      LLVMValueRef value = LLVMConstNull(type);
       if (node->value.has_data) {
-        LLVMBuildStore(builder, valueToLLVM(codegen, &node->value), alloca);
+        value = valueToLLVM(codegen, &node->value);
       } else if (!node->field.undefined && node->field.initial != nullptr) {
-        LLVMValueRef initial =
-            gen(codegen, builder, node->field.initial, field_symbol);
-        LLVMBuildStore(builder, initial, alloca);
+        value = gen(codegen, builder, node->field.initial, field_symbol);
       }
+
+      LLVMBuildStore(builder, value, alloca);
     } else {
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
@@ -1160,6 +1161,37 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef ptr = addr(codegen, builder, node, scope);
     return LLVMBuildLoad2(builder, typeToLLVM(codegen, node->value.type), ptr,
                           "");
+  }
+  case NodeKind::Initializer: {
+    Node *record = node->initializer.record;
+    LLVMTypeRef ty = typeToLLVM(codegen, node->value.type);
+    LLVMValueRef agg = LLVMConstNull(ty);
+
+    for (size_t i = 0; i < node->initializer.setters.length; i++) {
+      Node *setter = node->initializer.setters.data.ptr[i];
+      LLVMValueRef value = nullptr;
+      size_t idx = i;
+
+      if (node->initializer.is_list) {
+        value = gen(codegen, builder, setter, scope);
+      } else {
+        Symbol *struct_symbol = record->value.data.type_value->_struct.scope;
+        Node *struct_node = struct_symbol->node;
+
+        for (size_t l = 0; l < struct_node->_struct.fields.length; l++) {
+          Node *field = struct_node->_struct.fields.data.ptr[l];
+          if (field->field.name.compare(setter->member.name)) {
+            idx = l;
+            value = gen(codegen, builder, setter->member.value, scope);
+            break;
+          }
+        }
+      }
+
+      agg = LLVMBuildInsertValue(builder, agg, value, idx, "");
+    }
+
+    return agg;
   }
   case NodeKind::Return: {
     size_t defer_boundary =

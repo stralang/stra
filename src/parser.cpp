@@ -16,13 +16,70 @@
   }
 
 // Forward Declarations [
-Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope);
+Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
+                bool allow_init);
 Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope);
 Node *parseStmtCompound(ASTParser *parser, Symbol *scope);
 // ] Forward Declarations
 
+Node *parseInitializer(ASTParser *parser, Node *record, Symbol *scope) {
+  Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
+  out->token = parser->cur_token;
+  out->location = parser->cur_token.location;
+  out->kind = NodeKind::Initializer;
+  out->initializer.record = record;
+  out->initializer.setters.init(parser->allocator, 8);
+
+  try(parser->cur_token.kind == TokenKind::BlockBegin);
+  try(parser->nextToken());
+
+  while (parser->cur_token.kind != TokenKind::BlockEnd) {
+    Node *setter = parseExpr(
+        parser, (Precedence)((int32_t)Precedence::Assign + 1), scope, true);
+
+    if (parser->cur_token.kind == TokenKind::Operator &&
+        parser->cur_token._operator == Operator::Assign) {
+      if (out->initializer.setters.length > 0) {
+        if (out->initializer.is_list) {
+          std::cerr << setter->location
+                    << "Cannot mix designators with list initializers\n";
+        }
+      } else {
+        out->initializer.is_list = false;
+      }
+
+      try(setter->kind == NodeKind::Name);
+      setter->kind = NodeKind::Member;
+      setter->member.name = setter->text;
+
+      try(parser->nextToken());
+      setter->member.value = parseExpr(parser, Precedence::Assign, scope, true);
+    } else {
+      if (out->initializer.setters.length > 0) {
+        if (!out->initializer.is_list) {
+          std::cerr << setter->location
+                    << "Cannot mix list with designator initializers\n";
+        }
+      } else {
+        out->initializer.is_list = true;
+      }
+    }
+
+    out->initializer.setters.push(setter);
+
+    if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
+      break;
+    }
+    try(parser->nextToken());
+  }
+
+  try(parser->cur_token.kind == TokenKind::BlockEnd);
+  try(parser->nextToken());
+  return out;
+}
+
 Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
-                      Symbol *scope) {
+                      Symbol *scope, bool allow_init) {
   Node *out = atom;
 
   while (true) {
@@ -41,7 +98,7 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
 
       try(parser->nextToken());
       while (parser->cur_token.kind != TokenKind::ScopeEnd) {
-        Node *arg = parseExpr(parser, Precedence::Assign, scope);
+        Node *arg = parseExpr(parser, Precedence::Assign, scope, true);
         try(arg != nullptr);
         out->call.arguments.push(arg);
 
@@ -69,11 +126,19 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
       out->index.slice = _tmp;
 
       try(parser->nextToken());
-      out->index.index = parseExpr(parser, Precedence::Assign, scope);
+      out->index.index = parseExpr(parser, Precedence::Assign, scope, true);
 
       try(parser->cur_token.kind == TokenKind::ArrayEnd);
       try(parser->nextToken());
 
+      try(out != nullptr);
+      continue;
+    } else if (allow_init && parser->cur_token.kind == TokenKind::BlockBegin) {
+      if (Precedence::Special < min_precedence) {
+        break;
+      }
+
+      out = parseInitializer(parser, out, scope);
       try(out != nullptr);
       continue;
     } else if (parser->cur_token.kind != TokenKind::Operator) {
@@ -98,7 +163,7 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
     out->_operator.lhs = tmp_atom;
 
     try(parser->nextToken());
-    out->_operator.rhs = parseExpr(parser, precedence, scope);
+    out->_operator.rhs = parseExpr(parser, precedence, scope, allow_init);
     try(out->_operator.rhs != nullptr);
   }
 
@@ -106,8 +171,8 @@ Node *parseBinaryExpr(ASTParser *parser, Node *atom, Precedence min_precedence,
 }
 
 Node *parsePartialExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
-                       Symbol *scope) {
-  Node *out = parseBinaryExpr(parser, atom, min_precedence, scope);
+                       Symbol *scope, bool allow_init) {
+  Node *out = parseBinaryExpr(parser, atom, min_precedence, scope, allow_init);
   try(out != nullptr);
 
   return out;
@@ -198,7 +263,8 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
         if (!parser->nextToken()) {
           return {false};
         }
-        field->member.value = parseExpr(parser, Precedence::Assign, scope);
+        field->member.value =
+            parseExpr(parser, Precedence::Assign, scope, true);
       }
 
       fields.push(field);
@@ -231,7 +297,8 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
   return {true, fields, body};
 }
 
-Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
+Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
+                bool allow_init) {
   Node *out;
 
   if (parser->cur_token.kind != TokenKind::ScopeBegin) {
@@ -248,7 +315,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
 
     try(parser->nextToken());
     out->unary_operator.child =
-        parseExpr(parser, Precedence::MemberAccess, scope);
+        parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
     try(out->unary_operator.child != nullptr);
     break;
   }
@@ -322,7 +389,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
     if (parser->cur_token.kind != TokenKind::BlockBegin &&
         parser->cur_token.kind != TokenKind::Undefined &&
         parser->cur_token.kind != TokenKind::LineDelimiter) {
-      out->function.return_type = parseExpr(parser, Precedence::Assign, scope);
+      out->function.return_type =
+          parseExpr(parser, Precedence::Assign, scope, false);
       try(out->function.return_type != nullptr);
     }
 
@@ -364,7 +432,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
 
     try(parser->nextToken());
     if (parser->cur_token.kind != TokenKind::BlockBegin) {
-      out->_enum.repr_type = parseExpr(parser, Precedence::Assign, scope);
+      out->_enum.repr_type =
+          parseExpr(parser, Precedence::Assign, scope, false);
     }
 
     try(parser->cur_token.kind == TokenKind::BlockBegin);
@@ -391,7 +460,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
 
     try(parser->nextToken());
     if (parser->cur_token.kind != TokenKind::BlockBegin) {
-      out->_union.repr_type = parseExpr(parser, Precedence::Assign, scope);
+      out->_union.repr_type =
+          parseExpr(parser, Precedence::Assign, scope, false);
     }
 
     try(parser->cur_token.kind == TokenKind::BlockBegin);
@@ -427,13 +497,13 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
   case TokenKind::Comptime: {
     out->kind = NodeKind::Comptime;
     try(parser->nextToken());
-    out->child = parseExpr(parser, Precedence::MemberAccess, scope);
+    out->child = parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
     break;
   }
   case TokenKind::Const: {
     out->kind = NodeKind::Const;
     try(parser->nextToken());
-    out->child = parseExpr(parser, Precedence::MemberAccess, scope);
+    out->child = parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
     break;
     break;
   }
@@ -449,26 +519,27 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope) {
       out->slice.is_pointer = true;
       try(parser->nextToken());
     } else if (parser->cur_token.kind != TokenKind::ArrayEnd) {
-      out->slice.length = parseExpr(parser, Precedence::Assign, scope);
+      out->slice.length = parseExpr(parser, Precedence::Assign, scope, true);
     }
 
     try(parser->cur_token.kind == TokenKind::ArrayEnd);
     try(parser->nextToken());
 
     out->slice.type =
-        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), scope);
+        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), scope,
+                  allow_init);
     break;
   }
   case TokenKind::ScopeBegin: {
     try(parser->nextToken());
-    out = parseExpr(parser, Precedence::Assign, scope);
+    out = parseExpr(parser, Precedence::Assign, scope, true);
     try(parser->cur_token.kind == TokenKind::ScopeEnd);
     try(parser->nextToken());
     break;
   }
   }
 
-  out = parsePartialExpr(parser, min_precedence, out, scope);
+  out = parsePartialExpr(parser, min_precedence, out, scope, allow_init);
   try(out != nullptr);
 
   return out;
@@ -518,8 +589,9 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   if (parser->cur_token.kind != TokenKind::TypeSeperator &&
       (parser->cur_token.kind != TokenKind::Operator ||
        parser->cur_token._operator != Operator::Assign)) {
-    out->field.type = parseExpr(
-        parser, (Precedence)((int32_t)Precedence::Assign + 1), field_symbol);
+    out->field.type =
+        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1),
+                  field_symbol, false);
     try(out->field.type);
   }
 
@@ -536,7 +608,8 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
       out->field.initial = parseNamespace(parser, field_symbol);
       try(out->field.initial);
     } else if (!out->field.undefined) {
-      out->field.initial = parseExpr(parser, Precedence::Assign, field_symbol);
+      out->field.initial =
+          parseExpr(parser, Precedence::Assign, field_symbol, true);
       try(out->field.initial);
     } else {
       try(parser->nextToken());
@@ -547,7 +620,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
 }
 
 Node *parseConditional(ASTParser *parser, Symbol *scope) {
-  return parseExpr(parser, Precedence::Assign, scope);
+  return parseExpr(parser, Precedence::Assign, scope, false);
   // Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   // out->token = parser->cur_token;
   // out->location = parser->cur_token.location;
@@ -612,7 +685,8 @@ Node *parseAttribute(ASTParser *parser, Symbol *scope) {
     if (parser->cur_token.kind == TokenKind::Operator &&
         parser->cur_token._operator == Operator::Assign) {
       try(parser->nextToken());
-      attribute->member.value = parseExpr(parser, Precedence::Assign, scope);
+      attribute->member.value =
+          parseExpr(parser, Precedence::Assign, scope, true);
     }
 
     out->children.push(attribute);
@@ -643,13 +717,13 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
       out = parseField(parser, out, scope);
     } else {
-      out = parsePartialExpr(parser, Precedence::Assign, out, scope);
+      out = parsePartialExpr(parser, Precedence::Assign, out, scope, true);
     }
     break;
   }
   case TokenKind::ScopeBegin:
   case TokenKind::Operator: {
-    out = parseExpr(parser, Precedence::Assign, scope);
+    out = parseExpr(parser, Precedence::Assign, scope, true);
     break;
   }
   case TokenKind::Return: {
@@ -661,7 +735,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
 
     try(parser->nextToken());
     if (parser->cur_token.kind != TokenKind::LineDelimiter) {
-      out->child = parseExpr(parser, Precedence::Assign, scope);
+      out->child = parseExpr(parser, Precedence::Assign, scope, true);
     }
     break;
   }
@@ -735,7 +809,8 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     out->_switch.cases.init(parser->allocator, 8);
 
     try(parser->nextToken());
-    out->_switch.conditional = parseExpr(parser, Precedence::Assign, scope);
+    out->_switch.conditional =
+        parseExpr(parser, Precedence::Assign, scope, false);
 
     try(parser->cur_token.kind == TokenKind::BlockBegin);
     try(parser->nextToken());
@@ -745,7 +820,8 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
       _case->kind = NodeKind::Case;
 
       // Parse Constant
-      _case->_case.constant = parseExpr(parser, Precedence::Assign, scope);
+      _case->_case.constant =
+          parseExpr(parser, Precedence::Assign, scope, true);
       try(parser->cur_token.kind == TokenKind::Case);
       _case->token = parser->cur_token;
       _case->location = parser->cur_token.location;
@@ -845,7 +921,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
           arg.reg = parser->cur_token.text;
           try(parser->nextToken());
         } else {
-          arg.node = parseExpr(parser, Precedence::Assign, scope);
+          arg.node = parseExpr(parser, Precedence::Assign, scope, true);
         }
 
         inst.arguments.push(arg);

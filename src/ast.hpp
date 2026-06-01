@@ -82,6 +82,12 @@ struct NodeIndex {
   Node *index;
 };
 
+struct NodeInitializer {
+  Node *record;
+  ArrayList<Node *> setters;
+  bool is_list;
+};
+
 struct NodeIf {
   Node *conditional;
   Node *body;
@@ -159,6 +165,7 @@ enum class NodeKind {
   Operator,
   Call,
   Index,
+  Initializer,
   Return,
   If,
   For,
@@ -198,6 +205,7 @@ struct Node {
     NodeOperator _operator;
     NodeCall call;
     NodeIndex index;
+    NodeInitializer initializer;
     NodeIf _if;
     NodeFor _for;
     NodeSwitch _switch;

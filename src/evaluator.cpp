@@ -1008,6 +1008,68 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     node->value.type = slice->value.type->slice.type;
     break;
   }
+  case NodeKind::Initializer: {
+    Node *record = node->initializer.record;
+    evaluate(evaluator, record, scope);
+
+    node->value.has_data = false;
+
+    if (record->value.type->kind == TypeKind::TypeId &&
+        record->value.data.type_value->kind == TypeKind::Struct) {
+      node->value.type = record->value.data.type_value;
+      Symbol *struct_symbol = node->value.type->_struct.scope;
+      Node *struct_node = struct_symbol->node;
+
+      for (size_t i = 0; i < node->initializer.setters.length; i++) {
+        Node *setter = node->initializer.setters.data.ptr[i];
+        evaluate(evaluator, setter, scope);
+
+        Type *field_type;
+        if (node->initializer.is_list) {
+          field_type = node->value.type->_struct.fields.data.ptr[i];
+          setter->value.type =
+              autoConvert(evaluator, setter->value.type, field_type);
+        } else {
+          for (size_t l = 0; l < struct_node->_struct.fields.length; l++) {
+            Node *field_node = struct_node->_struct.fields.data.ptr[l];
+            if (field_node->field.name.compare(setter->member.name)) {
+              field_type = field_node->value.type;
+              break;
+            }
+          }
+
+          setter->member.value->value.type = autoConvert(
+              evaluator, setter->member.value->value.type, field_type);
+        }
+
+        expect(compareTypes(setter->value.type, field_type), setter->location,
+               "Setter value doesn't match field type");
+      }
+    } else if (record->value.type->kind == TypeKind::Slice ||
+               record->value.type->kind == TypeKind::SIMD) {
+      node->value.type = record->value.type;
+      expect(node->initializer.is_list, node->location,
+             "Initializer for " << record->value.type->kind
+                                << " must be a list");
+
+      for (size_t i = 0; i < node->initializer.setters.length; i++) {
+        Node *setter = node->initializer.setters.data.ptr[i];
+        evaluate(evaluator, setter, scope);
+        setter->value.type = autoConvert(evaluator, setter->value.type,
+                                         record->value.type->slice.type);
+
+        expect(compareTypes(setter->value.type, record->value.type->slice.type),
+               setter->location, "Setter value doesn't match element type");
+      }
+    } else {
+      expect(
+          false, record->location,
+          "Initializer type must be one of Struct, Union, Slice, or SIMD. got `"
+              << *record->value.type << "`");
+    }
+
+    break;
+  }
   case NodeKind::Return: {
     Symbol *fn_scope = scope;
     while (fn_scope != nullptr && fn_scope->node->kind != NodeKind::Function) {
