@@ -14,6 +14,7 @@ struct InteropState {
   size_t max_steps = 1000000;
 
   ArrayList<HashMap<Symbol *, Value>> var_stack;
+  bool _return = false;
 };
 
 Value *exec(InteropState *state, Node *node, Symbol *scope);
@@ -276,7 +277,12 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     }
 
     for (size_t i = 0; i < node->children.length; i++) {
-      exec(state, node->children.data.ptr[i], compound_scope);
+      Value *result = exec(state, node->children.data.ptr[i], compound_scope);
+
+      if (state->_return) {
+        out = result;
+        break;
+      }
     }
     break;
   }
@@ -292,11 +298,6 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     Value *value = state->var_stack.back()->get(symbol);
     if (value == nullptr) {
       value = &symbol->node->value;
-    }
-
-    if (value->type == nullptr || !value->has_data) {
-      std::cerr << node->location << " Symbol without value. Aborting\n";
-      std::abort();
     }
 
     out = value;
@@ -339,6 +340,63 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
   }
   case NodeKind::Operator: {
     out = execBinary(state, node, scope);
+    break;
+  }
+  case NodeKind::Call: {
+    Value *fn_value = exec(state, node->call.callee, scope);
+    Symbol *fn_symbol = fn_value->type->function.scope;
+    Node *fn_node = fn_symbol->node;
+
+    HashMap<Symbol *, Value> *call_stack = state->var_stack.back();
+    HashMap<Symbol *, Value> fn_stack;
+    fn_stack.init(state->evaluator->allocator, 16);
+
+    for (size_t i = 0; i < node->call.arguments.length; i++) {
+      Node *arg = node->call.arguments.data.ptr[i];
+      Symbol *arg_symbol = scope->findSymbolByNode(arg);
+      Value *arg_value = call_stack->get(arg_symbol);
+      if (arg_value == nullptr) {
+        arg_value = &arg->value;
+      }
+      if (!arg_value->has_data) {
+        std::cerr << arg->location
+                  << " Cannot execute call with runtime value. Aborting\n";
+        std::abort();
+      }
+
+      Node *param_node = fn_node->function.parameters.data[i];
+      Symbol *param_symbol = fn_symbol->findSymbolByNode(param_node);
+      fn_stack.insert(param_symbol, *arg_value);
+    }
+
+    state->var_stack.push(fn_stack);
+    out = exec(state, fn_node->function.body, fn_symbol);
+    state->var_stack.pop();
+
+    // Handle Return
+    if (out == nullptr) {
+      node->value.type =
+          state->evaluator->type_cache->get({.kind = TypeKind::Void});
+      node->value.has_data = false;
+    } else {
+      node->value = *out;
+    }
+
+    out = &node->value;
+    break;
+  }
+  // TODO: ...
+  case NodeKind::Return: {
+    if (node->child == nullptr) {
+      node->value.type =
+          state->evaluator->type_cache->get({.kind = TypeKind::Void});
+      node->value.has_data = false;
+    } else {
+      node->value = *exec(state, node->child, scope);
+    }
+
+    out = &node->value;
+    state->_return = true;
     break;
   }
   }

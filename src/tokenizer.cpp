@@ -260,6 +260,11 @@ Token Tokenizer::next() {
   // Parse Symbols and Operators
   switch (c) {
     // Symbols
+  case '$': {
+    token.kind = TokenKind::Comptime;
+    this->nextChar();
+    return token;
+  }
   case ':': {
     token.kind = TokenKind::TypeSeperator;
     this->nextChar();

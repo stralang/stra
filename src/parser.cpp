@@ -496,7 +496,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
   case TokenKind::Comptime: {
     out->kind = NodeKind::Comptime;
     try(parser->nextToken());
-    out->child = parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
+    out->child = parseExpr(parser, Precedence::Special, scope, allow_init);
     break;
   }
   case TokenKind::Const: {
