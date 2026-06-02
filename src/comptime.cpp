@@ -11,17 +11,19 @@ struct InteropState {
   size_t max_steps = 1000000;
 };
 
-Value exec(InteropState *state, Node *node, Symbol *scope);
+Value *exec(InteropState *state, Node *node, Symbol *scope);
 
-Value execUnary(InteropState *state, Node *node, Symbol *scope) {
-  return Value{.type = nullptr, .has_data = false};
+Value *execUnary(InteropState *state, Node *node, Symbol *scope) {
+  return &node->value;
 }
 
-Value execBinary(InteropState *state, Node *node, Symbol *scope) {
+Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   exec(state, node->_operator.lhs, scope);
   exec(state, node->_operator.rhs, scope);
 
-  Value out = {.type = node->_operator.lhs->value.type, .has_data = true};
+  Value *out = &node->value;
+  out->type = node->_operator.lhs->value.type;
+  out->has_data = true;
 
   switch (node->_operator.opcode) {
   case Operator::Assign: {
@@ -30,246 +32,246 @@ Value execBinary(InteropState *state, Node *node, Symbol *scope) {
     std::abort();
   }
   case Operator::Add: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer +
-                         node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.data._float = node->_operator.lhs->value.data._float +
-                        node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer +
+                          node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->data._float = node->_operator.lhs->value.data._float +
+                         node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << "Addition for `" << *out.type
+      std::cerr << "Addition for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Sub: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer -
-                         node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.data._float = node->_operator.lhs->value.data._float -
-                        node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer -
+                          node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->data._float = node->_operator.lhs->value.data._float -
+                         node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << "Subtraction for `" << *out.type
+      std::cerr << "Subtraction for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Mul: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer *
-                         node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.data._float = node->_operator.lhs->value.data._float *
-                        node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer *
+                          node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->data._float = node->_operator.lhs->value.data._float *
+                         node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << "Multiplication for `" << *out.type
+      std::cerr << "Multiplication for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Div: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer /
-                         node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.data._float = node->_operator.lhs->value.data._float /
-                        node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer /
+                          node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->data._float = node->_operator.lhs->value.data._float /
+                         node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << "Division for `" << *out.type
+      std::cerr << "Division for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Mod: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer %
-                         node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer %
+                          node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Bitwise_Or: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer |
-                         node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer |
+                          node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Bitwise_Xor: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer ^
-                         node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer ^
+                          node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Bitwise_And: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer &
-                         node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer &
+                          node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Bitwise_LeftShift: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer
-                         << node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer
+                          << node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Bitwise_RightShift: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.data.integer = node->_operator.lhs->value.data.integer >>
-                         node->_operator.rhs->value.data.integer;
+    if (out->type->kind == TypeKind::Integer) {
+      out->data.integer = node->_operator.lhs->value.data.integer >>
+                          node->_operator.rhs->value.data.integer;
     } else {
-      std::cerr << "Modulo for `" << *out.type
+      std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Logical_Or: {
-    if (out.type->kind == TypeKind::Bool) {
-      out.data._bool = node->_operator.lhs->value.data._bool ||
-                       node->_operator.rhs->value.data._bool;
+    if (out->type->kind == TypeKind::Bool) {
+      out->data._bool = node->_operator.lhs->value.data._bool ||
+                        node->_operator.rhs->value.data._bool;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::Logical_And: {
-    if (out.type->kind == TypeKind::Bool) {
-      out.data._bool = node->_operator.lhs->value.data._bool &&
-                       node->_operator.rhs->value.data._bool;
+    if (out->type->kind == TypeKind::Bool) {
+      out->data._bool = node->_operator.lhs->value.data._bool &&
+                        node->_operator.rhs->value.data._bool;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::EqualTo: {
-    if (out.type->kind == TypeKind::Bool) {
-      out.data._bool = node->_operator.lhs->value.data._bool ==
-                       node->_operator.rhs->value.data._bool;
-    } else if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer ==
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float ==
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Bool) {
+      out->data._bool = node->_operator.lhs->value.data._bool ==
+                        node->_operator.rhs->value.data._bool;
+    } else if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer ==
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float ==
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::NotEqualTo: {
-    if (out.type->kind == TypeKind::Bool) {
-      out.data._bool = node->_operator.lhs->value.data._bool !=
-                       node->_operator.rhs->value.data._bool;
-    } else if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer !=
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float !=
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Bool) {
+      out->data._bool = node->_operator.lhs->value.data._bool !=
+                        node->_operator.rhs->value.data._bool;
+    } else if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer !=
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float !=
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::LessThen: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer <
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float <
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer <
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float <
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::GreaterThen: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer >
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float >
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer >
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float >
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::LessThenOrEqualTo: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer <=
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float <=
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer <=
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float <=
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
     break;
   }
   case Operator::GreaterThenOrEqualTo: {
-    if (out.type->kind == TypeKind::Integer) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data.integer <=
-                       node->_operator.rhs->value.data.integer;
-    } else if (out.type->kind == TypeKind::Float) {
-      out.type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out.data._bool = node->_operator.lhs->value.data._float <=
-                       node->_operator.rhs->value.data._float;
+    if (out->type->kind == TypeKind::Integer) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data.integer <=
+                        node->_operator.rhs->value.data.integer;
+    } else if (out->type->kind == TypeKind::Float) {
+      out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
+      out->data._bool = node->_operator.lhs->value.data._float <=
+                        node->_operator.rhs->value.data._float;
     } else {
-      std::cerr << node->_operator.opcode << " for `" << *out.type
+      std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
       std::abort();
     }
@@ -280,7 +282,7 @@ Value execBinary(InteropState *state, Node *node, Symbol *scope) {
   return out;
 }
 
-Value exec(InteropState *state, Node *node, Symbol *scope) {
+Value *exec(InteropState *state, Node *node, Symbol *scope) {
   state->steps += 1;
   state->depth += 1;
   if (state->steps > state->max_steps) {
@@ -289,7 +291,7 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
     std::abort();
   }
 
-  Value out = {.type = nullptr, .has_data = false};
+  Value *out = &node->value;
 
   switch (node->kind) {
   case NodeKind::Compound: {
@@ -316,7 +318,7 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
       std::abort();
     }
 
-    out = symbol->node->value;
+    *out = symbol->node->value;
     break;
   }
   case NodeKind::Bool:
@@ -329,7 +331,6 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
                 << "` does not have data. Aborting\n";
       std::abort();
     }
-    out = node->value;
     break;
   }
   // TODO: ...
@@ -339,17 +340,6 @@ Value exec(InteropState *state, Node *node, Symbol *scope) {
   }
   case NodeKind::Operator: {
     out = execBinary(state, node, scope);
-    if (out.has_data) {
-      if (out.type->kind == TypeKind::Bool) {
-        node->kind = NodeKind::Bool;
-      } else if (out.type->kind == TypeKind::Integer) {
-        node->kind = NodeKind::Integer;
-        node->integer = node->value.data.integer;
-      } else if (out.type->kind == TypeKind::Float) {
-        node->kind = NodeKind::Float;
-        node->_float = node->value.data._float;
-      }
-    }
     break;
   }
   }
@@ -363,5 +353,5 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
       .evaluator = evaluator,
   };
 
-  return exec(&state, node, scope);
+  return *exec(&state, node, scope);
 }

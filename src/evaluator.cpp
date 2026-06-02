@@ -332,13 +332,6 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     if (lhs_untyped && rhs_untyped) {
       node->value = execute(evaluator, node, scope);
-      if (lhs->value.type->kind == TypeKind::Integer) {
-        node->kind = NodeKind::Integer;
-        node->integer = node->value.data.integer;
-      } else {
-        node->kind = NodeKind::Float;
-        node->_float = node->value.data._float;
-      }
       return;
     } else if (lhs_untyped) {
       lhs->value.type = rhs->value.type;
