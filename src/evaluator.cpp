@@ -898,12 +898,12 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       evaluate(evaluator, node->slice.length, scope);
       execute(evaluator, node->slice.length, scope);
 
-      expect(node->value.type != nullptr, node->slice.length->location,
-             "Failed to get slice length");
-      expect(node->value.type->kind == TypeKind::Integer,
+      expect(node->slice.length->value.type != nullptr,
+             node->slice.length->location, "Failed to get slice length");
+      expect(node->slice.length->value.type->kind == TypeKind::Integer,
              node->slice.length->location, "Slice length must be an integer");
 
-      t.slice.length = node->value.data.integer;
+      t.slice.length = node->slice.length->value.data.integer;
     }
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
