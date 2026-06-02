@@ -82,7 +82,7 @@ template <typename T> struct ArrayList {
     this->data.ptr = (T *)allocator->alloc(sizeof(T) * this->data.len);
     this->length = 0;
   }
-  void deinit() { allocator->_free(this->data.ptr); }
+  void deinit() { allocator->_free((uint8_t *)this->data.ptr); }
 
   void push(T value) {
     if (this->length == this->data.len) {
@@ -98,6 +98,15 @@ template <typename T> struct ArrayList {
   T pop() {
     this->length -= 1;
     return this->data.ptr[this->length];
+  }
+
+  T *back() {
+    if (this->length == 0) {
+      std::cerr << "Cannot index back of empty ArrayList\n";
+      std::abort();
+    }
+
+    return this->data.ptr + this->length - 1;
   }
 
   Slice<T> slice() { return this->data.range(0, this->length); }

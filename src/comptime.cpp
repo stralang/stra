@@ -1,6 +1,9 @@
+#include "ast.hpp"
+#include "containers.hpp"
 #include "evaluator.hpp"
 #include "operator.hpp"
 #include "print.hpp"
+#include <cstring>
 #include <iostream>
 
 struct InteropState {
@@ -9,6 +12,8 @@ struct InteropState {
   size_t steps = 0;
   size_t depth = 0;
   size_t max_steps = 1000000;
+
+  ArrayList<HashMap<Symbol *, Value>> var_stack;
 };
 
 Value *exec(InteropState *state, Node *node, Symbol *scope);
@@ -18,11 +23,11 @@ Value *execUnary(InteropState *state, Node *node, Symbol *scope) {
 }
 
 Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
-  exec(state, node->_operator.lhs, scope);
-  exec(state, node->_operator.rhs, scope);
+  Value *lhs = exec(state, node->_operator.lhs, scope);
+  Value *rhs = exec(state, node->_operator.rhs, scope);
 
   Value *out = &node->value;
-  out->type = node->_operator.lhs->value.type;
+  out->type = lhs->type;
   out->has_data = true;
 
   switch (node->_operator.opcode) {
@@ -33,11 +38,9 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Add: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer +
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer + rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
-      out->data._float = node->_operator.lhs->value.data._float +
-                         node->_operator.rhs->value.data._float;
+      out->data._float = lhs->data._float + rhs->data._float;
     } else {
       std::cerr << "Addition for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -47,11 +50,9 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Sub: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer -
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer - rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
-      out->data._float = node->_operator.lhs->value.data._float -
-                         node->_operator.rhs->value.data._float;
+      out->data._float = lhs->data._float - rhs->data._float;
     } else {
       std::cerr << "Subtraction for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -61,11 +62,9 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Mul: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer *
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer * rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
-      out->data._float = node->_operator.lhs->value.data._float *
-                         node->_operator.rhs->value.data._float;
+      out->data._float = lhs->data._float * rhs->data._float;
     } else {
       std::cerr << "Multiplication for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -75,11 +74,9 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Div: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer /
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer / rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
-      out->data._float = node->_operator.lhs->value.data._float /
-                         node->_operator.rhs->value.data._float;
+      out->data._float = lhs->data._float / rhs->data._float;
     } else {
       std::cerr << "Division for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -89,8 +86,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Mod: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer %
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer % rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -100,8 +96,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Bitwise_Or: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer |
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer | rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -111,8 +106,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Bitwise_Xor: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer ^
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer ^ rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -122,8 +116,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Bitwise_And: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer &
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer & rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -133,8 +126,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Bitwise_LeftShift: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer
-                          << node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer << rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -144,8 +136,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Bitwise_RightShift: {
     if (out->type->kind == TypeKind::Integer) {
-      out->data.integer = node->_operator.lhs->value.data.integer >>
-                          node->_operator.rhs->value.data.integer;
+      out->data.integer = lhs->data.integer >> rhs->data.integer;
     } else {
       std::cerr << "Modulo for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -155,8 +146,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Logical_Or: {
     if (out->type->kind == TypeKind::Bool) {
-      out->data._bool = node->_operator.lhs->value.data._bool ||
-                        node->_operator.rhs->value.data._bool;
+      out->data._bool = lhs->data._bool || rhs->data._bool;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -166,8 +156,7 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::Logical_And: {
     if (out->type->kind == TypeKind::Bool) {
-      out->data._bool = node->_operator.lhs->value.data._bool &&
-                        node->_operator.rhs->value.data._bool;
+      out->data._bool = lhs->data._bool && rhs->data._bool;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -177,16 +166,13 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::EqualTo: {
     if (out->type->kind == TypeKind::Bool) {
-      out->data._bool = node->_operator.lhs->value.data._bool ==
-                        node->_operator.rhs->value.data._bool;
+      out->data._bool = lhs->data._bool == rhs->data._bool;
     } else if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer ==
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer == rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float ==
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float == rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -196,16 +182,13 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   }
   case Operator::NotEqualTo: {
     if (out->type->kind == TypeKind::Bool) {
-      out->data._bool = node->_operator.lhs->value.data._bool !=
-                        node->_operator.rhs->value.data._bool;
+      out->data._bool = lhs->data._bool != rhs->data._bool;
     } else if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer !=
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer != rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float !=
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float != rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -216,12 +199,10 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   case Operator::LessThen: {
     if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer <
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer < rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float <
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float < rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -232,12 +213,10 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   case Operator::GreaterThen: {
     if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer >
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer > rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float >
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float > rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -248,12 +227,10 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   case Operator::LessThenOrEqualTo: {
     if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer <=
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer <= rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float <=
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float <= rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -264,12 +241,10 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
   case Operator::GreaterThenOrEqualTo: {
     if (out->type->kind == TypeKind::Integer) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data.integer <=
-                        node->_operator.rhs->value.data.integer;
+      out->data._bool = lhs->data.integer <= rhs->data.integer;
     } else if (out->type->kind == TypeKind::Float) {
       out->type = state->evaluator->type_cache->get({.kind = TypeKind::Bool});
-      out->data._bool = node->_operator.lhs->value.data._float <=
-                        node->_operator.rhs->value.data._float;
+      out->data._bool = lhs->data._float <= rhs->data._float;
     } else {
       std::cerr << node->_operator.opcode << " for `" << *out->type
                 << "` is not implemented. Aborting\n";
@@ -291,7 +266,7 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     std::abort();
   }
 
-  Value *out = &node->value;
+  Value *out = nullptr;
 
   switch (node->kind) {
   case NodeKind::Compound: {
@@ -313,12 +288,18 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
       std::abort();
     }
 
-    if (symbol->node->value.type == nullptr || !symbol->node->value.has_data) {
+    // Get Value
+    Value *value = state->var_stack.back()->get(symbol);
+    if (value == nullptr) {
+      value = &symbol->node->value;
+    }
+
+    if (value->type == nullptr || !value->has_data) {
       std::cerr << node->location << " Symbol without value. Aborting\n";
       std::abort();
     }
 
-    *out = symbol->node->value;
+    out = value;
     break;
   }
   case NodeKind::Bool:
@@ -331,6 +312,24 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
                 << "` does not have data. Aborting\n";
       std::abort();
     }
+    out = &node->value;
+    break;
+  }
+  case NodeKind::Field: {
+    Symbol *symbol = scope->findSymbolByNode(node);
+    Value value = node->value;
+
+    if (value.type->kind == TypeKind::TypeId) {
+      break;
+    } else if (!value.has_data) {
+      if (node->field.initial != nullptr) {
+        value = *exec(state, node->field.initial, symbol);
+      } else {
+        memset(&value.data, 0, sizeof(value.data));
+      }
+    }
+
+    state->var_stack.back()->insert(symbol, value);
     break;
   }
   // TODO: ...
@@ -353,5 +352,21 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
       .evaluator = evaluator,
   };
 
-  return *exec(&state, node, scope);
+  // Setup Variable stack
+  state.var_stack.init(evaluator->allocator, 16);
+
+  HashMap<Symbol *, Value> root_scope;
+  root_scope.init(evaluator->allocator, 32);
+  state.var_stack.push(root_scope);
+
+  // Execute
+  Value out = *exec(&state, node, scope);
+
+  // Cleanup
+  for (size_t i = 0; i < state.var_stack.length; i++) {
+    state.var_stack.data.ptr[i].deinit();
+  }
+  state.var_stack.deinit();
+
+  return out;
 }
