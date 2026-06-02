@@ -331,7 +331,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     if (lhs_untyped && rhs_untyped) {
-      node->value = execute(evaluator, node, scope);
+      execute(evaluator, node, scope);
       return;
     } else if (lhs_untyped) {
       lhs->value.type = rhs->value.type;
@@ -896,14 +896,14 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       t.slice.length = -1;
     } else if (node->slice.length != nullptr) {
       evaluate(evaluator, node->slice.length, scope);
-      Value val = execute(evaluator, node->slice.length, scope);
+      execute(evaluator, node->slice.length, scope);
 
-      expect(val.type != nullptr, node->slice.length->location,
+      expect(node->value.type != nullptr, node->slice.length->location,
              "Failed to get slice length");
-      expect(val.type->kind == TypeKind::Integer, node->slice.length,
-             "Slice length must be an integer");
+      expect(node->value.type->kind == TypeKind::Integer,
+             node->slice.length->location, "Slice length must be an integer");
 
-      t.slice.length = val.data.integer;
+      t.slice.length = node->value.data.integer;
     }
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
@@ -1176,7 +1176,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case NodeKind::Comptime: {
     evaluate(evaluator, node->child, scope);
-    node->value = execute(evaluator, node, scope);
+    execute(evaluator, node, scope);
     break;
   }
   case NodeKind::Assembly: {

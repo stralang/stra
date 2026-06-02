@@ -33,9 +33,8 @@ Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
 
   switch (node->_operator.opcode) {
   case Operator::Assign: {
-    // TODO: Assign
-    std::cerr << "TODO: Assign\n";
-    std::abort();
+    lhs->data = rhs->data;
+    break;
   }
   case Operator::Add: {
     if (out->type->kind == TypeKind::Integer) {
@@ -426,6 +425,7 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
   Value out = *exec(&state, node, scope);
 
   // Apply
+  node->value = out;
   switch (out.type->kind) {
   case TypeKind::Bool: {
     node->kind = NodeKind::Bool;
