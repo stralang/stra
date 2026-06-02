@@ -151,9 +151,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       expect(value->type != nullptr, node->field.initial->location,
              "Failed to evaluate field initial");
       if (node->value.type == nullptr) {
-        if (value->type->is_constant && !node->field.definition) {
+        if (value->type->mods.is_constant && !node->field.definition) {
           Type field_type = *value->type;
-          field_type.is_constant = false;
+          field_type.mods.is_constant = false;
           node->value.type = evaluator->type_cache->get(field_type);
         } else {
           node->value.type = value->type;
@@ -379,7 +379,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child type must be a type");
 
     Type out_type = *val->data.type_value;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
     node->value.type = val->type;
     node->value.has_data = true;
     node->value.data.type_value = evaluator->type_cache->get(out_type);

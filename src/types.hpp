@@ -69,6 +69,11 @@ enum class TypeKind {
   Namespace,
 };
 
+struct TypeModifiers {
+  bool is_constant = false;
+  size_t align = 0; // 0 for not set
+};
+
 struct Type {
   TypeKind kind;
   union {
@@ -82,7 +87,7 @@ struct Type {
     UnionType _union;
     Namespace _namespace;
   };
-  bool is_constant;
+  TypeModifiers mods;
   uint64_t hashcode;
 
   size_t sizeBits(size_t native_size) {
@@ -156,6 +161,10 @@ struct Type {
   }
 
   size_t alignBits(size_t native_size) {
+    if (this->mods.align != 0) {
+      return this->mods.align;
+    }
+
     switch (this->kind) {
     case TypeKind::Void: {
       return 0;
@@ -252,7 +261,7 @@ struct TypeCache {
   uint64_t hash(Type *t) {
     Hasher hasher;
     hasher.hash(&t->kind);
-    hasher.hash(&t->is_constant);
+    hasher.hash(&t->mods);
 
     switch (t->kind) {
     case TypeKind::Void:

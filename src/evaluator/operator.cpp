@@ -13,7 +13,7 @@ void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
 
   // Assign
-  expect(!lhs->value.type->is_constant, lhs->location,
+  expect(!lhs->value.type->mods.is_constant, lhs->location,
          "Cannot assign to constant");
 
   if (lhs->value.type->kind == TypeKind::Union) {
@@ -76,7 +76,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
       }
     }
 
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
     break;
@@ -87,7 +87,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child must be Bool, or SIMD. Got `" << *child_type << "`");
 
     Type out_type = *child_type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -99,7 +99,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child must be Integer, or SIMD. Got `" << *child_type << "`");
 
     Type out_type = *child_type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -107,7 +107,10 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case UnaryOperator::Reference: {
     Type out_type = {
-        .kind = TypeKind::Pointer, .child = child_type, .is_constant = true};
+        .kind = TypeKind::Pointer,
+        .child = child_type,
+        .mods = {.is_constant = true},
+    };
 
     node->value.has_data =
         node->unary_operator.child->value.type->kind == TypeKind::TypeId;
@@ -234,7 +237,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -252,7 +255,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`\n");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -267,7 +270,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`\n");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -279,8 +282,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
                    << *rhs->value.type << "`");
 
-    node->value.type = evaluator->type_cache->get(
-        {.kind = TypeKind::Bool, .is_constant = true});
+    node->value.type = evaluator->type_cache->get({
+        .kind = TypeKind::Bool,
+        .mods = {.is_constant = true},
+    });
     node->value.has_data = false;
     break;
   }
@@ -299,8 +304,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
                    << *rhs->value.type << "`");
 
-    node->value.type = evaluator->type_cache->get(
-        {.kind = TypeKind::Bool, .is_constant = true});
+    node->value.type = evaluator->type_cache->get({
+        .kind = TypeKind::Bool,
+        .mods = {.is_constant = true},
+    });
     node->value.has_data = false;
     break;
   }

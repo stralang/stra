@@ -422,6 +422,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = BuildAlloca(codegen, builder, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
+      LLVMSetAlignment(alloca,
+                       node->value.type->alignBits(codegen->pointer_size));
+
       codegen->node_to_value.insert(node, alloca);
 
       LLVMValueRef value = LLVMConstNull(type);
@@ -437,6 +440,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
+      LLVMSetAlignment(alloca,
+                       node->value.type->alignBits(codegen->pointer_size));
+
       codegen->node_to_value.insert(node, alloca);
 
       if (!node->field.undefined &&
