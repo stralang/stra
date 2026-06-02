@@ -383,6 +383,7 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     }
 
     out = &node->value;
+    state->_return = false;
     break;
   }
   // TODO: ...
