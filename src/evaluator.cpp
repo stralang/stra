@@ -1176,7 +1176,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case NodeKind::Comptime: {
     evaluate(evaluator, node->child, scope);
-    node->value = execute(evaluator, node->child, scope);
+    node->value = execute(evaluator, node, scope);
     break;
   }
   case NodeKind::Assembly: {

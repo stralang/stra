@@ -400,6 +400,10 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     state->_return = true;
     break;
   }
+  case NodeKind::Comptime: {
+    out = exec(state, node->child, scope);
+    break;
+  }
   }
 
   state->depth -= 1;
@@ -420,6 +424,25 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   // Execute
   Value out = *exec(&state, node, scope);
+
+  // Apply
+  switch (out.type->kind) {
+  case TypeKind::Bool: {
+    node->kind = NodeKind::Bool;
+    node->integer = out.data._bool;
+    break;
+  }
+  case TypeKind::Integer: {
+    node->kind = NodeKind::Integer;
+    node->integer = out.data.integer;
+    break;
+  }
+  case TypeKind::Float: {
+    node->kind = NodeKind::Float;
+    node->_float = out.data._float;
+    break;
+  }
+  }
 
   // Cleanup
   for (size_t i = 0; i < state.var_stack.length; i++) {

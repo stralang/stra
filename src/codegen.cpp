@@ -896,11 +896,6 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Symbol *scope) {
-  if (node->value.has_data && node->kind != NodeKind::Field) {
-    // Compile-time constant
-    return valueToLLVM(codegen, &node->value);
-  }
-
   switch (node->kind) {
   case NodeKind::Compound: {
     Symbol *compound_scope = scope->findSymbolByNode(node);
