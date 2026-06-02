@@ -10,9 +10,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
+
+const char *NAME = "Stra";
+const char *VERSION = "0";
 
 enum class EmitMode {
   Executable,
@@ -23,21 +25,32 @@ enum class EmitMode {
 };
 
 struct Args {
+  EmitMode emit_mode = EmitMode::Executable;
   bool run = false;
-  EmitMode mode = EmitMode::Executable;
-  String path;
+  ArrayList<String> paths;
+  String output_path;
 };
 
 int main(int argc, const char **argv) {
-  Args args;
-  args.path = "test.stra";
+  Allocator global_allocator;
 
   // Parse Arguments
+  Args args;
+  args.paths.init(&global_allocator, 4);
+  args.output_path.ptr = nullptr;
+
   size_t i = 1;
+  bool print_help = false;
   while (i < argc) {
-    if (strcmp(argv[i], "run") == 0) {
+    if (strcmp(argv[i], "--help") == 0) {
+      print_help = true;
+      break;
+    } else if (strcmp(argv[i], "--version") == 0) {
+      std::cout << NAME << " " << VERSION << "\n";
+      return 0;
+    } else if (strcmp(argv[i], "--run") == 0 || strcmp(argv[i], "-r") == 0) {
       args.run = true;
-    } else if (strcmp(argv[i], "--emit") == 0) {
+    } else if (strcmp(argv[i], "--emit") == 0 || strcmp(argv[i], "-e") == 0) {
       i += 1;
       if (argc <= i) {
         std::cerr << "emit flag missing mode\n";
@@ -45,23 +58,52 @@ int main(int argc, const char **argv) {
       }
 
       if (strcmp(argv[i], "executable") == 0) {
-        args.mode = EmitMode::Executable;
+        args.emit_mode = EmitMode::Executable;
       } else if (strcmp(argv[i], "object") == 0) {
-        args.mode = EmitMode::Object;
+        args.emit_mode = EmitMode::Object;
       } else if (strcmp(argv[i], "ir") == 0) {
-        args.mode = EmitMode::IR;
+        args.emit_mode = EmitMode::IR;
       } else if (strcmp(argv[i], "evaluated") == 0) {
-        args.mode = EmitMode::EvaluatedAST;
+        args.emit_mode = EmitMode::EvaluatedAST;
       } else if (strcmp(argv[i], "ast") == 0) {
-        args.mode = EmitMode::AST;
+        args.emit_mode = EmitMode::AST;
       }
+    } else if (strcmp(argv[i], "--output") == 0 || strcmp(argv[i], "-o") == 0) {
+      i += 1;
+      if (argc <= i) {
+        std::cerr << "out flag missing path\n";
+        return 1;
+      }
+
+      args.output_path = {
+          .len = strlen(argv[i]),
+          .ptr = (uint8_t *)argv[i],
+      };
     } else {
-      args.path = argv[i];
+      args.paths.push({
+          .len = strlen(argv[i]),
+          .ptr = (uint8_t *)argv[i],
+      });
     }
 
     i += 1;
   }
 
+  if (print_help || args.paths.length == 0) {
+    std::cout << "`stra <paths> [options]`\n";
+    std::cout << "\nOptions:\n";
+    std::cout << "  `--run` build and execute\n";
+    std::cout << "  `--emit`\n";
+    std::cout << "      `executable` Emit executable [default]\n";
+    std::cout << "      `object`     Emit object files\n";
+    std::cout << "      `ir`         Emit llvm ir files\n";
+    std::cout << "      `ast`        Prints parsed ASTs\n";
+    std::cout << "      `evaluated`  Prints evaluated ASTs\n";
+    std::cout << "  `--output` output path\n";
+    return 0;
+  }
+
+  // Compile
   struct SourceFile {
     String path;
     Node *ast;
@@ -73,7 +115,6 @@ int main(int argc, const char **argv) {
     Node *importer;
   };
 
-  Allocator global_allocator;
   ArrayList<SourceFile> files;
   ArrayList<PendingFile> pending;
   HashMap<uint64_t, size_t> path_to_file;
@@ -82,10 +123,12 @@ int main(int argc, const char **argv) {
   pending.init(&global_allocator, 8);
   path_to_file.init(&global_allocator, 64);
 
-  pending.push({
-      .path = args.path,
-      .importer = nullptr,
-  });
+  for (size_t i = 0; i < args.paths.length; i++) {
+    pending.push({
+        .path = args.paths.data.ptr[i],
+        .importer = nullptr,
+    });
+  }
 
   while (pending.length > 0) {
     PendingFile file = pending.pop();
@@ -103,9 +146,9 @@ int main(int argc, const char **argv) {
     parser.parse();
 
     // Emit AST
-    if (args.mode == EmitMode::AST) {
+    if (args.emit_mode == EmitMode::AST) {
+      std::cout << "---- " << file.path << " ----\n";
       std::cout << *parser.ast << "\n";
-      return 0;
     }
 
     // Finish
@@ -143,6 +186,10 @@ int main(int argc, const char **argv) {
     }
   }
 
+  if (args.emit_mode == EmitMode::AST) {
+    return 0;
+  }
+
   // Evaluate
   SourceFile *root_file = files.data.ptr;
   TypeCache type_cache;
@@ -155,8 +202,13 @@ int main(int argc, const char **argv) {
   evaluator.eval();
 
   // Emit Evaluted AST
-  if (args.mode == EmitMode::EvaluatedAST) {
-    std::cout << *root_file->ast << "\n";
+  if (args.emit_mode == EmitMode::EvaluatedAST) {
+    for (size_t i = 0; i < files.length; i++) {
+      SourceFile *file = files.data.ptr + i;
+      std::cout << "---- " << file->path << " ----\n";
+      std::cout << *file->ast << "\n";
+    }
+
     return 0;
   }
 
@@ -197,7 +249,7 @@ int main(int argc, const char **argv) {
   }
 
   // Emit Evaluted IR
-  if (args.mode == EmitMode::IR) {
+  if (args.emit_mode == EmitMode::IR) {
     return 0;
   }
 
@@ -211,12 +263,24 @@ int main(int argc, const char **argv) {
     clang_cmd.append(cpp_output);
   }
 
-  if (args.mode == EmitMode::Executable) {
-    clang_cmd.append(" -o out");
-    std::cout << clang_cmd << "\n";
+  if (args.emit_mode == EmitMode::Executable) {
+    if (args.output_path.ptr != nullptr) {
+      std::string out_path((const char *)args.output_path.ptr,
+                           args.output_path.len);
+      clang_cmd.append(" -o ");
+      clang_cmd.append(out_path);
+    }
+
     std::system(clang_cmd.data());
-  } else if (args.mode == EmitMode::Object) {
-    clang_cmd.append(" -c -o out.o");
+  } else if (args.emit_mode == EmitMode::Object) {
+    clang_cmd.append(" -c");
+    if (args.output_path.ptr != nullptr) {
+      std::string out_path((const char *)args.output_path.ptr,
+                           args.output_path.len);
+      clang_cmd.append(" -o ");
+      clang_cmd.append(out_path);
+    }
+
     std::system(clang_cmd.data());
   }
 
