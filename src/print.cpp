@@ -730,7 +730,7 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
 
 void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
   os << type->kind;
-  if (type->is_constant) {
+  if (type->mods.is_constant) {
     os << " [Constant]";
   }
 

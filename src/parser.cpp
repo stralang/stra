@@ -19,6 +19,7 @@
 Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
                 bool allow_init);
 Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope);
+Node *parseAttribute(ASTParser *parser, Symbol *scope);
 Node *parseStmtCompound(ASTParser *parser, Symbol *scope);
 // ] Forward Declarations
 
@@ -196,7 +197,13 @@ FieldsAndBodyResult parseFieldsAndBody(ASTParser *parser, Symbol *scope) {
       return {false};
     }
 
+    Node *attributes = nullptr;
+    if (parser->cur_token.kind == TokenKind::Attribute) {
+      attributes = parseAttribute(parser, scope);
+    }
+
     field = parseField(parser, field, scope);
+    field->field.attributes = attributes;
 
     if (!field->field.definition) {
       if (!allow_field) {

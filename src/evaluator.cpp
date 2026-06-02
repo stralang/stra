@@ -211,7 +211,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
       }
     }
 
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
     break;
@@ -222,7 +222,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child must be Bool, or SIMD. Got `" << *child_type << "`");
 
     Type out_type = *child_type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -234,7 +234,7 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child must be Integer, or SIMD. Got `" << *child_type << "`");
 
     Type out_type = *child_type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -242,7 +242,10 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case UnaryOperator::Reference: {
     Type out_type = {
-        .kind = TypeKind::Pointer, .child = child_type, .is_constant = true};
+        .kind = TypeKind::Pointer,
+        .child = child_type,
+        .mods = {.is_constant = true, .align = 0},
+    };
 
     node->value.has_data =
         node->unary_operator.child->value.type->kind == TypeKind::TypeId;
@@ -342,7 +345,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   // Assign
   if (node->_operator.opcode == Operator::Assign) {
-    expect(!lhs->value.type->is_constant, lhs->location,
+    expect(!lhs->value.type->mods.is_constant, lhs->location,
            "Cannot assign to constant");
 
     if (lhs->value.type->kind == TypeKind::Union) {
@@ -403,7 +406,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -421,7 +424,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`\n");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -436,7 +439,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
                    << *rhs->value.type << "`\n");
 
     Type out_type = *lhs->value.type;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
 
     node->value.type = evaluator->type_cache->get(out_type);
     node->value.has_data = false;
@@ -448,8 +451,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
                    << *rhs->value.type << "`");
 
-    node->value.type = evaluator->type_cache->get(
-        {.kind = TypeKind::Bool, .is_constant = true});
+    node->value.type = evaluator->type_cache->get({
+        .kind = TypeKind::Bool,
+        .mods = {.is_constant = true},
+    });
     node->value.has_data = false;
     break;
   }
@@ -468,8 +473,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
            "LHS `" << *lhs->value.type << "` cannot operate with RHS `"
                    << *rhs->value.type << "`");
 
-    node->value.type = evaluator->type_cache->get(
-        {.kind = TypeKind::Bool, .is_constant = true});
+    node->value.type = evaluator->type_cache->get({
+        .kind = TypeKind::Bool,
+        .mods = {.is_constant = true},
+    });
     node->value.has_data = false;
     break;
   }
@@ -606,6 +613,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     Symbol *field_symbol = scope->findSymbolByNode(node);
 
+    // Evaluate Type
     if (node->field.type != nullptr) {
       evaluate(evaluator, node->field.type, field_symbol);
       Value *value = &node->field.type->value;
@@ -617,6 +625,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       node->value.type = value->data.type_value;
     }
 
+    // Evaluate Initial
     if (node->field.initial != nullptr) {
       evaluate(evaluator, node->field.initial, field_symbol);
 
@@ -624,9 +633,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       expect(value->type != nullptr, node->field.initial->location,
              "Failed to evaluate field initial");
       if (node->value.type == nullptr) {
-        if (value->type->is_constant && !node->field.definition) {
+        if (value->type->mods.is_constant && !node->field.definition) {
           Type field_type = *value->type;
-          field_type.is_constant = false;
+          field_type.mods.is_constant = false;
           node->value.type = evaluator->type_cache->get(field_type);
         } else {
           node->value.type = value->type;
@@ -646,6 +655,19 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       node->value.has_data = value->has_data;
       node->value.data = value->data;
+    }
+
+    // Apply Attributes
+    if (node->field.attributes != nullptr) {
+      for (size_t i = 0; i < node->field.attributes->children.length; i++) {
+        Node *attribute = node->field.attributes->children.data.ptr[i];
+
+        if (attribute->member.name.compare("align")) {
+          Type t = *node->value.type;
+          t.mods.align = attribute->member.value->integer;
+          node->value.type = evaluator->type_cache->get(t);
+        }
+      }
     }
     break;
   }
@@ -874,7 +896,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
            "Child type must be a type");
 
     Type out_type = *val->data.type_value;
-    out_type.is_constant = true;
+    out_type.mods.is_constant = true;
     node->value.type = val->type;
     node->value.has_data = true;
     node->value.data.type_value = evaluator->type_cache->get(out_type);
@@ -1055,10 +1077,10 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
                setter->location, "Setter value doesn't match element type");
       }
     } else {
-      expect(
-          false, record->location,
-          "Initializer type must be one of Struct, Union, Slice, or SIMD. got `"
-              << *record->value.type << "`");
+      expect(false, record->location,
+             "Initializer type must be one of Struct, Union, Slice, or SIMD. "
+             "got `"
+                 << *record->value.type << "`");
     }
 
     break;
@@ -1206,6 +1228,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       } else if (child->member.name.compare("builtin")) {
         expect(child->member.value == nullptr, node->location,
                "`builtin` attribute expects no value");
+      } else if (child->member.name.compare("align")) {
+        expect(child->member.value != nullptr, node->location,
+               "`align` attribute expects value");
+        expect(child->member.value->kind == NodeKind::Integer, node->location,
+               "`align` attribute expects integer value");
       }
     }
     break;
