@@ -706,9 +706,6 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
   case TypeKind::SIMD: {
     return os << "SIMD";
   }
-  case TypeKind::TypeId: {
-    return os << "TypeId";
-  }
   case TypeKind::Function: {
     return os << "Function";
   }
@@ -724,6 +721,12 @@ std::ostream &operator<<(std::ostream &os, const TypeKind &kind) {
   case TypeKind::Namespace: {
     return os << "Namespace";
   }
+  case TypeKind::TypeId: {
+    return os << "TypeId";
+  }
+  case TypeKind::Generic: {
+    return os << "Generic";
+  }
   }
   return os;
 }
@@ -737,7 +740,8 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
   switch (type->kind) {
   case TypeKind::Void:
   case TypeKind::Bool:
-  case TypeKind::TypeId: {
+  case TypeKind::TypeId:
+  case TypeKind::Generic: {
     break;
   }
   case TypeKind::Integer: {

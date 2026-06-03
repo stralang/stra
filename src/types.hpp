@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 
 struct Type;
 struct Symbol;
@@ -62,12 +61,14 @@ enum class TypeKind {
   Pointer,
   Slice,
   SIMD,
-  TypeId,
   Function,
   Struct,
   Enum,
   Union,
   Namespace,
+
+  TypeId,
+  Generic,
 };
 
 struct Type {
@@ -111,9 +112,6 @@ struct Type {
     case TypeKind::SIMD: {
       return this->slice.type->sizeBits(native_size) * this->slice.length;
     }
-    case TypeKind::TypeId: {
-      return 0;
-    }
     case TypeKind::Function: {
       return native_size;
     }
@@ -144,7 +142,9 @@ struct Type {
       }
       return max_size + this->_union.repr_type->sizeBits(native_size);
     }
-    case TypeKind::Namespace: {
+    case TypeKind::Namespace:
+    case TypeKind::TypeId:
+    case TypeKind::Generic: {
       break;
     }
     }
@@ -175,9 +175,6 @@ struct Type {
     case TypeKind::SIMD: {
       return this->slice.type->alignBits(native_size) * this->slice.length;
     }
-    case TypeKind::TypeId: {
-      return 0;
-    }
     case TypeKind::Function: {
       return native_size;
     }
@@ -202,7 +199,9 @@ struct Type {
       }
       return max_align;
     }
-    case TypeKind::Namespace: {
+    case TypeKind::Namespace:
+    case TypeKind::TypeId:
+    case TypeKind::Generic: {
       break;
     }
     }
@@ -251,7 +250,8 @@ struct TypeCache {
     switch (t->kind) {
     case TypeKind::Void:
     case TypeKind::Bool:
-    case TypeKind::TypeId: {
+    case TypeKind::TypeId:
+    case TypeKind::Generic: {
       break;
     }
     case TypeKind::Integer: {

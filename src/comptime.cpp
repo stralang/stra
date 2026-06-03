@@ -1,8 +1,10 @@
 #include "ast.hpp"
 #include "containers.hpp"
 #include "evaluator.hpp"
+#include "helper.hpp"
 #include "operator.hpp"
 #include "print.hpp"
+#include "symbol.hpp"
 #include <cstring>
 #include <iostream>
 
@@ -17,6 +19,7 @@ struct InteropState {
   bool _return = false;
 };
 
+extern void evaluate(Evaluator *evaluator, Node *node, Symbol *scope);
 Value *exec(InteropState *state, Node *node, Symbol *scope);
 
 Value *execUnary(InteropState *state, Node *node, Symbol *scope) {
@@ -334,11 +337,26 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     break;
   }
     // TODO: ...
-  case NodeKind::Function:
-  case NodeKind::Struct:
-  case NodeKind::Enum:
-  case NodeKind::Union: {
+  case NodeKind::Function: {
     out = &node->value;
+    break;
+  }
+  case NodeKind::Struct: {
+    Node *copy = astCopy(state->evaluator->allocator, node, scope);
+    evaluate(state->evaluator, copy, scope); // Re-evaluate
+    out = &copy->value;
+    break;
+  }
+  case NodeKind::Enum: {
+    Node *copy = astCopy(state->evaluator->allocator, node, scope);
+    evaluate(state->evaluator, copy, scope); // Re-evaluate
+    out = &copy->value;
+    break;
+  }
+  case NodeKind::Union: {
+    Node *copy = astCopy(state->evaluator->allocator, node, scope);
+    evaluate(state->evaluator, copy, scope); // Re-evaluate
+    out = &copy->value;
     break;
   }
   // TODO: ...
