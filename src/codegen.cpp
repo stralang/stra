@@ -1115,6 +1115,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Call: {
     Type *callee_type = node->call.callee->value.type;
+    bool needs_dereference = false;
+    if (callee_type->kind == TypeKind::Pointer) {
+      callee_type = callee_type->child;
+      needs_dereference = true;
+    }
 
     // Get receiver
     LLVMValueRef receiver = nullptr;
@@ -1149,7 +1154,14 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       args[i + has_receiver] = argumentValue(codegen, builder, arg, scope);
     }
 
+    // Build Call
     LLVMValueRef function = addr(codegen, builder, node->call.callee, scope);
+    if (needs_dereference) {
+      function = LLVMBuildLoad2(
+          builder, LLVMPointerType(typeToLLVM(codegen, callee_type), 0),
+          function, "");
+    }
+
     LLVMValueRef ret =
         LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type), function,
                        args, callee_type->function.arguments.length, "");

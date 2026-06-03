@@ -923,11 +923,17 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Node *callee = node->call.callee;
     evaluate(evaluator, callee, scope);
 
-    // Get function
-    expect(callee->value.type->kind == TypeKind::Function, callee->location,
-           "Callee must be a function. Got `" << *callee->value.type << "`");
+    // Auto dereference
+    Type *callee_type = callee->value.type;
+    if (callee->value.type->kind == TypeKind::Pointer) {
+      callee_type = callee->value.type->child;
+    }
 
-    Type *fn_type = callee->value.type;
+    // Get function
+    expect(callee_type->kind == TypeKind::Function, callee->location,
+           "Callee must be a function. Got `" << *callee_type << "`");
+
+    Type *fn_type = callee_type;
     Symbol *fn_scope = fn_type->function.scope;
     Node *method = scope->node;
 
