@@ -330,6 +330,15 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     }
 
     state->var_stack.back()->insert(symbol, value);
+    out = &node->value;
+    break;
+  }
+    // TODO: ...
+  case NodeKind::Function:
+  case NodeKind::Struct:
+  case NodeKind::Enum:
+  case NodeKind::Union: {
+    out = &node->value;
     break;
   }
   // TODO: ...
@@ -391,6 +400,8 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
       node->value.type =
           state->evaluator->type_cache->get({.kind = TypeKind::Void});
       node->value.has_data = false;
+    } else if (node->child->value.has_data) {
+      node->value = node->child->value;
     } else {
       node->value = *exec(state, node->child, scope);
     }
