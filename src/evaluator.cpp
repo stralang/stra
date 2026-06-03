@@ -28,6 +28,8 @@ Value getBuiltinValue(TypeCache *type_cache, String name) {
   Type *out_type = nullptr;
   if (str.compare("void") == 0) {
     out_type = type_cache->get({.kind = TypeKind::Void});
+  } else if (str.compare("typeid") == 0) {
+    out_type = type_cache->get({.kind = TypeKind::TypeId});
   } else if (str.compare("bool") == 0) {
     out_type = type_cache->get({.kind = TypeKind::Bool});
   } else if (str.compare("usize") == 0) {
@@ -711,7 +713,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       Node *field = node->_struct.fields.data.ptr[i];
       evaluate(evaluator, field, struct_scope);
       Value *val = &field->value;
-      expect(val->type != nullptr, field, "Failed to evaluate struct field");
+      expect(val->type != nullptr, field->location,
+             "Failed to evaluate struct field");
       struct_t->_struct.fields.push(val->type);
     }
 
