@@ -13,7 +13,14 @@ struct InteropState {
   size_t depth = 0;
   size_t max_steps = 1000000;
 
-  ArrayList<HashMap<Symbol *, Value>> var_stack;
+  struct RetStackNode {
+    Node *ast;
+    Value backup;
+  };
+
+  ArrayList<RetStackNode> ret_stack;
+  ArrayList<size_t> fn_stack_boundary;
+
   bool _return = false;
 };
 
@@ -287,19 +294,15 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
   }
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
-    if (symbol == nullptr) {
+    if (symbol != nullptr) {
+      out = &symbol->node->value;
+    } else if (node->value.type != nullptr && node->value.has_data) {
+      out = &node->value;
+    } else {
       std::cerr << node->location << " Symbol not Found: `" << node->text
                 << "`. Aborting\n";
       std::abort();
     }
-
-    // Get Value
-    Value *value = state->var_stack.back()->get(symbol);
-    if (value == nullptr) {
-      value = &symbol->node->value;
-    }
-
-    out = value;
     break;
   }
   case NodeKind::Bool:
@@ -319,9 +322,7 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     Symbol *symbol = scope->findSymbolByNode(node);
     Value value = node->value;
 
-    if (value.type->kind == TypeKind::TypeId) {
-      break;
-    } else if (!value.has_data) {
+    if (!value.has_data) {
       if (node->field.initial != nullptr) {
         value = *exec(state, node->field.initial, symbol);
       } else {
@@ -329,12 +330,15 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
       }
     }
 
-    state->var_stack.back()->insert(symbol, value);
+    state->ret_stack.push({.ast = symbol->node});
     out = &node->value;
     break;
   }
     // TODO: ...
-  case NodeKind::Function:
+  case NodeKind::Function: {
+    out = &node->value;
+    break;
+  }
   case NodeKind::Struct:
   case NodeKind::Enum:
   case NodeKind::Union: {
@@ -351,21 +355,25 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Call: {
+    // Save State
+    size_t state_offset = *state->fn_stack_boundary.back();
+    for (size_t i = state_offset; i < state->ret_stack.length; i++) {
+      InteropState::RetStackNode stack = state->ret_stack.data[i];
+      stack.backup = stack.ast->value;
+    }
+
+    state->fn_stack_boundary.push(state->ret_stack.length);
+
+    // Get function
     Value *fn_value = exec(state, node->call.callee, scope);
     Symbol *fn_symbol = fn_value->type->function.scope;
     Node *fn_node = fn_symbol->node;
 
-    HashMap<Symbol *, Value> *call_stack = state->var_stack.back();
-    HashMap<Symbol *, Value> fn_stack;
-    fn_stack.init(state->evaluator->allocator, 16);
-
+    // Apply arguments
     for (size_t i = 0; i < node->call.arguments.length; i++) {
       Node *arg = node->call.arguments.data.ptr[i];
       Symbol *arg_symbol = scope->findSymbolByNode(arg);
-      Value *arg_value = call_stack->get(arg_symbol);
-      if (arg_value == nullptr) {
-        arg_value = &arg->value;
-      }
+      Value *arg_value = &arg->value;
       if (!arg_value->has_data) {
         std::cerr << arg->location
                   << " Cannot execute call with runtime value. Aborting\n";
@@ -374,12 +382,12 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
 
       Node *param_node = fn_node->function.parameters.data[i];
       Symbol *param_symbol = fn_symbol->findSymbolByNode(param_node);
-      fn_stack.insert(param_symbol, *arg_value);
+      param_node->value = *arg_value;
+      state->ret_stack.push({.ast = param_node});
     }
 
-    state->var_stack.push(fn_stack);
+    // Execute call
     out = exec(state, fn_node->function.body, fn_symbol);
-    state->var_stack.pop();
 
     // Handle Return
     if (out == nullptr) {
@@ -392,6 +400,18 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
 
     out = &node->value;
     state->_return = false;
+
+    // Load State
+    state->fn_stack_boundary.pop();
+    for (size_t i = state_offset; i < state->ret_stack.length; i++) {
+      InteropState::RetStackNode stack = state->ret_stack.data[i];
+      if (stack.backup.type == nullptr) {
+        // State wasn't saved
+        break;
+      }
+
+      stack.ast->value = stack.backup;
+    }
     break;
   }
   // TODO: ...
@@ -400,8 +420,6 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
       node->value.type =
           state->evaluator->type_cache->get({.kind = TypeKind::Void});
       node->value.has_data = false;
-    } else if (node->child->value.has_data) {
-      node->value = node->child->value;
     } else {
       node->value = *exec(state, node->child, scope);
     }
@@ -425,12 +443,10 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
       .evaluator = evaluator,
   };
 
-  // Setup Variable stack
-  state.var_stack.init(evaluator->allocator, 16);
-
-  HashMap<Symbol *, Value> root_scope;
-  root_scope.init(evaluator->allocator, 32);
-  state.var_stack.push(root_scope);
+  // Setup Return stack
+  state.ret_stack.init(evaluator->allocator, 16);
+  state.fn_stack_boundary.init(evaluator->allocator, 256);
+  state.fn_stack_boundary.push(0);
 
   // Execute
   Value out = *exec(&state, node, scope);
@@ -456,10 +472,7 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
 
   // Cleanup
-  for (size_t i = 0; i < state.var_stack.length; i++) {
-    state.var_stack.data.ptr[i].deinit();
-  }
-  state.var_stack.deinit();
+  state.ret_stack.deinit();
 
   return out;
 }

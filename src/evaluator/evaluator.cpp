@@ -185,6 +185,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     for (size_t i = 0; i < node->_struct.fields.length; i++) {
       Node *field = node->_struct.fields.data.ptr[i];
       evaluate(evaluator, field, struct_scope);
+
       Value *val = &field->value;
       expect(val->type != nullptr, field->location,
              "Failed to evaluate struct field");
