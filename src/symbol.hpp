@@ -20,18 +20,29 @@ struct Symbol {
   Symbol *findSymbol(String *name, SrcLoc *location) {
     for (size_t i = 0; i < this->children.length; i++) {
       Symbol *child = this->children.data.ptr[i];
-      if (child->node == nullptr || child->node->kind != NodeKind::Field) {
+      if (child->node == nullptr) {
         continue;
       }
 
-      String *child_name = &child->node->field.name;
-      if (child_name->len != name->len ||
-          memcmp(child_name->ptr, name->ptr, name->len) != 0) {
-        continue;
-      }
-
+      // Check location
       if (this->location_aware && location != nullptr &&
           location->index < child->node->location.index) {
+        continue;
+      }
+
+      // Get name
+      String *child_name;
+      if (child->node->kind == NodeKind::Field) {
+        child_name = &child->node->field.name;
+      } else if (child->node->kind == NodeKind::Member) {
+        child_name = &child->node->member.name;
+      } else {
+        continue;
+      }
+
+      // Compare name
+      if (child_name->len != name->len ||
+          memcmp(child_name->ptr, name->ptr, name->len) != 0) {
         continue;
       }
 
