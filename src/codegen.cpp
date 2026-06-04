@@ -894,6 +894,47 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
+void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
+                     Symbol *scope, LLVMValueRef func) {
+  if (!node->function.undefined &&
+      node->location.file.compare(codegen->source_path)) {
+    LLVMBasicBlockRef entry =
+        LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
+    LLVMBuilderRef body_builder = LLVMCreateBuilderInContext(codegen->ctx);
+    LLVMPositionBuilderAtEnd(body_builder, entry);
+
+    // Prepare Parameters
+    for (size_t i = 0; i < node->function.parameters.length; i++) {
+      Node *key = node->function.parameters.data.ptr[i];
+      char *name = (char *)codegen->allocator->alloc(key->field.name.len + 1);
+      memcpy(name, key->field.name.ptr, key->field.name.len);
+      name[key->field.name.len] = 0;
+
+      LLVMValueRef alloca = LLVMBuildAlloca(
+          body_builder, typeToLLVM(codegen, key->value.type), name);
+      LLVMBuildStore(body_builder, LLVMGetParam(func, i), alloca);
+      codegen->node_to_value.insert(key, alloca);
+    }
+
+    // Generate body
+    codegen->function_stack[codegen->function_stack_len] = func;
+    codegen->function_defer_boundary[codegen->function_stack_len] =
+        codegen->defer_stack_len;
+    codegen->function_stack_len += 1;
+
+    Symbol *fn_scope = scope->findSymbolByNode(node);
+    gen(codegen, body_builder, node->function.body, fn_scope);
+    codegen->function_stack_len -= 1;
+
+    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(body_builder);
+    if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+      LLVMBuildRetVoid(body_builder);
+    }
+
+    LLVMDisposeBuilder(body_builder);
+  }
+}
+
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Symbol *scope) {
   switch (node->kind) {
@@ -981,10 +1022,14 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
       // Build function and set name
-      LLVMValueRef func =
-          gen(codegen, builder, node->field.initial, field_symbol);
+      LLVMTypeRef type = typeToLLVM(codegen, node->field.initial->value.type);
+      LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
+
       LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
+
+      genFunctionBody(codegen, builder, node->field.initial, field_symbol,
+                      func);
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
       Type *real_type = node->value.data.type_value;
@@ -1027,45 +1072,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Function: {
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
-
-    if (!node->function.undefined &&
-        node->location.file.compare(codegen->source_path)) {
-      LLVMBasicBlockRef entry =
-          LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
-      LLVMBuilderRef body_builder = LLVMCreateBuilderInContext(codegen->ctx);
-      LLVMPositionBuilderAtEnd(body_builder, entry);
-
-      // Prepare Parameters
-      for (size_t i = 0; i < node->function.parameters.length; i++) {
-        Node *key = node->function.parameters.data.ptr[i];
-        char *name = (char *)codegen->allocator->alloc(key->field.name.len + 1);
-        memcpy(name, key->field.name.ptr, key->field.name.len);
-        name[key->field.name.len] = 0;
-
-        LLVMValueRef alloca = LLVMBuildAlloca(
-            body_builder, typeToLLVM(codegen, key->value.type), name);
-        LLVMBuildStore(body_builder, LLVMGetParam(func, i), alloca);
-        codegen->node_to_value.insert(key, alloca);
-      }
-
-      // Generate body
-      codegen->function_stack[codegen->function_stack_len] = func;
-      codegen->function_defer_boundary[codegen->function_stack_len] =
-          codegen->defer_stack_len;
-      codegen->function_stack_len += 1;
-
-      Symbol *fn_scope = scope->findSymbolByNode(node);
-      gen(codegen, body_builder, node->function.body, fn_scope);
-      codegen->function_stack_len -= 1;
-
-      LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(body_builder);
-      if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-        LLVMBuildRetVoid(body_builder);
-      }
-
-      LLVMDisposeBuilder(body_builder);
-    }
-
+    genFunctionBody(codegen, builder, node, scope, func);
     return func;
   }
   case NodeKind::Struct: {
@@ -1257,7 +1264,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     gen(codegen, builder, node->_if.body, if_scope);
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
-    if (LLVMGetBasicBlockTerminator(insert_block)) {
+    if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
       LLVMBuildBr(builder, merge_block);
     }
 
