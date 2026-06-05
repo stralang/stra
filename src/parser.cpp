@@ -572,7 +572,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   Symbol *duplicate_symbol =
       scope->findSymbol(&out->field.name, &out->location);
   if (duplicate_symbol != nullptr) {
-    std::cerr << "Field with name `" << out->field.name
+    std::cerr << out->location << " Field with name `" << out->field.name
               << "` already exists within scope\n";
     return nullptr;
   }
