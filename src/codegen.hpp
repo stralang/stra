@@ -1,5 +1,6 @@
 #pragma once
 
+#include "abi/general.hpp"
 #include "allocator.hpp"
 #include "ast.hpp"
 #include "containers.hpp"
@@ -17,6 +18,7 @@ struct LoopBlocks {
 
 struct CodeGenContext {
   LLVMContextRef ctx;
+  ABI abi;
 
   char *target_triple;
   LLVMTargetMachineRef target_machine;
@@ -50,6 +52,7 @@ struct CodeGenModule {
   size_t function_stack_len;
 
   // LLVM Context
+  TargetABI target_abi;
   size_t pointer_size;
   LLVMContextRef ctx;
   LLVMModuleRef mod;

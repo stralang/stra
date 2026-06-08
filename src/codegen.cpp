@@ -1,11 +1,11 @@
 #include "codegen.hpp"
+#include "abi/general.hpp"
 #include "ast.hpp"
 #include "containers.hpp"
 #include "operator.hpp"
 #include "print.hpp"
 #include "symbol.hpp"
 #include "types.hpp"
-#include "llvm-c/BitWriter.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
@@ -22,14 +22,6 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Symbol *scope);
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Symbol *scope);
-
-extern LLVMTypeRef argumentTypeToLLVM(CodeGenModule *codegen, Type *type);
-extern LLVMValueRef argumentValue(CodeGenModule *codegen,
-                                  LLVMBuilderRef builder, Node *node,
-                                  Symbol *scope);
-extern LLVMValueRef returnABIValue(CodeGenModule *codegen,
-                                   LLVMBuilderRef builder, Type *return_type,
-                                   LLVMValueRef value);
 
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
   switch (type->kind) {
@@ -90,19 +82,37 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     return nullptr;
   }
   case TypeKind::Function: {
-    LLVMTypeRef return_type =
-        argumentTypeToLLVM(codegen, type->function.return_type);
-    LLVMTypeRef *param_types = (LLVMTypeRef *)codegen->allocator->alloc(
-        sizeof(LLVMTypeRef) * type->function.arguments.length);
+    ArrayList<LLVMTypeRef> param_types;
+    param_types.init(codegen->allocator, type->function.arguments.length);
 
-    for (size_t i = 0; i < type->function.arguments.length; i++) {
-      Type *arg_type = type->function.arguments.data.ptr[i];
-      size_t size = arg_type->sizeBits(codegen->pointer_size);
-      param_types[i] = argumentTypeToLLVM(codegen, arg_type);
+    // Return
+    LLVMTypeRef ir_ret_type = typeToLLVM(codegen, type->function.return_type);
+    ABIArg return_arg =
+        codegen->target_abi.classifyReturnType(codegen->ctx, ir_ret_type);
+
+    // FIXME: Correctly encode return for abi
+    LLVMTypeRef return_type = LLVMVoidTypeInContext(codegen->ctx);
+    if (return_arg.kind == ABIArgKind::Direct) {
+      return_type = return_arg.type;
+    } else {
+      std::cerr << "Handle non-direct return\n";
     }
 
-    return LLVMFunctionType(return_type, param_types,
-                            type->function.arguments.length, false);
+    // Parameters
+    for (size_t i = 0; i < type->function.arguments.length; i++) {
+      Type *arg_type = type->function.arguments.data.ptr[i];
+      LLVMTypeRef ir_arg_type = typeToLLVM(codegen, arg_type);
+      ABIArg arg =
+          codegen->target_abi.classifyArgumentType(codegen->ctx, ir_arg_type);
+
+      // FIXME: Correctly encode arg for abi
+      if (arg.kind == ABIArgKind::Direct) {
+        param_types.push(arg.type);
+      }
+    }
+
+    return LLVMFunctionType(return_type, param_types.data.ptr,
+                            param_types.length, false);
   }
   case TypeKind::Struct: {
     LLVMTypeRef *cache = codegen->scope_to_type.get(type->_struct.scope);
@@ -904,6 +914,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(body_builder, entry);
 
     // Prepare Parameters
+    // TODO: Correctly decode parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *key = node->function.parameters.data.ptr[i];
       char *name = (char *)codegen->allocator->alloc(key->field.name.len + 1);
@@ -1149,6 +1160,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
 
     // Arguments
+    // FIXME: Correctly encode arguments for abi
     LLVMValueRef *args = (LLVMValueRef *)codegen->allocator->alloc(
         sizeof(LLVMValueRef) *
         (callee_type->function.arguments.length + has_receiver));
@@ -1158,7 +1170,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     for (size_t i = 0; i < node->call.arguments.length; i++) {
       Node *arg = node->call.arguments.data.ptr[i];
-      args[i + has_receiver] = argumentValue(codegen, builder, arg, scope);
+      args[i + has_receiver] = gen(codegen, builder, arg, scope);
     }
 
     // Build Call
@@ -1169,12 +1181,12 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           function, "");
     }
 
+    // FIXME: Correctly decode return for abi
     LLVMValueRef ret =
         LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type), function,
                        args, callee_type->function.arguments.length, "");
 
-    return returnABIValue(codegen, builder, callee_type->function.return_type,
-                          ret);
+    return ret;
   }
   case NodeKind::Index: {
     LLVMValueRef ptr = addr(codegen, builder, node, scope);
@@ -1226,7 +1238,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (node->child == nullptr) {
       LLVMBuildRetVoid(builder);
     } else {
-      LLVMValueRef value = argumentValue(codegen, builder, node->child, scope);
+      // FIXME: Correctly encode return for abi
+      LLVMValueRef value = gen(codegen, builder, node->child, scope);
       LLVMBuildRet(builder, value);
     }
 
@@ -1432,6 +1445,7 @@ void CodeGenModule::generate(CodeGenContext *context) {
   LLVMTypeRef tmp_ptr = LLVMPointerType(LLVMInt1TypeInContext(this->ctx), 0);
   this->pointer_size =
       LLVMSizeOfTypeInBits(LLVMGetModuleDataLayout(this->mod), tmp_ptr);
+  this->target_abi = ABIcreateTarget(context->abi);
 
   // Generate
   gen(this, nullptr, this->ast, this->symbol);
@@ -1474,6 +1488,7 @@ void CodeGenContext::init() {
 
   // Context
   this->ctx = LLVMContextCreate();
+  this->abi = ABI::SystemV_Amd64;
 }
 
 void CodeGenContext::deinit() {
