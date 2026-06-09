@@ -16,6 +16,11 @@ struct LoopBlocks {
   LLVMBasicBlockRef merge;
 };
 
+struct FuncStackNode {
+  LLVMValueRef def;
+  LLVMValueRef ret_ptr;
+};
+
 struct CodeGenContext {
   LLVMContextRef ctx;
   ABI abi;
@@ -47,7 +52,7 @@ struct CodeGenModule {
   size_t loop_defer_boundary[64];
   size_t loop_stack_len;
 
-  LLVMValueRef function_stack[16];
+  FuncStackNode function_stack[16];
   size_t function_defer_boundary[16];
   size_t function_stack_len;
 
