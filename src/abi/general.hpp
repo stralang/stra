@@ -17,8 +17,8 @@ struct ABIArg {
 };
 
 struct TargetABI {
-  ABIArg (*classifyReturnType)(LLVMContextRef ctx, LLVMTypeRef ty);
-  ABIArg (*classifyArgumentType)(LLVMContextRef ctx, LLVMTypeRef ty);
+  ABIArg (*classifyReturnType)(LLVMModuleRef mod, LLVMTypeRef ty);
+  ABIArg (*classifyArgumentType)(LLVMModuleRef mod, LLVMTypeRef ty);
 };
 
 enum class ABI {

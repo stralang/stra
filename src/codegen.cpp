@@ -88,7 +88,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     // Return
     LLVMTypeRef ir_ret_type = typeToLLVM(codegen, type->function.return_type);
     ABIArg return_arg =
-        codegen->target_abi.classifyReturnType(codegen->ctx, ir_ret_type);
+        codegen->target_abi.classifyReturnType(codegen->mod, ir_ret_type);
 
     LLVMTypeRef return_type = LLVMVoidTypeInContext(codegen->ctx);
     if (return_arg.kind == ABIArgKind::Direct) {
@@ -102,7 +102,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
       Type *arg_type = type->function.arguments.data.ptr[i];
       LLVMTypeRef ir_arg_type = typeToLLVM(codegen, arg_type);
       ABIArg arg =
-          codegen->target_abi.classifyArgumentType(codegen->ctx, ir_arg_type);
+          codegen->target_abi.classifyArgumentType(codegen->mod, ir_arg_type);
 
       if (arg.kind == ABIArgKind::Direct) {
         param_types.push(arg.type);
@@ -921,7 +921,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMTypeRef return_ty =
         typeToLLVM(codegen, node->function.return_type->value.data.type_value);
     ABIArg return_abi_arg =
-        codegen->target_abi.classifyReturnType(codegen->ctx, return_ty);
+        codegen->target_abi.classifyReturnType(codegen->mod, return_ty);
 
     if (return_abi_arg.kind == ABIArgKind::Indirect) {
       return_ptr = LLVMGetParam(func, 0);
@@ -942,7 +942,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
       LLVMValueRef alloca = LLVMBuildAlloca(body_builder, param_ty, name);
       ABIArg abi_arg =
-          codegen->target_abi.classifyArgumentType(codegen->ctx, param_ty);
+          codegen->target_abi.classifyArgumentType(codegen->mod, param_ty);
       codegen->node_to_value.insert(key, alloca);
 
       if (abi_arg.kind == ABIArgKind::Ignore) {
@@ -1204,7 +1204,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Return as argument
     LLVMTypeRef ret_ty = typeToLLVM(codegen, callee_type->function.return_type);
     ABIArg abi_ret_arg =
-        codegen->target_abi.classifyReturnType(codegen->ctx, ret_ty);
+        codegen->target_abi.classifyReturnType(codegen->mod, ret_ty);
     LLVMValueRef ret_as_arg = nullptr;
     if (abi_ret_arg.kind == ABIArgKind::Indirect) {
       // Allocate return
@@ -1221,7 +1221,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       Node *arg = node->call.arguments.data.ptr[i];
       LLVMTypeRef ty = typeToLLVM(codegen, arg->value.type);
       ABIArg abi_arg =
-          codegen->target_abi.classifyArgumentType(codegen->ctx, ty);
+          codegen->target_abi.classifyArgumentType(codegen->mod, ty);
 
       if (abi_arg.kind == ABIArgKind::Direct) {
         args.push(gen(codegen, builder, arg, scope));
