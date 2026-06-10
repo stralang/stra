@@ -23,7 +23,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Symbol *scope);
 
-LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
+LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type,
+                       const char *name = nullptr) {
   LLVMTypeRef *type_cache = codegen->type_to_llvm.get(type);
   if (type_cache != nullptr) {
     return *type_cache;
@@ -69,11 +70,11 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
     break;
   }
   case TypeKind::Pointer: {
-    out = LLVMPointerType(typeToLLVM(codegen, type->child), 0);
+    out = LLVMPointerType(typeToLLVM(codegen, type->child, ""), 0);
     break;
   }
   case TypeKind::Slice: {
-    LLVMTypeRef elem = typeToLLVM(codegen, type->slice.type);
+    LLVMTypeRef elem = typeToLLVM(codegen, type->slice.type, "");
     if (type->slice.length > 0) {
       out = LLVMArrayType(elem, type->slice.length);
     } else if (type->slice.length < 0) {
@@ -144,8 +145,8 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
       field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
     }
 
-    out = LLVMStructTypeInContext(codegen->ctx, field_types,
-                                  type->_struct.fields.length, false);
+    out = LLVMStructCreateNamed(codegen->ctx, name);
+    LLVMStructSetBody(out, field_types, type->_struct.fields.length, false);
     break;
   }
   case TypeKind::Enum: {
@@ -1103,8 +1104,12 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       // Type
       Type *real_type = node->value.data.type_value;
       if (real_type->kind == TypeKind::Struct) {
-        LLVMTypeRef type = typeToLLVM(codegen, real_type);
-        // TODO: Set name
+        char *c_name = (char *)malloc(sizeof(char) * name.len + 1);
+        memcpy(c_name, (const char *)name.ptr, name.len);
+        c_name[name.len] = 0;
+
+        LLVMTypeRef type = typeToLLVM(codegen, real_type, c_name);
+        free(c_name);
       }
 
       // Let the type generate it's children
