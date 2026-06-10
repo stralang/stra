@@ -9,7 +9,8 @@
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
-#include <cstdint>
+
+enum class Optimization { None, Minimal };
 
 struct LoopBlocks {
   LLVMBasicBlockRef condition;
@@ -69,5 +70,6 @@ struct CodeGenModule {
   LLVMContextRef ctx;
   LLVMModuleRef mod;
 
-  void generate(CodeGenContext *context, bool emit_ir, bool emit_asm);
+  void generate(CodeGenContext *context, bool emit_ir, bool emit_asm,
+                Optimization opt);
 };

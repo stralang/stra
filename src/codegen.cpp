@@ -9,6 +9,7 @@
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
+#include "llvm-c/Transforms/PassBuilder.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
 #include <cstdint>
@@ -1532,7 +1533,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
-                             bool emit_asm) {
+                             bool emit_asm, Optimization opt) {
   // Setup State
   char *name =
       (char *)allocator->alloc(sizeof(char) * this->source_path.len + 1);
@@ -1562,6 +1563,15 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
 
   // Generate
   gen(this, nullptr, this->ast, this->symbol);
+
+  // Optimize
+  if (opt != Optimization::None) {
+    const char *passes = "sroa,simplifycfg,instcombine,gvn,licm,dce,"
+                         "indvars,loop-unroll,tailcallelim,early-cse";
+    LLVMPassBuilderOptionsRef pass_options = LLVMCreatePassBuilderOptions();
+    LLVMRunPasses(this->mod, passes, context->target_machine, pass_options);
+    LLVMDisposePassBuilderOptions(pass_options);
+  }
 
   // Cleanup
   char *output_path =

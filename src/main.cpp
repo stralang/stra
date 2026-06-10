@@ -78,6 +78,7 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
 struct Args {
   EmitMode emit_mode = EmitMode::Executable;
   Linker linker = Linker::Clang;
+  Optimization optimize = Optimization::Minimal;
 
   bool run = false;
   ArrayList<String> paths;
@@ -135,7 +136,22 @@ int main(int argc, const char **argv) {
       } else if (strcmp(argv[i], "ld") == 0) {
         args.linker = Linker::LD;
       }
-    } else if (strcmp(argv[i], "--output") == 0 || strcmp(argv[i], "-o") == 0) {
+    } else if (strcmp(argv[i], "-o") == 0) {
+      i += 1;
+      if (argc <= i) {
+        std::cerr << "`-o` flag missing level\n";
+        return 1;
+      }
+
+      if (strcmp(argv[i], "none") == 0) {
+        args.optimize = Optimization::None;
+      } else if (strcmp(argv[i], "minimal") == 0) {
+        args.optimize = Optimization::Minimal;
+      } else {
+        std::cerr << "Unknown optimization level `" << argv[i] << "`\n";
+        return 1;
+      }
+    } else if (strcmp(argv[i], "--output") == 0) {
       i += 1;
       if (argc <= i) {
         std::cerr << "out flag missing path\n";
@@ -170,6 +186,9 @@ int main(int argc, const char **argv) {
     std::cout << "  `--linker`\n";
     std::cout << "      `clang` Uses clang for linking [default]\n";
     std::cout << "      `ld` Uses ld for linking\n";
+    std::cout << "  `-o`\n";
+    std::cout << "      `none` No optimizations\n";
+    std::cout << "      `minimal` Minimal optimizations [default]\n";
     std::cout << "  `--output` output path\n";
     return 0;
   }
@@ -325,7 +344,7 @@ int main(int argc, const char **argv) {
         .allocator = &global_allocator,
     };
     codegen.output_path = out_name;
-    codegen.generate(&codegen_ctx, emit_ir, emit_asm);
+    codegen.generate(&codegen_ctx, emit_ir, emit_asm, args.optimize);
   }
 
   // Skip linking
