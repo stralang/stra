@@ -19,13 +19,66 @@ const char *VERSION = "0";
 enum class EmitMode {
   Executable,
   Object,
+  Assembly,
   IR,
   EvaluatedAST,
   AST,
 };
 
+enum class Linker {
+  Clang,
+  LD,
+};
+
+void link(Linker linker, Slice<String> outputs, EmitMode emit,
+          String output_path) {
+  std::string cmd;
+
+  switch (linker) {
+  case Linker::Clang: {
+    cmd = "clang";
+    break;
+  }
+  case Linker::LD: {
+    cmd = "ld";
+    break;
+  }
+  }
+
+  for (size_t i = 0; i < outputs.len; i++) {
+    String output = outputs.ptr[i];
+    std::string cpp_output((const char *)output.ptr, output.len);
+
+    cmd.append(" ");
+    cmd.append(cpp_output);
+  }
+
+  if (emit == EmitMode::Object) {
+    switch (linker) {
+    case Linker::Clang: {
+      cmd.append(" -c");
+      break;
+    }
+    case Linker::LD: {
+      cmd.append("");
+      break;
+    }
+    }
+  }
+
+  if (output_path.ptr != nullptr) {
+    std::string out_path((const char *)output_path.ptr, output_path.len);
+    cmd.append(" -o ");
+    cmd.append(out_path);
+  }
+
+  std::system(cmd.data());
+}
+
 struct Args {
   EmitMode emit_mode = EmitMode::Executable;
+  Linker linker = Linker::Clang;
+
   bool run = false;
   ArrayList<String> paths;
   String output_path;
@@ -61,12 +114,26 @@ int main(int argc, const char **argv) {
         args.emit_mode = EmitMode::Executable;
       } else if (strcmp(argv[i], "object") == 0) {
         args.emit_mode = EmitMode::Object;
+      } else if (strcmp(argv[i], "asm") == 0) {
+        args.emit_mode = EmitMode::Assembly;
       } else if (strcmp(argv[i], "ir") == 0) {
         args.emit_mode = EmitMode::IR;
       } else if (strcmp(argv[i], "evaluated") == 0) {
         args.emit_mode = EmitMode::EvaluatedAST;
       } else if (strcmp(argv[i], "ast") == 0) {
         args.emit_mode = EmitMode::AST;
+      }
+    } else if (strcmp(argv[i], "--linker") == 0) {
+      i += 1;
+      if (argc <= i) {
+        std::cerr << "linker flag missing linker\n";
+        return 1;
+      }
+
+      if (strcmp(argv[i], "clang") == 0) {
+        args.linker = Linker::Clang;
+      } else if (strcmp(argv[i], "ld") == 0) {
+        args.linker = Linker::LD;
       }
     } else if (strcmp(argv[i], "--output") == 0 || strcmp(argv[i], "-o") == 0) {
       i += 1;
@@ -96,9 +163,13 @@ int main(int argc, const char **argv) {
     std::cout << "  `--emit`\n";
     std::cout << "      `executable` Emit executable [default]\n";
     std::cout << "      `object`     Emit object files\n";
+    std::cout << "      `asm`         Emit assembly files\n";
     std::cout << "      `ir`         Emit llvm ir files\n";
     std::cout << "      `ast`        Prints parsed ASTs\n";
     std::cout << "      `evaluated`  Prints evaluated ASTs\n";
+    std::cout << "  `--linker`\n";
+    std::cout << "      `clang` Uses clang for linking [default]\n";
+    std::cout << "      `ld` Uses ld for linking\n";
     std::cout << "  `--output` output path\n";
     return 0;
   }
@@ -219,6 +290,9 @@ int main(int argc, const char **argv) {
   ArrayList<String> outputs;
   outputs.init(&global_allocator, 8);
 
+  bool emit_ir = args.emit_mode == EmitMode::IR;
+  bool emit_asm = args.emit_mode == EmitMode::Assembly;
+
   for (size_t i = 0; i < files.length; i++) {
     SourceFile *file = files.data.ptr + i;
 
@@ -226,7 +300,13 @@ int main(int argc, const char **argv) {
     std::string cpp_str((const char *)file->path.ptr, file->path.len);
     std::filesystem::path path = cpp_str;
     std::filesystem::path name = path.filename();
-    name.replace_extension(".ll");
+    if (emit_ir) {
+      name.replace_extension("ll");
+    } else if (emit_asm) {
+      name.replace_extension("S");
+    } else {
+      name.replace_extension("o");
+    }
 
     std::string cpp_name = name.string();
 
@@ -245,44 +325,16 @@ int main(int argc, const char **argv) {
         .allocator = &global_allocator,
     };
     codegen.output_path = out_name;
-    codegen.generate(&codegen_ctx);
+    codegen.generate(&codegen_ctx, emit_ir, emit_asm);
   }
 
-  // Emit Evaluted IR
-  if (args.emit_mode == EmitMode::IR) {
+  // Skip linking
+  if (args.emit_mode != EmitMode::Executable) {
     return 0;
   }
 
   // Link
-  std::string clang_cmd = "clang";
-  for (size_t i = 0; i < outputs.length; i++) {
-    String output = outputs.data.ptr[i];
-    std::string cpp_output((const char *)output.ptr, output.len);
-
-    clang_cmd.append(" ");
-    clang_cmd.append(cpp_output);
-  }
-
-  if (args.emit_mode == EmitMode::Executable) {
-    if (args.output_path.ptr != nullptr) {
-      std::string out_path((const char *)args.output_path.ptr,
-                           args.output_path.len);
-      clang_cmd.append(" -o ");
-      clang_cmd.append(out_path);
-    }
-
-    std::system(clang_cmd.data());
-  } else if (args.emit_mode == EmitMode::Object) {
-    clang_cmd.append(" -c");
-    if (args.output_path.ptr != nullptr) {
-      std::string out_path((const char *)args.output_path.ptr,
-                           args.output_path.len);
-      clang_cmd.append(" -o ");
-      clang_cmd.append(out_path);
-    }
-
-    std::system(clang_cmd.data());
-  }
+  link(args.linker, outputs.slice(), args.emit_mode, args.output_path);
 
   // Cleanup
   for (size_t i = 0; i < outputs.length; i++) {

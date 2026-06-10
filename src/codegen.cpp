@@ -1531,7 +1531,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   return nullptr;
 }
 
-void CodeGenModule::generate(CodeGenContext *context) {
+void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
+                             bool emit_asm) {
   // Setup State
   char *name =
       (char *)allocator->alloc(sizeof(char) * this->source_path.len + 1);
@@ -1568,11 +1569,27 @@ void CodeGenModule::generate(CodeGenContext *context) {
   memcpy(output_path, this->output_path.ptr, this->output_path.len);
   *(output_path + this->output_path.len) = 0;
   char *error = nullptr;
-  if (LLVMPrintModuleToFile(this->mod, output_path, &error)) {
+  LLVMBool fail = 0;
+
+  if (emit_ir) {
+    fail = LLVMPrintModuleToFile(this->mod, output_path, &error);
+  } else {
+    LLVMCodeGenFileType file_type =
+        emit_asm ? LLVMAssemblyFile : LLVMObjectFile;
+    fail = LLVMTargetMachineEmitToFile(context->target_machine, this->mod,
+                                       output_path, file_type, &error);
+  }
+
+  // Handle Fail
+  if (fail) {
     std::cerr << "LLVM Error: " << error << "\n";
     std::cerr << "Failed to write llvm ir bitcode to file. Aborting.\n";
+    LLVMDisposeMessage(error);
     std::abort();
   }
+
+  // Cleanup
+  LLVMDisposeMessage(error);
 
   this->type_to_llvm.deinit();
   this->node_to_value.deinit();
@@ -1581,7 +1598,11 @@ void CodeGenModule::generate(CodeGenContext *context) {
 
 void CodeGenContext::init() {
   // Initialize
-  LLVMInitializeNativeTarget();
+  LLVMInitializeAllTargetInfos();
+  LLVMInitializeAllTargets();
+  LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllAsmParsers();
+  LLVMInitializeAllAsmPrinters();
 
   // Target Info
   this->target_triple = LLVMGetDefaultTargetTriple();
