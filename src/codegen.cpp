@@ -1222,12 +1222,21 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef ty = typeToLLVM(codegen, arg->value.type);
       ABIArg abi_arg =
           codegen->target_abi.classifyArgumentType(codegen->mod, ty);
-
-      if (abi_arg.kind == ABIArgKind::Direct) {
-        args.push(gen(codegen, builder, arg, scope));
-      } else if (abi_arg.kind == ABIArgKind::Indirect) {
-        args.push(addr(codegen, builder, arg, scope));
+      if (abi_arg.kind == ABIArgKind::Ignore) {
+        continue;
       }
+
+      // Messy argument casting
+      if (abi_arg.kind == ABIArgKind::Indirect) {
+        LLVMValueRef val = addr(codegen, builder, arg, scope);
+        val = LLVMBuildBitCast(builder, val, abi_arg.type, "");
+        args.push(val);
+        continue;
+      }
+
+      LLVMValueRef alloca = LLVMBuildAlloca(builder, abi_arg.type, "");
+      LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
+      args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
     }
 
     // Build Call
@@ -1242,11 +1251,19 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef ret = LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type),
                                       function, args.data.ptr, args.length, "");
 
-    if (ret_as_arg != nullptr) {
-      return LLVMBuildLoad2(builder, abi_ret_arg.type, ret_as_arg, "");
+    if (abi_ret_arg.kind == ABIArgKind::Ignore) {
+      return nullptr;
     }
 
-    return ret;
+    // Messy return casting
+    if (ret_as_arg != nullptr) {
+      ret = LLVMBuildBitCast(builder, ret_as_arg, ret_ty, "");
+    } else {
+      LLVMValueRef ret_alloca = LLVMBuildAlloca(builder, abi_ret_arg.type, "");
+      LLVMBuildStore(builder, ret, ret_alloca);
+      ret = ret_alloca;
+    }
+    return LLVMBuildLoad2(builder, ret_ty, ret, "");
   }
   case NodeKind::Index: {
     LLVMValueRef ptr = addr(codegen, builder, node, scope);

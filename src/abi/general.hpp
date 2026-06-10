@@ -10,10 +10,10 @@ enum class ABIArgKind {
 };
 
 struct ABIArg {
-  ABIArgKind kind;
-  LLVMTypeRef type;
-  LLVMAttributeRef attribute;
-  bool byval;
+  ABIArgKind kind = ABIArgKind::Ignore;
+  LLVMTypeRef type = nullptr;
+  LLVMAttributeRef attribute = nullptr;
+  bool byval = false;
 };
 
 struct TargetABI {
