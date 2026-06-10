@@ -24,85 +24,106 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Symbol *scope);
 
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
+  LLVMTypeRef *type_cache = codegen->type_to_llvm.get(type);
+  if (type_cache != nullptr) {
+    return *type_cache;
+  }
+
+  LLVMTypeRef out;
   switch (type->kind) {
   case TypeKind::Void: {
-    return LLVMVoidTypeInContext(codegen->ctx);
+    out = LLVMVoidTypeInContext(codegen->ctx);
+    break;
   }
   case TypeKind::Bool: {
-    return LLVMInt1TypeInContext(codegen->ctx);
+    out = LLVMInt1TypeInContext(codegen->ctx);
+    break;
   }
   case TypeKind::Integer: {
     size_t bits = type->integer.bits;
     if (type->integer.bits == -1) {
       bits = codegen->pointer_size;
     }
-    return LLVMIntTypeInContext(codegen->ctx, bits);
+    out = LLVMIntTypeInContext(codegen->ctx, bits);
+    break;
   }
   case TypeKind::Float: {
     switch (type->_float.bits) {
     case 16: {
-      return LLVMHalfTypeInContext(codegen->ctx);
+      out = LLVMHalfTypeInContext(codegen->ctx);
+      break;
     }
     case 32: {
-      return LLVMFloatTypeInContext(codegen->ctx);
+      out = LLVMFloatTypeInContext(codegen->ctx);
+      break;
     }
     case 64: {
-      return LLVMDoubleTypeInContext(codegen->ctx);
+      out = LLVMDoubleTypeInContext(codegen->ctx);
+      break;
     }
     case 128: {
-      return LLVMFP128TypeInContext(codegen->ctx);
+      out = LLVMFP128TypeInContext(codegen->ctx);
+      break;
     }
     }
-
-    return nullptr;
+    break;
   }
   case TypeKind::Pointer: {
-    return LLVMPointerType(typeToLLVM(codegen, type->child), 0);
+    out = LLVMPointerType(typeToLLVM(codegen, type->child), 0);
+    break;
   }
   case TypeKind::Slice: {
     LLVMTypeRef elem = typeToLLVM(codegen, type->slice.type);
     if (type->slice.length > 0) {
-      return LLVMArrayType(elem, type->slice.length);
+      out = LLVMArrayType(elem, type->slice.length);
     } else if (type->slice.length < 0) {
-      return LLVMPointerType(elem, 0);
+      out = LLVMPointerType(elem, 0);
     } else {
       LLVMTypeRef *types =
           (LLVMTypeRef *)codegen->allocator->alloc(sizeof(LLVMTypeRef) * 2);
       types[0] = LLVMPointerType(elem, 0);
       types[1] = LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
-      return LLVMStructTypeInContext(codegen->ctx, types, 2, false);
+      out = LLVMStructTypeInContext(codegen->ctx, types, 2, false);
     }
-    return nullptr;
+    break;
   }
   case TypeKind::SIMD: {
-    return LLVMVectorType(typeToLLVM(codegen, type->slice.type),
-                          type->slice.length);
+    out = LLVMVectorType(typeToLLVM(codegen, type->slice.type),
+                         type->slice.length);
+    break;
   }
   case TypeKind::TypeId: {
-    return nullptr;
+    break;
   }
   case TypeKind::Function: {
     ArrayList<LLVMTypeRef> param_types;
     param_types.init(codegen->allocator, type->function.arguments.length);
 
+    FnABICache abi_cache;
+
     // Return
     LLVMTypeRef ir_ret_type = typeToLLVM(codegen, type->function.return_type);
-    ABIArg return_arg =
+    abi_cache.return_arg =
         codegen->target_abi.classifyReturnType(codegen->mod, ir_ret_type);
 
     LLVMTypeRef return_type = LLVMVoidTypeInContext(codegen->ctx);
-    if (return_arg.kind == ABIArgKind::Direct) {
-      return_type = return_arg.type;
-    } else if (return_arg.kind == ABIArgKind::Indirect) {
-      param_types.push(LLVMPointerType(return_arg.type, 0));
+    if (abi_cache.return_arg.kind == ABIArgKind::Direct) {
+      return_type = abi_cache.return_arg.type;
+    } else if (abi_cache.return_arg.kind == ABIArgKind::Indirect) {
+      param_types.push(LLVMPointerType(abi_cache.return_arg.type, 0));
     }
 
     // Parameters
+    abi_cache.args.len = type->function.arguments.length;
+    abi_cache.args.ptr = (ABIArg *)codegen->allocator->alloc(
+        sizeof(ABIArg) * abi_cache.args.len);
+
     for (size_t i = 0; i < type->function.arguments.length; i++) {
       Type *arg_type = type->function.arguments.data.ptr[i];
       LLVMTypeRef ir_arg_type = typeToLLVM(codegen, arg_type);
       ABIArg arg =
           codegen->target_abi.classifyArgumentType(codegen->mod, ir_arg_type);
+      abi_cache.args[i] = arg;
 
       if (arg.kind == ABIArgKind::Direct) {
         param_types.push(arg.type);
@@ -111,50 +132,49 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type) {
       }
     }
 
-    return LLVMFunctionType(return_type, param_types.data.ptr,
-                            param_types.length, false);
+    out = LLVMFunctionType(return_type, param_types.data.ptr,
+                           param_types.length, false);
+    codegen->fn_abi_cache.insert(out, abi_cache);
+    break;
   }
   case TypeKind::Struct: {
-    LLVMTypeRef *cache = codegen->scope_to_type.get(type->_struct.scope);
-    if (cache != nullptr) {
-      return *cache;
-    }
-
     LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->alloc(
         sizeof(LLVMTypeRef) * type->_struct.fields.length);
     for (size_t i = 0; i < type->_struct.fields.length; i++) {
       field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
     }
 
-    LLVMTypeRef ty = LLVMStructTypeInContext(
-        codegen->ctx, field_types, type->_struct.fields.length, false);
-    codegen->scope_to_type.insert(type->_struct.scope, ty);
-    return ty;
+    out = LLVMStructTypeInContext(codegen->ctx, field_types,
+                                  type->_struct.fields.length, false);
+    break;
   }
   case TypeKind::Enum: {
-    return typeToLLVM(codegen, type->_enum.repr_type);
+    out = typeToLLVM(codegen, type->_enum.repr_type);
+    break;
   }
   case TypeKind::Union: {
     // Raw/C-Style Union
     if (type->_union.repr_type->kind == TypeKind::Void) {
       LLVMTypeRef ty = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx),
                                      type->sizeBits(codegen->pointer_size));
-      return LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
+      out = LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
+    } else {
+      size_t data_size = type->sizeBits(codegen->pointer_size) -
+                         type->_union.repr_type->integer.bits;
+      data_size = (data_size + 7) / 8; // Bits to Bytes
+
+      LLVMTypeRef tys[2];
+      tys[0] = LLVMIntTypeInContext(codegen->ctx,
+                                    type->_union.repr_type->integer.bits);
+      tys[1] = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);
+      out = LLVMStructTypeInContext(codegen->ctx, tys, 2, false);
     }
-
-    size_t data_size = type->sizeBits(codegen->pointer_size) -
-                       type->_union.repr_type->integer.bits;
-    data_size = (data_size + 7) / 8; // Bits to Bytes
-
-    LLVMTypeRef tys[2];
-    tys[0] = LLVMIntTypeInContext(codegen->ctx,
-                                  type->_union.repr_type->integer.bits);
-    tys[1] = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);
-    return LLVMStructTypeInContext(codegen->ctx, tys, 2, false);
+    break;
   }
   }
 
-  return nullptr;
+  codegen->type_to_llvm.insert(type, out);
+  return out;
 }
 
 LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
@@ -905,7 +925,7 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
-                     Symbol *scope, LLVMValueRef func) {
+                     Symbol *scope, LLVMTypeRef fn_type, LLVMValueRef func) {
   if (!node->function.undefined &&
       node->location.file.compare(codegen->source_path)) {
     LLVMBasicBlockRef entry =
@@ -916,17 +936,18 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Prepare Arguments
     size_t param_idx = 0;
 
+    FnABICache *abi_cache = codegen->fn_abi_cache.get(fn_type);
+
     // Return as argument
     LLVMValueRef return_ptr = nullptr;
     LLVMTypeRef return_ty =
         typeToLLVM(codegen, node->function.return_type->value.data.type_value);
-    ABIArg return_abi_arg =
-        codegen->target_abi.classifyReturnType(codegen->mod, return_ty);
 
-    if (return_abi_arg.kind == ABIArgKind::Indirect) {
+    if (abi_cache->return_arg.kind == ABIArgKind::Indirect) {
       return_ptr = LLVMGetParam(func, 0);
-      if (return_abi_arg.attribute != nullptr) {
-        LLVMAddAttributeAtIndex(func, param_idx, return_abi_arg.attribute);
+      if (abi_cache->return_arg.attribute != nullptr) {
+        LLVMAddAttributeAtIndex(func, param_idx,
+                                abi_cache->return_arg.attribute);
       }
 
       param_idx += 1;
@@ -941,8 +962,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
       LLVMValueRef alloca = LLVMBuildAlloca(body_builder, param_ty, name);
-      ABIArg abi_arg =
-          codegen->target_abi.classifyArgumentType(codegen->mod, param_ty);
+      ABIArg abi_arg = abi_cache->args.ptr[i];
       codegen->node_to_value.insert(key, alloca);
 
       if (abi_arg.kind == ABIArgKind::Ignore) {
@@ -1077,7 +1097,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
 
-      genFunctionBody(codegen, builder, node->field.initial, field_symbol,
+      genFunctionBody(codegen, builder, node->field.initial, field_symbol, type,
                       func);
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
@@ -1121,7 +1141,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Function: {
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
-    genFunctionBody(codegen, builder, node, scope, func);
+    genFunctionBody(codegen, builder, node, scope, type, func);
     return func;
   }
   case NodeKind::Struct: {
@@ -1171,6 +1191,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Call: {
     Type *callee_type = node->call.callee->value.type;
+    LLVMTypeRef llvm_callee_type = typeToLLVM(codegen, callee_type);
     bool needs_dereference = false;
     if (callee_type->kind == TypeKind::Pointer) {
       callee_type = callee_type->child;
@@ -1201,14 +1222,15 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     ArrayList<LLVMValueRef> args;
     args.init(codegen->allocator, callee_type->function.arguments.length);
 
+    FnABICache *abi_cache = codegen->fn_abi_cache.get(llvm_callee_type);
+
     // Return as argument
     LLVMTypeRef ret_ty = typeToLLVM(codegen, callee_type->function.return_type);
-    ABIArg abi_ret_arg =
-        codegen->target_abi.classifyReturnType(codegen->mod, ret_ty);
     LLVMValueRef ret_as_arg = nullptr;
-    if (abi_ret_arg.kind == ABIArgKind::Indirect) {
+    if (abi_cache->return_arg.kind == ABIArgKind::Indirect) {
       // Allocate return
-      ret_as_arg = LLVMBuildAlloca(builder, abi_ret_arg.type, "return");
+      ret_as_arg =
+          LLVMBuildAlloca(builder, abi_cache->return_arg.type, "return");
       args.push(ret_as_arg);
     }
 
@@ -1220,8 +1242,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     for (size_t i = 0; i < node->call.arguments.length; i++) {
       Node *arg = node->call.arguments.data.ptr[i];
       LLVMTypeRef ty = typeToLLVM(codegen, arg->value.type);
-      ABIArg abi_arg =
-          codegen->target_abi.classifyArgumentType(codegen->mod, ty);
+      ABIArg abi_arg = abi_cache->args.ptr[i];
       if (abi_arg.kind == ABIArgKind::Ignore) {
         continue;
       }
@@ -1251,7 +1272,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef ret = LLVMBuildCall2(builder, typeToLLVM(codegen, callee_type),
                                       function, args.data.ptr, args.length, "");
 
-    if (abi_ret_arg.kind == ABIArgKind::Ignore) {
+    if (abi_cache->return_arg.kind == ABIArgKind::Ignore) {
       return nullptr;
     }
 
@@ -1259,7 +1280,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (ret_as_arg != nullptr) {
       ret = LLVMBuildBitCast(builder, ret_as_arg, ret_ty, "");
     } else {
-      LLVMValueRef ret_alloca = LLVMBuildAlloca(builder, abi_ret_arg.type, "");
+      LLVMValueRef ret_alloca =
+          LLVMBuildAlloca(builder, abi_cache->return_arg.type, "");
       LLVMBuildStore(builder, ret, ret_alloca);
       ret = ret_alloca;
     }
@@ -1511,8 +1533,9 @@ void CodeGenModule::generate(CodeGenContext *context) {
   memcpy(name, this->source_path.ptr, this->source_path.len);
   *(name + this->source_path.len) = 0;
 
-  this->scope_to_type.init(this->allocator, 32);
+  this->type_to_llvm.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);
+  this->fn_abi_cache.init(this->allocator, 32);
   this->defer_stack_len = 0;
   this->loop_stack_len = 0;
   this->function_stack_len = 0;
@@ -1546,8 +1569,9 @@ void CodeGenModule::generate(CodeGenContext *context) {
     std::abort();
   }
 
-  this->scope_to_type.deinit();
+  this->type_to_llvm.deinit();
   this->node_to_value.deinit();
+  this->fn_abi_cache.deinit();
 }
 
 void CodeGenContext::init() {

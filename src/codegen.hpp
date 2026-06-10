@@ -21,6 +21,11 @@ struct FuncStackNode {
   LLVMValueRef ret_ptr;
 };
 
+struct FnABICache {
+  ABIArg return_arg;
+  Slice<ABIArg> args;
+};
+
 struct CodeGenContext {
   LLVMContextRef ctx;
   ABI abi;
@@ -41,8 +46,9 @@ struct CodeGenModule {
   Symbol *symbol;
   Allocator *allocator;
 
-  HashMap<Symbol *, LLVMTypeRef> scope_to_type;
   HashMap<Node *, LLVMValueRef> node_to_value;
+  HashMap<Type *, LLVMTypeRef> type_to_llvm;
+  HashMap<LLVMTypeRef, FnABICache> fn_abi_cache;
 
   // Stacks
   Node *defer_stack[64];
