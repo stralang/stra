@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 
 struct Type;
 struct Symbol;

@@ -30,3 +30,6 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope, LLVMTypeRef fn_type, LLVMValueRef func);
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope);
+
+LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
+                            Type *callee_type, Slice<LLVMValueRef> args);

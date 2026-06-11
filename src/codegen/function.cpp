@@ -92,6 +92,8 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     needs_dereference = true;
   }
 
+  Symbol *func_symbol = node->call.callee->value.type->function.scope;
+
   // Get receiver
   LLVMValueRef receiver = nullptr;
   size_t has_receiver = 0;
@@ -102,7 +104,6 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     has_receiver = 1;
 
     // Load
-    Symbol *func_symbol = node->call.callee->value.type->function.scope;
     Node *arg0 = func_symbol->node->function.parameters.data.ptr[0];
     if (arg0->value.type->kind != TypeKind::Pointer) {
       receiver = LLVMBuildLoad2(builder, typeToLLVM(codegen, arg0->value.type),
@@ -149,6 +150,22 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef alloca = LLVMBuildAlloca(builder, abi_arg.type, "");
     LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
     args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
+  }
+
+  // Builtin
+  if (func_symbol->parent->node->kind == NodeKind::Field) {
+    Node *attributes = func_symbol->parent->node->field.attributes;
+    bool builtin = false;
+    for (size_t i = 0; i < attributes->children.length; i++) {
+      if (attributes->children.data.ptr[i]->member.name.compare("builtin")) {
+        builtin = true;
+        break;
+      }
+    }
+
+    if (builtin) {
+      return genCallBuiltin(codegen, builder, callee_type, args.slice());
+    }
   }
 
   // Build Call

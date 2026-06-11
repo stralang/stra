@@ -171,4 +171,20 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   node->value.type = fn_type->function.return_type;
   node->value.has_data = false;
+
+  if (fn_scope->parent->node->kind == NodeKind::Field) {
+    Node *attributes = fn_scope->parent->node->field.attributes;
+    bool builtin = false;
+
+    for (size_t i = 0; i < attributes->children.length; i++) {
+      if (attributes->children.data.ptr[i]->member.name.compare("builtin")) {
+        builtin = true;
+        break;
+      }
+    }
+
+    if (builtin) {
+      execute(evaluator, node, scope);
+    }
+  }
 }

@@ -23,6 +23,7 @@ add_executable(stra
   src/codegen/convert.cpp
   src/codegen/operator.cpp
   src/codegen/function.cpp
+  src/codegen/builtin.cpp
 
   src/codegen/abi/general.cpp
   src/codegen/abi/sysvamd64.cpp

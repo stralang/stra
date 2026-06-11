@@ -372,11 +372,15 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Get Name
     String name = {.ptr = nullptr};
+    bool builtin = false;
     if (node->field.attributes != nullptr) {
       Node *link_name_node = nullptr;
       for (size_t i = 0; i < node->field.attributes->children.length; i++) {
         Node *attr = node->field.attributes->children.data.ptr[i];
-        if (!attr->member.name.compare("link_name")) {
+        if (attr->member.name.compare("builtin")) {
+          builtin = true;
+          continue;
+        } else if (!attr->member.name.compare("link_name")) {
           continue;
         }
 
@@ -396,6 +400,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
+      if (builtin) {
+        return nullptr;
+      }
+
       // Build function and set name
       LLVMTypeRef type = typeToLLVM(codegen, node->field.initial->value.type);
       LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
