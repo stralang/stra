@@ -11,6 +11,7 @@ add_executable(stra
   src/comptime.cpp
   src/evaluator.cpp
   src/codegen.cpp
+  src/codegen_builtin.cpp
   src/abi/general.cpp
   src/abi/sysvamd64.cpp
   src/main.cpp

@@ -24,6 +24,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Symbol *scope);
 
+extern LLVMValueRef codegenFunctionBuiltin(CodeGenModule *codegen,
+                                           LLVMBuilderRef builder,
+                                           Type *callee_type,
+                                           Slice<LLVMValueRef> args);
+
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type,
                        const char *name = nullptr) {
   LLVMTypeRef *type_cache = codegen->type_to_llvm.get(type);
@@ -1068,11 +1073,15 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Get Name
     String name = {.ptr = nullptr};
+    bool builtin = false;
     if (node->field.attributes != nullptr) {
       Node *link_name_node = nullptr;
       for (size_t i = 0; i < node->field.attributes->children.length; i++) {
         Node *attr = node->field.attributes->children.data.ptr[i];
-        if (!attr->member.name.compare("link_name")) {
+        if (attr->member.name.compare("builtin")) {
+          builtin = true;
+          continue;
+        } else if (!attr->member.name.compare("link_name")) {
           continue;
         }
 
@@ -1092,6 +1101,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
+      if (builtin) {
+        return nullptr;
+      }
+
       // Build function and set name
       LLVMTypeRef type = typeToLLVM(codegen, node->field.initial->value.type);
       LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
@@ -1204,6 +1217,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       needs_dereference = true;
     }
 
+    Symbol *func_symbol = callee_type->function.scope;
+
     // Get receiver
     LLVMValueRef receiver = nullptr;
     size_t has_receiver = 0;
@@ -1216,7 +1231,6 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       has_receiver = 1;
 
       // Load
-      Symbol *func_symbol = node->call.callee->value.type->function.scope;
       Node *arg0 = func_symbol->node->function.parameters.data.ptr[0];
       if (arg0->value.type->kind != TypeKind::Pointer) {
         receiver = LLVMBuildLoad2(
@@ -1264,6 +1278,23 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMValueRef alloca = LLVMBuildAlloca(builder, abi_arg.type, "");
       LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
       args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
+    }
+
+    // Builtin
+    if (func_symbol->parent->node->kind == NodeKind::Field) {
+      Node *attributes = func_symbol->parent->node->field.attributes;
+      bool builtin = false;
+      for (size_t i = 0; i < attributes->children.length; i++) {
+        if (attributes->children.data.ptr[i]->member.name.compare("builtin")) {
+          builtin = true;
+          break;
+        }
+      }
+
+      if (builtin) {
+        return codegenFunctionBuiltin(codegen, builder, callee_type,
+                                      args.slice());
+      }
     }
 
     // Build Call
