@@ -167,6 +167,9 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
     break;
   }
+  case NodeKind::Call: {
+    return genCall(codegen, builder, node, scope);
+  }
   case NodeKind::Index: {
     LLVMValueRef slice = addr(codegen, builder, node->index.slice, scope);
     Type *slice_type = node->index.slice->value.type;
@@ -484,7 +487,13 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return genBinary(codegen, builder, node, scope);
   }
   case NodeKind::Call: {
-    return genCall(codegen, builder, node, scope);
+    LLVMValueRef ret = genCall(codegen, builder, node, scope);
+    if (node->value.type->kind == TypeKind::Void) {
+      return nullptr;
+    } else {
+      return LLVMBuildLoad2(builder, typeToLLVM(codegen, node->value.type), ret,
+                            "");
+    }
   }
   case NodeKind::Index: {
     LLVMValueRef ptr = addr(codegen, builder, node, scope);

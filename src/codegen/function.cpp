@@ -176,5 +176,5 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMBuildStore(builder, ret, ret_alloca);
     ret = ret_alloca;
   }
-  return LLVMBuildLoad2(builder, ret_ty, ret, "");
+  return ret;
 }
