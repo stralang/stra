@@ -72,6 +72,12 @@ struct NodeOperator {
   Node *rhs;
 };
 
+struct NodeRange {
+  enum { LessThan, EqualTo } mode;
+  Node *min;
+  Node *max;
+};
+
 struct NodeCall {
   Node *callee;
   ArrayList<Node *> arguments;
@@ -163,6 +169,7 @@ enum class NodeKind {
   Slice,
   UnaryOperator,
   Operator,
+  Range,
   Call,
   Index,
   Initializer,
@@ -207,6 +214,7 @@ struct Node {
     NodeSlice slice;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;
+    NodeRange range;
     NodeCall call;
     NodeIndex index;
     NodeInitializer initializer;

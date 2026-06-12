@@ -18,6 +18,8 @@ enum class TokenKind : uint32_t {
   Operator,
   Undefined,
   Case,
+  RangeLessThen,
+  RangeEqualTo,
 
   Integer,
   Float,

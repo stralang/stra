@@ -131,6 +131,12 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::Case: {
     return os << "Case";
   }
+  case TokenKind::RangeLessThen: {
+    return os << "Range Less Then";
+  }
+  case TokenKind::RangeEqualTo: {
+    return os << "Range Equal To";
+  }
   case TokenKind::Integer: {
     return os << "Integer";
   }
@@ -252,6 +258,8 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   case TokenKind::Eof:
   case TokenKind::Undefined:
   case TokenKind::Case:
+  case TokenKind::RangeLessThen:
+  case TokenKind::RangeEqualTo:
   case TokenKind::Function:
   case TokenKind::Struct:
   case TokenKind::Enum:
@@ -337,6 +345,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   }
   case NodeKind::Operator: {
     return os << "Operator";
+  }
+  case NodeKind::Range: {
+    return os << "Range";
   }
   case NodeKind::Call: {
     return os << "Call";
@@ -539,6 +550,24 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << " `" << node->_operator.opcode << "`\n";
     print_node_impl(os, node->_operator.lhs, depth + 1, "LHS: ");
     print_node_impl(os, node->_operator.rhs, depth + 1, "RHS: ");
+    break;
+  }
+  case NodeKind::Range: {
+    os << " `";
+    switch (node->range.mode) {
+    case NodeRange::LessThan: {
+      os << "<";
+      break;
+    }
+    case NodeRange::EqualTo: {
+      os << "=";
+      break;
+    }
+    }
+    os << "`\n";
+
+    print_node_impl(os, node->range.min, depth + 1, "MIN: ");
+    print_node_impl(os, node->range.max, depth + 1, "MAX: ");
     break;
   }
   case NodeKind::Call: {

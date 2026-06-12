@@ -212,8 +212,15 @@ Token Tokenizer::next() {
       while ((c >= '0' && c <= '9') || c == '.' || c == 'x' || c == 'o' ||
              c == 'b' || c == 'e') {
         if (c == '.') {
-          if (is_float)
-            return token;
+          if (is_float) {
+            break;
+          }
+
+          // Skip if `.` is part of a range token
+          if (this->index + 1 < this->source.len &&
+              this->source[this->index + 1] == '.') {
+            break;
+          }
 
           is_float = true;
         } else if (c == 'e') {
@@ -421,7 +428,19 @@ Token Tokenizer::next() {
   case '.': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::MemberAccess;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '.' && this->index + 1 < this->source.len) {
+      char peek = this->source[this->index + 1];
+      if (peek == '<') {
+        token.kind = TokenKind::RangeLessThen;
+        this->nextChar();
+        this->nextChar();
+      } else if (peek == '=') {
+        token.kind = TokenKind::RangeEqualTo;
+        this->nextChar();
+        this->nextChar();
+      }
+    }
     return token;
   }
   case '!': {

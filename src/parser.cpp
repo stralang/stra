@@ -143,6 +143,29 @@ Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
       out = parseInitializer(parser, out, scope);
       try(out != nullptr);
       continue;
+    } else if (parser->cur_token.kind == TokenKind::RangeLessThen ||
+               parser->cur_token.kind == TokenKind::RangeEqualTo) {
+      if (Precedence::Special < min_precedence) {
+        break;
+      }
+
+      Node *_tmp = out;
+      out = (Node *)parser->allocator->alloc(sizeof(Node));
+      out->token = parser->cur_token;
+      out->location = parser->cur_token.location;
+      out->kind = NodeKind::Range;
+      out->range.min = _tmp;
+
+      out->range.mode = parser->cur_token.kind == TokenKind::RangeEqualTo
+                            ? NodeRange::EqualTo
+                            : NodeRange::LessThan;
+
+      try(parser->nextToken());
+      out->range.max = parseExpr(parser, Precedence::Assign, scope, false);
+
+      try(out->range.max != nullptr);
+      try(out != nullptr);
+      continue;
     } else if (parser->cur_token.kind != TokenKind::Operator) {
       break;
     }
