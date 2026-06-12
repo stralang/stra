@@ -10,9 +10,15 @@ add_executable(stra
   src/parser.cpp
   src/comptime.cpp
   src/evaluator.cpp
-  src/codegen.cpp
-  src/abi/general.cpp
-  src/abi/sysvamd64.cpp
+
+  src/codegen/codegen.cpp
+  src/codegen/convert.cpp
+  src/codegen/operator.cpp
+  src/codegen/function.cpp
+
+  src/codegen/abi/general.cpp
+  src/codegen/abi/sysvamd64.cpp
+
   src/main.cpp
 )
 

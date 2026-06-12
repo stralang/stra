@@ -1,5 +1,5 @@
 #include "allocator.hpp"
-#include "codegen.hpp"
+#include "codegen/codegen.hpp"
 #include "containers.hpp"
 #include "evaluator.hpp"
 #include "parser.hpp"
