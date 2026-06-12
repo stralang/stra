@@ -176,7 +176,11 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMValueRef indices[2];
     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
-    if (slice_type->slice.length > 0) {
+    if (slice_type->kind == TypeKind::Pointer) {
+      // Pointer to slice conversion
+      type = typeToLLVM(codegen, slice_type->child);
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
+    } else if (slice_type->slice.length > 0) {
       // Array (compile-time length)
       type = typeToLLVM(codegen, slice_type->slice.type);
 

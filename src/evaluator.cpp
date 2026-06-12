@@ -1030,7 +1030,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       Type ty = {.kind = TypeKind::Slice};
       ty.slice.length = 0;
-      ty.slice.type = slice->value.type->slice.type;
+      if (slice->value.type->kind == TypeKind::Pointer) {
+        ty.slice.type = slice->value.type->child;
+      } else {
+        ty.slice.type = slice->value.type->slice.type;
+      }
       node->value.type = evaluator->type_cache->get(ty);
     } else {
       // Index
