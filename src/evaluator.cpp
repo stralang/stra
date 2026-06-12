@@ -922,6 +922,17 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     evaluateBinary(evaluator, node, scope);
     break;
   }
+  case NodeKind::Range: {
+    evaluate(evaluator, node->range.min, scope);
+    evaluate(evaluator, node->range.max, scope);
+
+    expect(node->range.min->value.type == node->range.max->value.type,
+           node->location, "Range min and max types must match");
+
+    node->value.type = nullptr;
+    node->value.has_data = false;
+    break;
+  }
   case NodeKind::Call: {
     Node *callee = node->call.callee;
     evaluate(evaluator, callee, scope);
@@ -1000,14 +1011,42 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type *usize_ty = evaluator->type_cache->get(
         {.kind = TypeKind::Integer,
          .integer = {.is_untyped = false, .is_signed = false, .bits = -1}});
-    index->value.type = autoConvert(evaluator, index->value.type, usize_ty);
+    if (index->kind == NodeKind::Range) {
+      // Range
+      expect(slice->value.type->kind == TypeKind::Slice ||
+                 slice->value.type->kind == TypeKind::SIMD ||
+                 slice->value.type->kind == TypeKind::Pointer,
+             slice->location,
+             "Range Indexee type must be Slice, SIMD, or Pointer");
 
-    expect(index->value.type->kind == TypeKind::Integer &&
-               !index->value.type->integer.is_signed &&
-               index->value.type->integer.bits == -1,
-           index->location, "Index must be of type `usize`");
+      Type *min_ty = index->range.min->value.type;
+      min_ty = autoConvert(evaluator, min_ty, usize_ty);
+      index->range.min->value.type = min_ty;
+      index->range.max->value.type = min_ty;
 
-    node->value.type = slice->value.type->slice.type;
+      expect(min_ty->kind == TypeKind::Integer && !min_ty->integer.is_signed &&
+                 min_ty->integer.bits == -1,
+             index->location, "Range Index must be of type `usize`");
+
+      Type ty = {.kind = TypeKind::Slice};
+      ty.slice.length = 0;
+      ty.slice.type = slice->value.type->slice.type;
+      node->value.type = evaluator->type_cache->get(ty);
+    } else {
+      // Index
+      expect(slice->value.type->kind == TypeKind::Slice ||
+                 slice->value.type->kind == TypeKind::SIMD,
+             slice->location, "Indexee type must be Slice, or SIMD");
+
+      index->value.type = autoConvert(evaluator, index->value.type, usize_ty);
+
+      expect(index->value.type->kind == TypeKind::Integer &&
+                 !index->value.type->integer.is_signed &&
+                 index->value.type->integer.bits == -1,
+             index->location, "Index must be of type `usize`");
+
+      node->value.type = slice->value.type->slice.type;
+    }
     break;
   }
   case NodeKind::Initializer: {
@@ -1047,20 +1086,23 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         expect(compareTypes(setter->value.type, field_type), setter->location,
                "Setter value doesn't match field type");
       }
-    } else if (record->value.type->kind == TypeKind::Slice ||
-               record->value.type->kind == TypeKind::SIMD) {
-      node->value.type = record->value.type;
+    } else if (record->value.type->kind == TypeKind::TypeId &&
+               (record->value.data.type_value->kind == TypeKind::Slice ||
+                record->value.data.type_value->kind == TypeKind::SIMD)) {
+      node->value.type = record->value.data.type_value;
       expect(node->initializer.is_list, node->location,
-             "Initializer for " << record->value.type->kind
+             "Initializer for " << record->value.data.type_value->kind
                                 << " must be a list");
 
       for (size_t i = 0; i < node->initializer.setters.length; i++) {
         Node *setter = node->initializer.setters.data.ptr[i];
         evaluate(evaluator, setter, scope);
-        setter->value.type = autoConvert(evaluator, setter->value.type,
-                                         record->value.type->slice.type);
+        setter->value.type =
+            autoConvert(evaluator, setter->value.type,
+                        record->value.data.type_value->slice.type);
 
-        expect(compareTypes(setter->value.type, record->value.type->slice.type),
+        expect(compareTypes(setter->value.type,
+                            record->value.data.type_value->slice.type),
                setter->location, "Setter value doesn't match element type");
       }
     } else {

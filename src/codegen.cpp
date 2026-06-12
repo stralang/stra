@@ -859,36 +859,51 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Index: {
     LLVMValueRef slice = addr(codegen, builder, node->index.slice, scope);
     Type *slice_type = node->index.slice->value.type;
-
     LLVMValueRef length = nullptr;
     LLVMValueRef ptr = slice;
     LLVMTypeRef type = nullptr;
 
     LLVMValueRef indices[2];
-    indices[0] = LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), 0, false);
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
     if (slice_type->slice.length > 0) {
       // Array (compile-time length)
-      type = typeToLLVM(codegen, slice_type);
+      type = typeToLLVM(codegen, slice_type->slice.type);
 
       length = LLVMConstInt(
           LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
           slice_type->slice.length, false);
     } else if (slice_type->slice.length == 0) {
       // Slice (runtime length)
-      length = LLVMBuildExtractValue(builder, slice, 1, "");
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+      length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+                             indices, 2, "");
+      length = LLVMBuildLoad2(
+          builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          length, "");
 
       indices[1] = indices[0];
 
       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
                           indices, 2, "");
-      type = LLVMPointerType(typeToLLVM(codegen, slice_type->slice.type), 0);
-
+      type = typeToLLVM(codegen, slice_type->slice.type);
+      ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
     } else {
       // Pointer (no length)
-      type = LLVMPointerType(typeToLLVM(codegen, slice_type->slice.type), 0);
+      type = typeToLLVM(codegen, slice_type->slice.type);
     }
 
-    LLVMValueRef index = gen(codegen, builder, node->index.index, scope);
+    indices[0] = LLVMConstInt(
+        LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size), 0, false);
+
+    bool is_range = node->index.index->kind == NodeKind::Range;
+    LLVMValueRef start = nullptr;
+    LLVMValueRef end = nullptr;
+    if (is_range) {
+      start = gen(codegen, builder, node->index.index->range.min, scope);
+      end = gen(codegen, builder, node->index.index->range.max, scope);
+    } else {
+      start = gen(codegen, builder, node->index.index, scope);
+    }
 
     // Runtime length check
     if (length != nullptr) {
@@ -900,7 +915,18 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           codegen->ctx, func, "bounds_check_success");
 
       LLVMValueRef in_bounds =
-          LLVMBuildICmp(builder, LLVMIntUGT, length, index, "");
+          LLVMBuildICmp(builder, LLVMIntUGT, length, start, "");
+      if (is_range) {
+        LLVMIntPredicate op = LLVMIntUGT;
+        if (node->index.index->range.mode == NodeRange::LessThan) {
+          op = LLVMIntUGE;
+        }
+
+        LLVMValueRef end_in_bounds =
+            LLVMBuildICmp(builder, op, length, end, "");
+        in_bounds = LLVMBuildAnd(builder, in_bounds, end_in_bounds, "");
+      }
+
       LLVMBuildCondBr(builder, in_bounds, success, fail);
 
       // Generate Fail
@@ -915,8 +941,35 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     }
 
     // Index
-    indices[1] = index;
-    return LLVMBuildGEP2(builder, type, ptr, indices, 2, "");
+    indices[0] = start;
+    LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1, "");
+    if (!is_range) {
+      return elem_ptr;
+    }
+
+    // Get new slice length
+    LLVMValueRef new_length = LLVMBuildSub(builder, end, start, "");
+    LLVMTypeRef ptr_ty =
+        LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
+    if (node->index.index->range.mode == NodeRange::EqualTo) {
+      new_length =
+          LLVMBuildAdd(builder, new_length, LLVMConstInt(ptr_ty, 1, false), "");
+    }
+
+    // Create Slice
+    LLVMValueRef constants[2];
+    constants[0] = LLVMConstNull(LLVMTypeOf(elem_ptr));
+    constants[1] = LLVMConstInt(LLVMTypeOf(new_length), 0, false);
+
+    LLVMValueRef new_slice =
+        LLVMConstStructInContext(codegen->ctx, constants, 2, false);
+    new_slice = LLVMBuildInsertValue(builder, new_slice, elem_ptr, 0, "");
+    new_slice = LLVMBuildInsertValue(builder, new_slice, new_length, 1, "");
+
+    LLVMValueRef out_slice =
+        LLVMBuildAlloca(builder, LLVMTypeOf(new_slice), "");
+    LLVMBuildStore(builder, new_slice, out_slice);
+    return out_slice;
   }
   case NodeKind::Import: {
     return addr(codegen, builder, node->import.node, node->import.scope);
