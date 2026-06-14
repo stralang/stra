@@ -164,6 +164,14 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Operator: {
     if (node->_operator.opcode == Operator::MemberAccess) {
       return genMemberAccess(codegen, builder, node, scope);
+    } else if (node->_operator.opcode == Operator::As) {
+      return addrCastAs(codegen, builder, node, scope);
+    } else if (node->_operator.opcode == Operator::Bitcast) {
+      LLVMValueRef val = addr(codegen, builder, node->_operator.lhs, scope);
+      LLVMTypeRef dst_llvm_type =
+          typeToLLVM(codegen, node->_operator.rhs->value.data.type_value);
+      return LLVMBuildBitCast(builder, val, LLVMPointerType(dst_llvm_type, 0),
+                              "");
     }
     break;
   }

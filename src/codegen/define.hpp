@@ -16,6 +16,8 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value);
 // Operator
 LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
                              Node *node, Symbol *scope);
+LLVMValueRef addrCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
+                        Node *node, Symbol *scope);
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
                       Node *node, Symbol *scope);
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,

@@ -491,6 +491,32 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     node->value.type = rhs->value.data.type_value;
     node->value.has_data = false;
+
+    // `As` cast restrictions
+    if (node->_operator.opcode == Operator::Bitcast) {
+      break;
+    }
+
+    Type *src_type = lhs->value.type;
+    Type *dst_type = rhs->value.data.type_value;
+    bool allowed = false;
+
+    if (src_type->kind == TypeKind::Integer ||
+        src_type->kind == TypeKind::Float) {
+      allowed = (dst_type->kind == TypeKind::Integer ||
+                 dst_type->kind == TypeKind::Float);
+    } else if (src_type->kind == TypeKind::Slice) {
+      if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
+        allowed = true; // No-Op
+      } else if (src_type->slice.length > 0 && dst_type->slice.length == 0) {
+        allowed = true; // Compile-time to Runtime
+      }
+
+      allowed &= compareTypes(src_type->slice.type, dst_type->slice.type);
+    }
+
+    expect(allowed, rhs->location,
+           "Cannot `as` cast `" << *src_type << "` to `" << *dst_type << "`");
     break;
   }
   case Operator::Assign:
