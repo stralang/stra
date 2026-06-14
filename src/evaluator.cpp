@@ -178,6 +178,11 @@ Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst) {
     }
   } else if (src->kind == TypeKind::Float && src->_float.is_untyped) {
     return dst;
+  } else if (src->kind == TypeKind::Pointer && dst->kind == TypeKind::Slice &&
+             dst->slice.length < 0 &&
+             compareTypes(src->child, dst->slice.type)) {
+    // Pointer to pointer slice
+    return dst;
   }
 
   return src;
@@ -366,8 +371,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
              "Cannot assign to union member. assign directly to the union "
              "instead");
     } else {
-      expect(compareTypes(lhs->value.type, rhs->value.type), rhs->location,
-             "cannot assign RHS `" << *rhs->value.type << "` to LHS `"
+      Type *conv_rhs_type =
+          autoConvert(evaluator, rhs->value.type, lhs->value.type);
+      expect(compareTypes(lhs->value.type, conv_rhs_type), rhs->location,
+             "cannot assign RHS `" << *conv_rhs_type << "` to LHS `"
                                    << *lhs->value.type << "`");
     }
 
@@ -634,9 +641,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
           node->value.type = value->type;
         }
       } else {
-        node->field.initial->value.type = autoConvert(
-            evaluator, node->field.initial->value.type, value->type);
-        if (!compareTypes(node->value.type, value->type)) {
+        Type *conv_type = autoConvert(
+            evaluator, node->field.initial->value.type, node->value.type);
+        if (!compareTypes(node->value.type, conv_type)) {
           std::cerr << node->field.initial->location
                     << " Field initial doesn't match type. ";
           std::cerr << "Field Type: `" << *node->value.type << "` ";

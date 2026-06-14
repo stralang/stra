@@ -206,8 +206,9 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       type = typeToLLVM(codegen, slice_type->slice.type);
       ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
     } else {
-      // Pointer (no length)
+      // Pointer Slice (no length)
       type = typeToLLVM(codegen, slice_type->slice.type);
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
     }
 
     indices[0] = LLVMConstInt(
