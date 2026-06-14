@@ -548,8 +548,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     try(parser->nextToken());
 
     out->slice.type =
-        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), scope,
-                  allow_init);
+        parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
     break;
   }
   case TokenKind::ScopeBegin: {
