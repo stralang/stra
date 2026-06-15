@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ast.hpp"
-#include "containers.hpp"
-#include "symbol.hpp"
-#include "types.hpp"
+#include "../ast.hpp"
+#include "../containers.hpp"
+#include "../symbol.hpp"
+#include "../types.hpp"
 
 struct Evaluator {
   Node *ast;

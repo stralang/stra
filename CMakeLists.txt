@@ -8,8 +8,14 @@ add_executable(stra
   src/tokenizer.cpp
   src/operator.cpp
   src/parser.cpp
-  src/comptime.cpp
-  src/evaluator.cpp
+
+  src/evaluator/evaluator.cpp
+  src/evaluator/operator.cpp
+  src/evaluator/function.cpp
+  src/evaluator/type.cpp
+  src/evaluator/builtin.cpp
+
+  src/evaluator/comptime/comptime.cpp
 
   src/codegen/codegen.cpp
   src/codegen/convert.cpp

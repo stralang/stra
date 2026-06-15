@@ -1,8 +1,8 @@
-#include "ast.hpp"
-#include "containers.hpp"
-#include "evaluator.hpp"
-#include "operator.hpp"
-#include "print.hpp"
+#include "../../ast.hpp"
+#include "../../containers.hpp"
+#include "../../operator.hpp"
+#include "../../print.hpp"
+#include "../evaluator.hpp"
 #include <cstring>
 #include <iostream>
 
