@@ -4,6 +4,7 @@
 #include "evaluator/evaluator.hpp"
 #include "parser.hpp"
 #include "print.hpp"
+#include "token.hpp"
 #include "tokenizer.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -84,6 +85,10 @@ struct Args {
   ArrayList<String> paths;
   String output_path;
 };
+
+void error_handler(SrcLoc srcloc, String msg) {
+  std::cerr << srcloc << " " << msg << "\n";
+}
 
 int main(int argc, const char **argv) {
   Allocator global_allocator;
@@ -220,6 +225,7 @@ int main(int argc, const char **argv) {
     });
   }
 
+  size_t total_parse_errors = 0;
   while (pending.length > 0) {
     PendingFile file = pending.pop();
 
@@ -231,6 +237,7 @@ int main(int argc, const char **argv) {
     // Parse
     ASTParser parser = ASTParser{
         .tokenizer = tokenizer,
+        .error_func = &error_handler,
         .allocator = &global_allocator,
     };
     parser.parse();
@@ -240,6 +247,8 @@ int main(int argc, const char **argv) {
       std::cout << "---- " << file.path << " ----\n";
       std::cout << *parser.ast << "\n";
     }
+
+    total_parse_errors += parser.error_count;
 
     // Finish
     files.push({
@@ -276,6 +285,11 @@ int main(int argc, const char **argv) {
     }
   }
 
+  if (total_parse_errors > 0) {
+    std::cerr << total_parse_errors << " errors, exiting.";
+    return 1;
+  }
+
   if (args.emit_mode == EmitMode::AST) {
     return 0;
   }
@@ -287,9 +301,15 @@ int main(int argc, const char **argv) {
       .ast = root_file->ast,
       .symbol = root_file->symbol,
       .type_cache = &type_cache,
+      .error_func = &error_handler,
       .allocator = &global_allocator,
   };
   evaluator.eval();
+
+  if (evaluator.error_count > 0) {
+    std::cerr << evaluator.error_count << " errors, exiting.";
+    return 1;
+  }
 
   // Emit Evaluted AST
   if (args.emit_mode == EmitMode::EvaluatedAST) {

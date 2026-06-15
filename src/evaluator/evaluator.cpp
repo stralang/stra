@@ -155,8 +155,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
                     << " Field initial doesn't match type. ";
           std::cerr << "Field Type: `" << *node->value.type << "` ";
           std::cerr << "Initial Type: `" << *value->type << "`\n";
-          node->value.type = nullptr;
-          return;
+          evaluator->error_count += 1;
+          // node->value.type = nullptr;
+          // return;
         }
       }
 

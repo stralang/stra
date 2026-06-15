@@ -1,10 +1,14 @@
 #include "evaluator.hpp"
+#include <sstream>
 
 #define expect(ok, srcloc, msg)                                                \
   if (!(ok)) {                                                                 \
-    std::cerr << srcloc << " " << msg << '\n';                                 \
-    node->value.type = nullptr;                                                \
-    return;                                                                    \
+    std::ostringstream os;                                                     \
+    os << msg;                                                                 \
+    std::string cpp_str = os.str();                                            \
+    String m(cpp_str.size(), (uint8_t *)cpp_str.data());                       \
+    evaluator->error_func(srcloc, m);                                          \
+    evaluator->error_count += 1;                                               \
   }
 
 // Base

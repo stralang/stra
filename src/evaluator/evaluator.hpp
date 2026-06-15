@@ -15,6 +15,9 @@ struct Evaluator {
   // VM
   ArrayList<Value *> stack;
 
+  size_t error_count = 0;
+  void (*error_func)(SrcLoc srcloc, String msg);
+
   Allocator *allocator;
 
   void eval();
