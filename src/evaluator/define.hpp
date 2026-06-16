@@ -6,7 +6,7 @@
     std::ostringstream os;                                                     \
     os << msg;                                                                 \
     std::string cpp_str = os.str();                                            \
-    String m(cpp_str.size(), (uint8_t *)cpp_str.data());                       \
+    String m = {.len = cpp_str.size(), .ptr = (uint8_t *)cpp_str.data()};      \
     evaluator->error_func(srcloc, m);                                          \
     evaluator->error_count += 1;                                               \
   }
