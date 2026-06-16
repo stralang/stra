@@ -73,6 +73,60 @@ struct Symbol {
     return nullptr;
   }
 
+  // Find duplicate
+  bool findDuplicateField(String *name, Node *original, size_t depth = 0) {
+    for (size_t i = 0; i < this->children.length; i++) {
+      Symbol *child = this->children.data.ptr[i];
+      if (child->node == original) {
+        continue;
+      }
+
+      // Check location
+      if (original->location.index < child->node->location.index) {
+        // Prevent first field with name thinking it's a duplicate
+        continue;
+      }
+
+      // Get name
+      String *child_name;
+      if (child->node->kind == NodeKind::Field) {
+        child_name = &child->node->field.name;
+
+        if (depth != 0 && !child->node->field.definition) {
+          continue;
+        }
+      } else if (child->node->kind == NodeKind::Member) {
+        child_name = &child->node->member.name;
+      } else {
+        continue;
+      }
+
+      // Compare name
+      if (child_name->len == name->len &&
+          memcmp(child_name->ptr, name->ptr, name->len) == 0) {
+        return true;
+      }
+    }
+
+    if (this->parent == nullptr) {
+      return false;
+    }
+
+    if (depth == 0) {
+      // Ignore parent of record for "data" fields
+      if ((this->node->kind == NodeKind::Struct ||
+           this->node->kind == NodeKind::Union) &&
+          original->kind == NodeKind::Field && !original->field.definition) {
+        return false;
+      } else if (this->node->kind == NodeKind::Enum &&
+                 original->kind == NodeKind::Member) {
+        return false;
+      }
+    }
+
+    return this->parent->findDuplicateField(name, original, depth + 1);
+  }
+
   String mangleName(Allocator *allocator) {
     if (this->mangled_name.ptr != nullptr) {
       return this->mangled_name;

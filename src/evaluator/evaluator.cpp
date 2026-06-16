@@ -121,6 +121,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     Symbol *field_symbol = scope->findSymbolByNode(node);
+    expect(!scope->findDuplicateField(&node->field.name, node), node->location,
+           "Field with the name `" << node->field.name << "` already exists");
 
     if (node->field.type != nullptr) {
       evaluate(evaluator, node->field.type, field_symbol);

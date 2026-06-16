@@ -609,13 +609,13 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   out->field.definition = false;
 
   // Check for duplicate field
-  Symbol *duplicate_symbol =
-      scope->findSymbol(&out->field.name, &out->location);
-  if (duplicate_symbol != nullptr) {
-    std::cerr << out->location << " Field with name `" << out->field.name
-              << "` already exists within scope\n";
-    return nullptr;
-  }
+  // Symbol *duplicate_symbol =
+  //     scope->findSymbol(&out->field.name, &out->location);
+  // if (duplicate_symbol != nullptr) {
+  //   std::cerr << out->location << " Field with name `" << out->field.name
+  //             << "` already exists within scope\n";
+  //   return nullptr;
+  // }
 
   // Create Symbol
   Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
