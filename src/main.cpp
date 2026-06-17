@@ -67,11 +67,9 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     }
   }
 
-  if (output_path.ptr != nullptr) {
-    std::string out_path((const char *)output_path.ptr, output_path.len);
-    cmd.append(" -o ");
-    cmd.append(out_path);
-  }
+  std::string out_path((const char *)output_path.ptr, output_path.len);
+  cmd.append(" -o ");
+  cmd.append(out_path);
 
   std::system(cmd.data());
 }
@@ -96,7 +94,7 @@ int main(int argc, const char **argv) {
   // Parse Arguments
   Args args;
   args.paths.init(&global_allocator, 4);
-  args.output_path.ptr = nullptr;
+  args.output_path = {.len = 5, .ptr = (uint8_t *)"a.out"};
 
   size_t i = 1;
   bool print_help = false;
@@ -194,7 +192,7 @@ int main(int argc, const char **argv) {
     std::cout << "  `-o`\n";
     std::cout << "      `none` No optimizations\n";
     std::cout << "      `minimal` Minimal optimizations [default]\n";
-    std::cout << "  `--output` output path\n";
+    std::cout << "  `--output` output path [default: 'a.out']\n";
     return 0;
   }
 
@@ -386,7 +384,10 @@ int main(int argc, const char **argv) {
 
   // Execute
   if (args.run) {
-    int status = std::system("./out");
+    std::filesystem::path exe_path = "./";
+    std::string s((const char *)args.output_path.ptr, args.output_path.len);
+    exe_path.append(s);
+    int status = std::system(exe_path.c_str());
     return WEXITSTATUS(status);
   }
 }
