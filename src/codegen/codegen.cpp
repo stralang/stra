@@ -777,7 +777,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
 
   // Optimize
   if (opt != Optimization::None) {
-    const char *passes = "sroa,simplifycfg,instcombine,gvn,licm,dce,"
+    const char *passes = "sroa,simplifycfg,instcombine,gvn,loop-mssa,licm,dce,"
                          "indvars,loop-unroll,tailcallelim,early-cse";
     LLVMPassBuilderOptionsRef pass_options = LLVMCreatePassBuilderOptions();
     LLVMRunPasses(this->mod, passes, context->target_machine, pass_options);
