@@ -311,7 +311,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   switch (node->kind) {
   case NodeKind::Compound: {
     Symbol *compound_scope = scope->findSymbolByNode(node);
-    if (compound_scope == nullptr) {
+    bool has_own_scope = compound_scope != nullptr;
+    if (!has_own_scope) {
       compound_scope = scope;
     }
 
@@ -321,7 +322,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       gen(codegen, builder, node->children.data.ptr[i], compound_scope);
     }
 
-    codegen->defer_stack_len = old_defer_len;
+    if (has_own_scope) {
+      codegen->defer_stack_len = old_defer_len;
+    }
     break;
   }
   case NodeKind::Name: {
@@ -585,6 +588,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(
         codegen->ctx, parent_function, "if_merge");
 
+    size_t old_defer_len = codegen->defer_stack_len;
+
     // Conditional
     LLVMValueRef condition =
         gen(codegen, builder, node->_if.conditional, if_scope);
@@ -601,8 +606,19 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+      size_t defer_boundary =
+          codegen->function_defer_boundary[codegen->function_stack_len];
+      if (codegen->defer_stack_len - defer_boundary > 0) {
+        size_t i = codegen->defer_stack_len;
+        while (i > defer_boundary) {
+          i -= 1;
+          gen(codegen, builder, codegen->defer_stack[i], scope);
+        }
+      }
+
       LLVMBuildBr(builder, merge_block);
     }
+    codegen->defer_stack_len = old_defer_len;
 
     // Else
     if (else_block != nullptr) {
@@ -616,8 +632,20 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       insert_block = LLVMGetInsertBlock(builder);
       if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+        size_t defer_boundary =
+            codegen->function_defer_boundary[codegen->function_stack_len];
+        if (codegen->defer_stack_len - defer_boundary > 0) {
+          size_t i = codegen->defer_stack_len;
+          while (i > defer_boundary) {
+            i -= 1;
+            gen(codegen, builder, codegen->defer_stack[i], scope);
+          }
+        }
+
         LLVMBuildBr(builder, insert_block);
       }
+
+      codegen->defer_stack_len = old_defer_len;
     }
 
     // Merge
@@ -640,6 +668,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMBuildBr(builder, condition_block);
 
     // Loop Stack
+    size_t old_defer_len = codegen->defer_stack_len;
     codegen->loop_stack[codegen->loop_stack_len] = {
         .condition = condition_block, ._do = do_block, .merge = merge_block};
     codegen->loop_defer_boundary[codegen->loop_stack_len] =
@@ -659,12 +688,23 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+      size_t defer_boundary =
+          codegen->loop_defer_boundary[codegen->loop_stack_len];
+      if (codegen->defer_stack_len - defer_boundary > 0) {
+        size_t i = codegen->defer_stack_len;
+        while (i > defer_boundary) {
+          i -= 1;
+          gen(codegen, builder, codegen->defer_stack[i], scope);
+        }
+      }
+
       LLVMBuildBr(builder, condition_block);
     }
 
     // Merge
     LLVMPositionBuilderAtEnd(builder, merge_block);
     codegen->loop_stack_len -= 1;
+    old_defer_len = codegen->defer_stack_len;
     break;
   }
   case NodeKind::Switch: {
@@ -682,6 +722,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
         codegen->function_stack[codegen->function_stack_len - 1].def;
 
     // Cases
+    size_t old_defer_len = codegen->defer_stack_len;
+
     for (size_t i = 0; i < node->_switch.cases.length; i++) {
       Node *_case = node->_switch.cases.data.ptr[i];
       Symbol *case_scope = scope->findSymbolByNode(_case->_case.body);
@@ -694,6 +736,16 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
       if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+        size_t defer_boundary =
+            codegen->function_defer_boundary[codegen->function_stack_len];
+        if (codegen->defer_stack_len - defer_boundary > 0) {
+          size_t i = codegen->defer_stack_len;
+          while (i > defer_boundary) {
+            i -= 1;
+            gen(codegen, builder, codegen->defer_stack[i], scope);
+          }
+        }
+
         LLVMBuildBr(builder, merge_block);
       }
 
@@ -701,6 +753,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMValueRef constant =
           valueToLLVM(codegen, &_case->_case.constant->value);
       LLVMAddCase(_switch, constant, case_block);
+
+      codegen->defer_stack_len = old_defer_len;
     }
 
     // Merge
