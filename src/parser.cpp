@@ -662,6 +662,33 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
 }
 
 Node *parseConditional(ASTParser *parser, Symbol *scope) {
+  if (parser->cur_token.kind == TokenKind::Name) {
+    Node *node = (Node *)parser->allocator->alloc(sizeof(Node));
+    node->kind = NodeKind::Name;
+    node->token = parser->cur_token;
+    node->location = parser->cur_token.location;
+    node->text = parser->cur_token.text;
+
+    expectEOF(parser->nextToken());
+
+    if (parser->cur_token.kind == TokenKind::In) {
+      Symbol *in_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
+      in_symbol->init(parser->allocator, false, scope);
+      in_symbol->node = node;
+
+      expectEOF(parser->nextToken());
+
+      node->kind = NodeKind::In;
+      node->in.name = node->text;
+      node->in.range = parseExpr(
+          parser, (Precedence)((int32_t)Precedence::Assign + 1), scope, false);
+    } else {
+      node = parseBinaryExpr(parser, Precedence::Assign, node, scope, false);
+    }
+
+    return node;
+  }
+
   return parseExpr(parser, Precedence::Assign, scope, false);
   // Node *out = (Node *)parser->allocator->alloc(sizeof(Node));
   // out->token = parser->cur_token;

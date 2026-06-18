@@ -105,6 +105,11 @@ struct NodeFor {
   Node *body;
 };
 
+struct NodeIn {
+  String name;
+  Node *range;
+};
+
 struct NodeSwitch {
   Node *conditional;
   ArrayList<Node *> cases;
@@ -176,6 +181,7 @@ enum class NodeKind {
   Return,
   If,
   For,
+  In,
   Switch,
   Case,
   Break,
@@ -220,6 +226,7 @@ struct Node {
     NodeInitializer initializer;
     NodeIf _if;
     NodeFor _for;
+    NodeIn in;
     NodeSwitch _switch;
     NodeCase _case;
     NodeAssembly assembly;

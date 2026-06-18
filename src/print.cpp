@@ -367,6 +367,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::For: {
     return os << "For";
   }
+  case NodeKind::In: {
+    return os << "In";
+  }
   case NodeKind::Switch: {
     return os << "Switch";
   }
@@ -615,6 +618,11 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << '\n';
     print_node_impl(os, node->_for.conditional, depth + 1, "Conditional: ");
     print_node_impl(os, node->_for.body, depth + 1, "Body: ");
+    break;
+  }
+  case NodeKind::In: {
+    os << '"' << node->in.name << "\"\n";
+    print_node_impl(os, node->in.range, depth + 1, "Range: ");
     break;
   }
   case NodeKind::Switch: {

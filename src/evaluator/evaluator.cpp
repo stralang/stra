@@ -314,6 +314,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type t = {.kind = TypeKind::Integer};
     t.integer = {.is_untyped = true};
 
+    expect(!scope->findDuplicateField(&node->member.name, node), node->location,
+           "Field with the name `" << node->member.name << "` already exists");
+
     node->value.type = evaluator->type_cache->get(t),
     node->value.has_data = false;
     if (node->member.value != nullptr) {
@@ -592,6 +595,18 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     evaluate(evaluator, node->_for.body, for_scope);
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    break;
+  }
+  case NodeKind::In: {
+    expect(!scope->findDuplicateField(&node->in.name, node), node->location,
+           "Field with the name `" << node->in.name << "` already exists");
+
+    evaluate(evaluator, node->in.range, scope);
+    expect(node->in.range->range.min->value.type->kind == TypeKind::Integer,
+           node->in.range->location,
+           "Range must be of integers for `In` expression");
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Bool});
     break;
   }
   case NodeKind::Switch: {

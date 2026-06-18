@@ -36,6 +36,8 @@ struct Symbol {
         child_name = &child->node->field.name;
       } else if (child->node->kind == NodeKind::Member) {
         child_name = &child->node->member.name;
+      } else if (child->node->kind == NodeKind::In) {
+        child_name = &child->node->in.name;
       } else {
         continue;
       }
@@ -97,6 +99,8 @@ struct Symbol {
         }
       } else if (child->node->kind == NodeKind::Member) {
         child_name = &child->node->member.name;
+      } else if (child->node->kind == NodeKind::In) {
+        child_name = &child->node->in.name;
       } else {
         continue;
       }
