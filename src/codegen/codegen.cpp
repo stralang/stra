@@ -704,7 +704,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Merge
     LLVMPositionBuilderAtEnd(builder, merge_block);
     codegen->loop_stack_len -= 1;
-    old_defer_len = codegen->defer_stack_len;
+    codegen->defer_stack_len = old_defer_len;
     break;
   }
   case NodeKind::Switch: {
