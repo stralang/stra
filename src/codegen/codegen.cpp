@@ -612,7 +612,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
         size_t i = codegen->defer_stack_len;
         while (i > defer_boundary) {
           i -= 1;
-          gen(codegen, builder, codegen->defer_stack[i], scope);
+          gen(codegen, builder, codegen->defer_stack[i], if_scope);
         }
       }
 
@@ -638,7 +638,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           size_t i = codegen->defer_stack_len;
           while (i > defer_boundary) {
             i -= 1;
-            gen(codegen, builder, codegen->defer_stack[i], scope);
+            gen(codegen, builder, codegen->defer_stack[i], else_scope);
           }
         }
 
@@ -694,7 +694,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
         size_t i = codegen->defer_stack_len;
         while (i > defer_boundary) {
           i -= 1;
-          gen(codegen, builder, codegen->defer_stack[i], scope);
+          gen(codegen, builder, codegen->defer_stack[i], for_scope);
         }
       }
 
@@ -742,7 +742,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           size_t i = codegen->defer_stack_len;
           while (i > defer_boundary) {
             i -= 1;
-            gen(codegen, builder, codegen->defer_stack[i], scope);
+            gen(codegen, builder, codegen->defer_stack[i], case_scope);
           }
         }
 
