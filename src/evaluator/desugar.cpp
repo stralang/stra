@@ -1,6 +1,20 @@
 #include "define.hpp"
 #include "evaluator.hpp"
 
+void desugarModifyAssign(Evaluator *evaluator, Node *node, Symbol *scope) {
+  Node *modify_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
+  modify_node->kind = NodeKind::Operator;
+  modify_node->location = node->location;
+  modify_node->_operator.opcode = node->_operator.opcode;
+  modify_node->_operator.lhs = node->_operator.lhs;
+  modify_node->_operator.rhs = node->_operator.rhs;
+
+  node->_operator.opcode = Operator::Assign;
+  node->_operator.rhs = modify_node;
+
+  evaluate(evaluator, modify_node, scope);
+}
+
 Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
                      Symbol *parent_scope) {
   Node *desugar_node = (Node *)evaluator->allocator->alloc(sizeof(Node));

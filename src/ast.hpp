@@ -172,6 +172,7 @@ enum class NodeKind {
   Import,
   Const,
   Slice,
+  Assignment,
   UnaryOperator,
   Operator,
   Range,

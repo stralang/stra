@@ -214,6 +214,57 @@ LLVMValueRef addrCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
   std::abort();
 }
 
+LLVMValueRef genAssignment(CodeGenModule *codegen, LLVMBuilderRef builder,
+                           Node *node, Symbol *scope) {
+  LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
+  LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
+
+  if (node->_operator.lhs->value.type->kind == TypeKind::Union) {
+    Type *union_type = node->_operator.lhs->value.type;
+
+    // Get tag id
+    size_t tag_id = 0;
+    Type *var_type = nullptr;
+    for (size_t i = 0; i < union_type->_union.variants.length; i++) {
+      var_type = union_type->_union.variants.data.ptr[i];
+      if (node->_operator.rhs->value.type == var_type) {
+        tag_id = i;
+        break;
+      }
+    }
+
+    LLVMValueRef indices[2];
+    LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
+    indices[0] = LLVMConstInt(index_ty, 0, false);
+
+    size_t data_offset = 0;
+    if (node->_operator.lhs->value.type->_union.repr_type->kind !=
+        TypeKind::Void) {
+      data_offset += 1;
+
+      // Set Tag
+      indices[1] = indices[0];
+      LLVMValueRef tag_ptr = LLVMBuildGEP2(
+          builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
+
+      LLVMTypeRef repr_type = typeToLLVM(codegen, union_type->_union.repr_type);
+      LLVMValueRef tag_const = LLVMConstInt(
+          repr_type, tag_id, union_type->_union.repr_type->integer.is_signed);
+      LLVMBuildStore(builder, tag_const, tag_ptr);
+    }
+
+    // Set Value
+    indices[1] = LLVMConstInt(index_ty, data_offset, false);
+    LLVMValueRef data_ptr = LLVMBuildGEP2(
+        builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
+    LLVMBuildStore(builder, rhs_value, data_ptr);
+  } else {
+    LLVMBuildStore(builder, rhs_value, lhs_ptr);
+  }
+
+  return nullptr;
+}
+
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
                       Node *node, Symbol *scope) {
   Type *child_type = node->unary_operator.child->value.type;
@@ -341,58 +392,6 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   Type *lhs_type = node->_operator.lhs->value.type;
   Type *rhs_type = node->_operator.rhs->value.type;
-
-  // Assignment
-  if (node->_operator.opcode == Operator::Assign) {
-    LLVMValueRef rhs_value = gen(codegen, builder, node->_operator.rhs, scope);
-    LLVMValueRef lhs_ptr = addr(codegen, builder, node->_operator.lhs, scope);
-
-    if (node->_operator.lhs->value.type->kind == TypeKind::Union) {
-      Type *union_type = node->_operator.lhs->value.type;
-
-      // Get tag id
-      size_t tag_id = 0;
-      Type *var_type = nullptr;
-      for (size_t i = 0; i < union_type->_union.variants.length; i++) {
-        var_type = union_type->_union.variants.data.ptr[i];
-        if (node->_operator.rhs->value.type == var_type) {
-          tag_id = i;
-          break;
-        }
-      }
-
-      LLVMValueRef indices[2];
-      LLVMTypeRef index_ty = LLVMInt32TypeInContext(codegen->ctx);
-      indices[0] = LLVMConstInt(index_ty, 0, false);
-
-      size_t data_offset = 0;
-      if (node->_operator.lhs->value.type->_union.repr_type->kind !=
-          TypeKind::Void) {
-        data_offset += 1;
-
-        // Set Tag
-        indices[1] = indices[0];
-        LLVMValueRef tag_ptr = LLVMBuildGEP2(
-            builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
-
-        LLVMTypeRef repr_type =
-            typeToLLVM(codegen, union_type->_union.repr_type);
-        LLVMValueRef tag_const = LLVMConstInt(
-            repr_type, tag_id, union_type->_union.repr_type->integer.is_signed);
-        LLVMBuildStore(builder, tag_const, tag_ptr);
-      }
-
-      // Set Value
-      indices[1] = LLVMConstInt(index_ty, data_offset, false);
-      LLVMValueRef data_ptr = LLVMBuildGEP2(
-          builder, typeToLLVM(codegen, union_type), lhs_ptr, indices, 2, "");
-      LLVMBuildStore(builder, rhs_value, data_ptr);
-    } else {
-      LLVMBuildStore(builder, rhs_value, lhs_ptr);
-    }
-
-    return nullptr;
-  }
 
   // Cast
   if (node->_operator.opcode == Operator::As) {

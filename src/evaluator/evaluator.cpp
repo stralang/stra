@@ -394,6 +394,10 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     node->value.data.type_value = evaluator->type_cache->get(t);
     break;
   }
+  case NodeKind::Assignment: {
+    evaluateAssignment(evaluator, node, scope);
+    break;
+  }
   case NodeKind::UnaryOperator: {
     evaluateUnary(evaluator, node, scope);
     break;

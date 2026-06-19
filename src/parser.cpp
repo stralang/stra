@@ -50,8 +50,7 @@ Node *parseInitializer(ASTParser *parser, Node *record, Symbol *scope) {
     Node *setter = parseExpr(
         parser, (Precedence)((int32_t)Precedence::Assign + 1), scope, true);
 
-    if (parser->cur_token.kind == TokenKind::Operator &&
-        parser->cur_token._operator == Operator::Assign) {
+    if (parser->cur_token.kind == TokenKind::Eq) {
       if (out->initializer.setters.length > 0) {
         if (out->initializer.is_list) {
           std::cerr << setter->location
@@ -291,8 +290,7 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
       field->member.name = field->text;
       field->member.value = nullptr;
 
-      if (parser->cur_token.kind == TokenKind::Operator &&
-          parser->cur_token._operator == Operator::Assign) {
+      if (parser->cur_token.kind == TokenKind::Eq) {
         if (!parser->nextToken()) {
           return {false};
         }
@@ -583,6 +581,25 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
   return out;
 }
 
+Node *parseAssignExpr(ASTParser *parser, Node *in, Symbol *scope) {
+  Node *node = (Node *)parser->allocator->alloc(sizeof(Node));
+  node->kind = NodeKind::Assignment;
+  node->token = parser->cur_token;
+  node->location = parser->cur_token.location;
+  if (parser->cur_token.kind == TokenKind::Eq) {
+    node->_operator.opcode = Operator::Assign;
+  } else {
+    node->_operator.opcode = parser->cur_token._operator;
+  }
+  node->_operator.lhs = in;
+
+  expectEOF(parser->nextToken());
+  node->_operator.rhs = parseExpr(parser, Precedence::Assign, scope, true);
+
+  node->end_location = node->_operator.rhs->end_location;
+  return node;
+}
+
 Node *parseNamespace(ASTParser *parser, Symbol *scope) {
   Symbol *namespace_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
   namespace_symbol->init(parser->allocator, false, scope);
@@ -626,8 +643,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   expectToken(TokenKind::TypeSeperator);
   expectEOF(parser->nextToken());
   if (parser->cur_token.kind != TokenKind::TypeSeperator &&
-      (parser->cur_token.kind != TokenKind::Operator ||
-       parser->cur_token._operator != Operator::Assign)) {
+      parser->cur_token.kind != TokenKind::Eq) {
     out->field.type =
         parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1),
                   field_symbol, false);
@@ -637,9 +653,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
 
   // Parse Initial
   out->field.definition = parser->cur_token.kind == TokenKind::TypeSeperator;
-  if (out->field.definition ||
-      (parser->cur_token.kind == TokenKind::Operator &&
-       parser->cur_token._operator == Operator::Assign)) {
+  if (out->field.definition || parser->cur_token.kind == TokenKind::Eq) {
     expectEOF(parser->nextToken());
 
     out->field.undefined = parser->cur_token.kind == TokenKind::Undefined;
@@ -751,8 +765,7 @@ Node *parseAttribute(ASTParser *parser, Symbol *scope) {
     attribute->member.value = nullptr;
 
     expectEOF(parser->nextToken());
-    if (parser->cur_token.kind == TokenKind::Operator &&
-        parser->cur_token._operator == Operator::Assign) {
+    if (parser->cur_token.kind == TokenKind::Eq) {
       expectEOF(parser->nextToken());
       attribute->member.value =
           parseExpr(parser, Precedence::Assign, scope, true);
@@ -809,12 +822,22 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
       out = parseField(parser, out, scope);
     } else {
       out = parseBinaryExpr(parser, Precedence::Assign, out, scope, true);
+
+      if (parser->cur_token.kind == TokenKind::Eq ||
+          parser->cur_token.kind == TokenKind::Assignment) {
+        out = parseAssignExpr(parser, out, scope);
+      }
     }
     break;
   }
   case TokenKind::ScopeBegin:
   case TokenKind::Operator: {
     out = parseExpr(parser, Precedence::Assign, scope, true);
+
+    if (parser->cur_token.kind == TokenKind::Eq ||
+        parser->cur_token.kind == TokenKind::Assignment) {
+      out = parseAssignExpr(parser, out, scope);
+    }
     break;
   }
   case TokenKind::Return: {
@@ -999,8 +1022,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
         arg.location = parser->cur_token.location;
         arg.kind = NodeAssembly::Argument::Input;
 
-        if (parser->cur_token.kind == TokenKind::Operator &&
-            parser->cur_token._operator == Operator::Assign) {
+        if (parser->cur_token.kind == TokenKind::Eq) {
           expectEOF(parser->nextToken());
           arg.kind = NodeAssembly::Argument::Return;
         }

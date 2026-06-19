@@ -1,6 +1,50 @@
 #include "../print.hpp"
 #include "define.hpp"
 
+void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope) {
+  Node *lhs = node->_operator.lhs;
+  Node *rhs = node->_operator.rhs;
+  evaluate(evaluator, lhs, scope);
+  evaluate(evaluator, rhs, scope);
+
+  if (node->_operator.opcode != Operator::Assign) {
+    desugarModifyAssign(evaluator, node, scope);
+  }
+
+  // Assign
+  expect(!lhs->value.type->is_constant, lhs->location,
+         "Cannot assign to constant");
+
+  if (lhs->value.type->kind == TypeKind::Union) {
+    bool contains = false;
+    for (size_t i = 0; i < lhs->value.type->_union.variants.length; i++) {
+      if (compareTypes(lhs->value.type->_union.variants.data.ptr[i],
+                       rhs->value.type)) {
+        contains = true;
+        break;
+      }
+    }
+
+    expect(contains, rhs->location,
+           "Union doesn't contain the type matching RHS `" << *rhs->value.type
+                                                           << "`");
+  } else if (lhs->kind == NodeKind::Operator &&
+             lhs->_operator.lhs->value.type->kind == TypeKind::Union) {
+    expect(false, rhs->location,
+           "Cannot assign to union member. assign directly to the union "
+           "instead");
+  } else {
+    Type *conv_rhs_type =
+        autoConvert(evaluator, rhs->value.type, lhs->value.type);
+    expect(compareTypes(lhs->value.type, conv_rhs_type), rhs->location,
+           "cannot assign RHS `" << *conv_rhs_type << "` to LHS `"
+                                 << *lhs->value.type << "`");
+  }
+
+  node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+  node->value.has_data = false;
+}
+
 void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->unary_operator.child, scope);
 
@@ -158,42 +202,6 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     } else if (rhs_untyped) {
       rhs->value.type = lhs->value.type;
     }
-  }
-
-  // Assign
-  if (node->_operator.opcode == Operator::Assign) {
-    expect(!lhs->value.type->is_constant, lhs->location,
-           "Cannot assign to constant");
-
-    if (lhs->value.type->kind == TypeKind::Union) {
-      bool contains = false;
-      for (size_t i = 0; i < lhs->value.type->_union.variants.length; i++) {
-        if (compareTypes(lhs->value.type->_union.variants.data.ptr[i],
-                         rhs->value.type)) {
-          contains = true;
-          break;
-        }
-      }
-
-      expect(contains, rhs->location,
-             "Union doesn't contain the type matching RHS `" << *rhs->value.type
-                                                             << "`");
-    } else if (lhs->kind == NodeKind::Operator &&
-               lhs->_operator.lhs->value.type->kind == TypeKind::Union) {
-      expect(false, rhs->location,
-             "Cannot assign to union member. assign directly to the union "
-             "instead");
-    } else {
-      Type *conv_rhs_type =
-          autoConvert(evaluator, rhs->value.type, lhs->value.type);
-      expect(compareTypes(lhs->value.type, conv_rhs_type), rhs->location,
-             "cannot assign RHS `" << *conv_rhs_type << "` to LHS `"
-                                   << *lhs->value.type << "`");
-    }
-
-    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
-    node->value.has_data = false;
-    return;
   }
 
   // Get primitive type

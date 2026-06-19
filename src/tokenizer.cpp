@@ -325,10 +325,10 @@ Token Tokenizer::next() {
 
     // Operators
   case '=': {
-    token.kind = TokenKind::Operator;
-    token._operator = Operator::Assign;
+    token.kind = TokenKind::Eq;
     c = this->nextChar();
     if (c == '=') {
+      token.kind = TokenKind::Operator;
       token._operator = Operator::EqualTo;
       this->nextChar();
     } else if (c == '>') {
@@ -340,7 +340,11 @@ Token Tokenizer::next() {
   case '+': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Add;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   case '-': {
@@ -352,25 +356,40 @@ Token Tokenizer::next() {
       token.kind = TokenKind::Undefined;
       this->nextChar();
       this->nextChar();
+    } else if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
     }
     return token;
   }
   case '*': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Mul;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   case '/': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Div;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   case '%': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Mod;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   case '|': {

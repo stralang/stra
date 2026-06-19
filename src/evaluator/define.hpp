@@ -15,6 +15,7 @@
 void evaluate(Evaluator *evaluator, Node *node, Symbol *scope);
 
 // Operator
+void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope);
 void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope);
 void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope);
 
@@ -33,5 +34,6 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope);
 Value getBuiltinValue(TypeCache *type_cache, String name);
 
 // Desugar
+void desugarModifyAssign(Evaluator *evaluator, Node *node, Symbol *scope);
 Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
                      Symbol *parent_scope);

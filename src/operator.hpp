@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-enum class Operator : uint32_t {
-  Assign,
+enum class Operator : int32_t {
+  Assign = -1,
   Add,
   Sub,
   Mul,
@@ -29,12 +29,12 @@ enum class Operator : uint32_t {
   Unary_Bitwise_Not,
 };
 
-enum class UnaryOperator : uint32_t {
-  Minus = (uint32_t)Operator::Sub,
-  Logical_Not = (uint32_t)Operator::Unary_Logical_Not,
-  Bitwise_Not = (uint32_t)Operator::Unary_Bitwise_Not,
-  Reference = (uint32_t)Operator::Bitwise_And,
-  Dereference = (uint32_t)Operator::Mul,
+enum class UnaryOperator : int32_t {
+  Minus = (int32_t)Operator::Sub,
+  Logical_Not = (int32_t)Operator::Unary_Logical_Not,
+  Bitwise_Not = (int32_t)Operator::Unary_Bitwise_Not,
+  Reference = (int32_t)Operator::Bitwise_And,
+  Dereference = (int32_t)Operator::Mul,
 };
 
 enum class Precedence : int32_t {

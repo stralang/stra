@@ -492,6 +492,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // BLANK
     break;
   }
+  case NodeKind::Assignment: {
+    return genAssignment(codegen, builder, node, scope);
+  }
   case NodeKind::UnaryOperator: {
     return genUnary(codegen, builder, node, scope);
   }

@@ -15,6 +15,8 @@ enum class TokenKind : uint32_t {
   Eof,
   Comment,
   Name,
+  Eq,
+  Assignment,
   Operator,
   Undefined,
   Case,

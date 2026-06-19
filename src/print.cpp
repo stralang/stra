@@ -122,6 +122,12 @@ std::ostream &operator<<(std::ostream &os, const TokenKind &kind) {
   case TokenKind::Name: {
     return os << "Name";
   }
+  case TokenKind::Eq: {
+    return os << "Eq";
+  }
+  case TokenKind::Assignment: {
+    return os << "Assignment";
+  }
   case TokenKind::Operator: {
     return os << "Operator";
   }
@@ -243,6 +249,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   case TokenKind::String: {
     return os << " \"" << token.text << '"';
   }
+  case TokenKind::Assignment:
   case TokenKind::Operator: {
     return os << ' ' << token._operator;
   }
@@ -257,6 +264,7 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
   }
   case TokenKind::Eof:
   case TokenKind::Undefined:
+  case TokenKind::Eq:
   case TokenKind::Case:
   case TokenKind::RangeLessThen:
   case TokenKind::RangeEqualTo:
@@ -339,6 +347,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   }
   case NodeKind::Slice: {
     return os << "Slice";
+  }
+  case NodeKind::Assignment: {
+    return os << "Assignment";
   }
   case NodeKind::UnaryOperator: {
     return os << "Unary Operator";
@@ -549,6 +560,7 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     print_node_impl(os, node->unary_operator.child, depth + 1, "Child: ");
     break;
   }
+  case NodeKind::Assignment:
   case NodeKind::Operator: {
     os << " `" << node->_operator.opcode << "`\n";
     print_node_impl(os, node->_operator.lhs, depth + 1, "LHS: ");
