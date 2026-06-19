@@ -95,6 +95,31 @@ template <typename T> struct ArrayList {
     this->length += 1;
   }
 
+  void insert(T value, size_t index) {
+    if (this->length == this->data.len) {
+      this->data.len *= 2;
+      this->data.ptr = (T *)allocator->_realloc((uint8_t *)this->data.ptr,
+                                                sizeof(T) * this->data.len);
+    }
+
+    for (size_t i = this->length; i > index; i--) {
+      this->data.ptr[i] = this->data.ptr[i - 1];
+    }
+
+    this->data.ptr[index] = value;
+    if (this->length != 0) {
+      this->length += 1;
+    }
+  }
+
+  void remove(size_t index) {
+    for (size_t i = index; i < this->length - 1; i++) {
+      this->data.ptr[i] = this->data.ptr[i + 1];
+    }
+
+    this->length -= 1;
+  }
+
   T pop() {
     this->length -= 1;
     return this->data.ptr[this->length];

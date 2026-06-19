@@ -592,6 +592,12 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
            node->_if.conditional->location, "Conditional must be Bool");
 
+    if (node->_for.conditional->kind == NodeKind::In) {
+      Symbol *new_scope = desugarForIn(evaluator, node, for_scope, scope);
+      for_scope = new_scope;
+      node = new_scope->node;
+    }
+
     evaluate(evaluator, node->_for.body, for_scope);
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});

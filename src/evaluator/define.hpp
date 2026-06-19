@@ -31,3 +31,7 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope);
 
 // Builtin
 Value getBuiltinValue(TypeCache *type_cache, String name);
+
+// Desugar
+Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
+                     Symbol *parent_scope);
