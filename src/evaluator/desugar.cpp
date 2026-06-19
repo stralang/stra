@@ -95,8 +95,8 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
   for_scope->parent = desugar_scope;
   for_scope->node = node;
 
+  // `in_var` needs to be evaluated here
   evaluate(evaluator, in_var, desugar_scope);
-  evaluate(evaluator, node->_for.conditional, for_scope);
 
   return for_scope;
 }

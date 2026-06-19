@@ -588,15 +588,18 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   }
   case NodeKind::For: {
     Symbol *for_scope = scope->findSymbolByNode(node);
-    evaluate(evaluator, node->_for.conditional, for_scope);
-    expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
-           node->_if.conditional->location, "Conditional must be Bool");
 
+    // Desugar
     if (node->_for.conditional->kind == NodeKind::In) {
       Symbol *new_scope = desugarForIn(evaluator, node, for_scope, scope);
       for_scope = new_scope;
       node = new_scope->node;
     }
+
+    // Checks
+    evaluate(evaluator, node->_for.conditional, for_scope);
+    expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
+           node->_if.conditional->location, "Conditional must be Bool");
 
     evaluate(evaluator, node->_for.body, for_scope);
 
