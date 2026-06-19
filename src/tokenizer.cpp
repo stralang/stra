@@ -399,13 +399,20 @@ Token Tokenizer::next() {
     if (c == '|') {
       token._operator = Operator::Logical_Or;
       this->nextChar();
+    } else if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
     }
     return token;
   }
   case '^': {
     token.kind = TokenKind::Operator;
     token._operator = Operator::Bitwise_Xor;
-    this->nextChar();
+    c = this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   case '&': {
@@ -414,6 +421,9 @@ Token Tokenizer::next() {
     c = this->nextChar();
     if (c == '&') {
       token._operator = Operator::Logical_And;
+      this->nextChar();
+    } else if (c == '=') {
+      token.kind = TokenKind::Assignment;
       this->nextChar();
     }
     return token;
@@ -424,7 +434,12 @@ Token Tokenizer::next() {
     c = this->nextChar();
     if (c == '<') {
       token._operator = Operator::Bitwise_LeftShift;
-      this->nextChar();
+      c = this->nextChar();
+
+      if (c == '=') {
+        token.kind = TokenKind::Assignment;
+        this->nextChar();
+      }
     } else if (c == '=') {
       token._operator = Operator::LessThenOrEqualTo;
       this->nextChar();
@@ -437,7 +452,12 @@ Token Tokenizer::next() {
     c = this->nextChar();
     if (c == '>') {
       token._operator = Operator::Bitwise_RightShift;
-      this->nextChar();
+      c = this->nextChar();
+
+      if (c == '=') {
+        token.kind = TokenKind::Assignment;
+        this->nextChar();
+      }
     } else if (c == '=') {
       token._operator = Operator::GreaterThenOrEqualTo;
       this->nextChar();
