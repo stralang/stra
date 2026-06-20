@@ -334,7 +334,7 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
   }
 
   LLVMValueRef lhs_value = gen(codegen, builder, node->_operator.lhs, scope);
-  if (src_type->kind == TypeKind::Integer) {
+  if (src_type->kind == TypeKind::Bool || src_type->kind == TypeKind::Integer) {
     // Integer Cast
     if (dst_type->kind == TypeKind::Float && src_type->integer.is_signed) {
       return LLVMBuildSIToFP(builder, lhs_value, dst_llvm_type, "");

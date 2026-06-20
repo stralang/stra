@@ -322,8 +322,12 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type *dst_type = rhs->value.data.type_value;
     bool allowed = false;
 
-    if (src_type->kind == TypeKind::Integer ||
-        src_type->kind == TypeKind::Float) {
+    if (src_type->kind == TypeKind::Bool) {
+      allowed = (dst_type->kind == TypeKind::Bool ||
+                 dst_type->kind == TypeKind::Integer ||
+                 dst_type->kind == TypeKind::Float);
+    } else if (src_type->kind == TypeKind::Integer ||
+               src_type->kind == TypeKind::Float) {
       allowed = (dst_type->kind == TypeKind::Integer ||
                  dst_type->kind == TypeKind::Float);
     } else if (src_type->kind == TypeKind::Slice) {
