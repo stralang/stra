@@ -1,5 +1,57 @@
 #include "../print.hpp"
 #include "define.hpp"
+#include "evaluator.hpp"
+#include <iostream>
+
+bool checkForReturn(Evaluator *evaluator, Node *node, Symbol *scope) {
+  switch (node->kind) {
+  case NodeKind::Compound: {
+    Symbol *compound_scope = scope->findSymbolByNode(node);
+    if (compound_scope == nullptr) {
+      compound_scope = scope;
+    }
+
+    size_t unused = 0;
+    bool has_return = false;
+    for (size_t i = node->children.length; i > 0; i--) {
+      Node *child = node->children.data.ptr[i - 1];
+      has_return = checkForReturn(evaluator, child, compound_scope);
+      if (has_return) {
+        unused = child->kind == NodeKind::Defer ? 0 : unused;
+        break;
+      }
+
+      unused += 1;
+    }
+
+    if (has_return && unused > 0) {
+      Node *first_unused = node->children.data.ptr[unused];
+      std::cerr << "Warning: " << first_unused
+                << " This code will never execute\n";
+    }
+
+    return has_return;
+  }
+  case NodeKind::If: {
+    Symbol *if_scope = scope->findSymbolByNode(node);
+    bool then_returns = checkForReturn(evaluator, node->_if.body, if_scope);
+
+    if (then_returns && node->_if._else != nullptr) {
+      Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
+      return checkForReturn(evaluator, node->_if._else, else_scope);
+    }
+    return false;
+  }
+  case NodeKind::Return: {
+    return true;
+  }
+  case NodeKind::Defer: {
+    return checkForReturn(evaluator, node->child, scope);
+  }
+  }
+
+  return false;
+}
 
 void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   Symbol *fn_scope = scope->findSymbolByNode(node);
@@ -39,6 +91,13 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   // Evaluate Body
   if (node->function.body != nullptr) {
     evaluate(evaluator, node->function.body, fn_scope);
+
+    if (fn_t->function.return_type->kind != TypeKind::Void) {
+      bool does_return =
+          checkForReturn(evaluator, node->function.body, fn_scope);
+      expect(does_return, node->function.body->end_location,
+             "Not all paths return in non-void function");
+    }
   } else if (!node->function.undefined) {
     node->value.has_data = true;
     node->value.data.type_value = node->value.type;
