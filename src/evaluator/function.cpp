@@ -26,8 +26,7 @@ bool checkForReturn(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     if (has_return && unused > 0) {
       Node *first_unused = node->children.data.ptr[unused];
-      std::cerr << "Warning: " << first_unused
-                << " This code will never execute\n";
+      warn(first_unused->location, "This code will never execute");
     }
 
     return has_return;

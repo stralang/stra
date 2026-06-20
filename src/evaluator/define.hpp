@@ -11,6 +11,16 @@
     evaluator->error_count += 1;                                               \
   }
 
+#define warn(srcloc, msg)                                                      \
+  {                                                                            \
+    std::ostringstream os;                                                     \
+    os << msg;                                                                 \
+    std::string cpp_str = os.str();                                            \
+    String m = {.len = cpp_str.size(), .ptr = (uint8_t *)cpp_str.data()};      \
+    evaluator->warning_func(srcloc, m);                                        \
+    evaluator->warning_count += 1;                                             \
+  }
+
 // Base
 void evaluate(Evaluator *evaluator, Node *node, Symbol *scope);
 

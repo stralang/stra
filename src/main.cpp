@@ -85,7 +85,11 @@ struct Args {
 };
 
 void error_handler(SrcLoc srcloc, String msg) {
-  std::cerr << srcloc << " " << msg << "\n";
+  std::cerr << "\e[0;31mERROR: \e[0m" << srcloc << " " << msg << "\n";
+}
+
+void warning_handler(SrcLoc srcloc, String msg) {
+  std::cerr << "\e[0;33mWARNING: \e[0m" << srcloc << " " << msg << "\n";
 }
 
 int main(int argc, const char **argv) {
@@ -300,12 +304,15 @@ int main(int argc, const char **argv) {
       .symbol = root_file->symbol,
       .type_cache = &type_cache,
       .error_func = &error_handler,
+      .warning_func = &warning_handler,
       .allocator = &global_allocator,
   };
   evaluator.eval();
 
+  std::cout << "\e[0;33m" << evaluator.warning_func << " warnings.\e[0m\n";
   if (evaluator.error_count > 0) {
-    std::cerr << evaluator.error_count << " errors, exiting.";
+    std::cerr << "\e[0;31m" << evaluator.error_count
+              << " errors, exiting.\e[0m\n";
     return 1;
   }
 

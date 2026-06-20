@@ -16,7 +16,9 @@ struct Evaluator {
   ArrayList<Value *> stack;
 
   size_t error_count = 0;
+  size_t warning_count = 0;
   void (*error_func)(SrcLoc srcloc, String msg);
+  void (*warning_func)(SrcLoc srcloc, String msg);
 
   Allocator *allocator;
 
