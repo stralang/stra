@@ -25,7 +25,8 @@ bool checkForReturn(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     if (has_return && unused > 0) {
-      Node *first_unused = node->children.data.ptr[unused];
+      Node *first_unused =
+          node->children.data.ptr[node->children.length - unused];
       warn(first_unused->location, "This code will never execute");
     }
 
