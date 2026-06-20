@@ -1,5 +1,7 @@
+#include "../print.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
+#include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
@@ -82,10 +84,26 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
 }
 
+LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
+                                Node *node, Symbol *scope,
+                                Symbol *func_symbol) {
+  Type *callee_type = node->call.callee->value.type;
+
+  // Arguments
+  ArrayList<LLVMValueRef> args;
+  args.init(codegen->allocator, callee_type->function.arguments.length);
+
+  for (size_t i = 0; i < node->call.arguments.length; i++) {
+    Node *arg = node->call.arguments.data.ptr[i];
+    args.push(gen(codegen, builder, arg, scope));
+  }
+
+  return genCallBuiltin(codegen, builder, callee_type, args.slice());
+}
+
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope) {
   Type *callee_type = node->call.callee->value.type;
-  LLVMTypeRef llvm_callee_type = typeToLLVM(codegen, callee_type);
   bool needs_dereference = false;
   if (callee_type->kind == TypeKind::Pointer) {
     callee_type = callee_type->child;
@@ -93,6 +111,20 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
 
   Symbol *func_symbol = node->call.callee->value.type->function.scope;
+
+  // Check Builtin
+  if (func_symbol->parent->node->kind == NodeKind::Field) {
+    Node *attributes = func_symbol->parent->node->field.attributes;
+    for (size_t i = 0; i < attributes->children.length; i++) {
+      if (!attributes->children.data.ptr[i]->member.name.compare("builtin")) {
+        continue;
+      }
+
+      return prepareCallBuiltin(codegen, builder, node, scope, func_symbol);
+    }
+  }
+
+  LLVMTypeRef llvm_callee_type = typeToLLVM(codegen, callee_type);
 
   // Get receiver
   LLVMValueRef receiver = nullptr;
@@ -150,22 +182,6 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef alloca = LLVMBuildAlloca(builder, abi_arg.type, "");
     LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
     args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
-  }
-
-  // Builtin
-  if (func_symbol->parent->node->kind == NodeKind::Field) {
-    Node *attributes = func_symbol->parent->node->field.attributes;
-    bool builtin = false;
-    for (size_t i = 0; i < attributes->children.length; i++) {
-      if (attributes->children.data.ptr[i]->member.name.compare("builtin")) {
-        builtin = true;
-        break;
-      }
-    }
-
-    if (builtin) {
-      return genCallBuiltin(codegen, builder, callee_type, args.slice());
-    }
   }
 
   // Build Call
