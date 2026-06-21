@@ -42,6 +42,8 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope);
 
 // Builtin
 Value getBuiltinValue(TypeCache *type_cache, String name);
+void populateBuiltinVariable(Evaluator *evaluator, Node *node, Symbol *scope,
+                             String name);
 
 // Desugar
 void desugarModifyAssign(Evaluator *evaluator, Node *node, Symbol *scope);

@@ -1,4 +1,6 @@
+#include "../print.hpp"
 #include "define.hpp"
+#include "evaluator.hpp"
 #include <charconv>
 
 Value getBuiltinValue(TypeCache *type_cache, String name) {
@@ -63,4 +65,31 @@ Value getBuiltinValue(TypeCache *type_cache, String name) {
   }
 
   return value;
+}
+
+void populateBuiltinVariable(Evaluator *evaluator, Node *node, Symbol *scope,
+                             String name) {
+  if (name.compare("TARGET_ARCH")) {
+    // TODO: Get target arch
+    node->value.data.integer = 1;
+  } else if (name.compare("TARGET_OS")) {
+    // TODO: Get target os
+    node->value.data.integer = 2;
+  } else if (name.compare("TARGET_SUB_OS")) {
+    // TODO: Get target sub os
+    node->value.data.integer = 3;
+  } else if (name.compare("TARGET_VENDOR")) {
+    // TODO: Get target vendor
+    node->value.data.text = String{4, (uint8_t *)"TODO"};
+  } else if (name.compare("TARGET_ENDIAN")) {
+    // TODO: Get target endian
+    node->value.data.integer = 4;
+  } else {
+    expect(false, node->location,
+           "Builtin variable `" << name << "` doesn't exist\n");
+    return;
+  }
+
+  node->value.has_data = true;
+  node->field.undefined = false;
 }

@@ -118,14 +118,17 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Field: {
+    bool is_builtin = false;
     if (node->field.attributes != nullptr) {
       evaluate(evaluator, node->field.attributes, scope);
+      is_builtin = containsAttribute(node->field.attributes, "builtin");
     }
 
     Symbol *field_symbol = scope->findSymbolByNode(node);
     expect(!scope->findDuplicateField(&node->field.name, node), node->location,
            "Field with the name `" << node->field.name << "` already exists");
 
+    // Evaluate Type
     if (node->field.type != nullptr) {
       evaluate(evaluator, node->field.type, field_symbol);
       Value *value = &node->field.type->value;
@@ -137,7 +140,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       node->value.type = value->data.type_value;
     }
 
+    // Evaluate Initial
     if (node->field.initial != nullptr) {
+      expect(!is_builtin || node->field.initial->kind == NodeKind::Function,
+             node->location, "Builtin variable must be undefined");
+
       evaluate(evaluator, node->field.initial, field_symbol);
 
       Value *value = &node->field.initial->value;
@@ -167,6 +174,19 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       node->value.has_data = value->has_data;
       node->value.data = value->data;
+    } else if (is_builtin) {
+      expect(node->field.undefined, node->location,
+             "Builtin variable must be undefined");
+
+      // Get "real" name
+      Node *link_name_node = getAttribute(node->field.attributes, "link_name");
+      String name = node->field.name;
+      if (link_name_node != nullptr) {
+        name = link_name_node->member.value->text;
+      }
+
+      // set
+      populateBuiltinVariable(evaluator, node, scope, name);
     }
     break;
   }
