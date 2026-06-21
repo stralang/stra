@@ -580,14 +580,33 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     expect(node->_if.conditional->value.type->kind == TypeKind::Bool,
            node->_if.conditional->location, "Conditional must be Bool");
 
-    evaluate(evaluator, node->_if.body, if_scope);
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
 
-    if (node->_if._else != nullptr) {
+    // Branch elimination
+    bool eliminate = node->_if.conditional->value.has_data;
+    bool eliminate_else = node->_if.conditional->value.data._bool;
+
+    // Evaluate body
+    if (!eliminate || eliminate_else) {
+      evaluate(evaluator, node->_if.body, if_scope);
+    }
+
+    // Evaluate Else
+    if (node->_if._else != nullptr && (!eliminate || !eliminate_else)) {
       Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
       evaluate(evaluator, node->_if._else, else_scope);
     }
 
-    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    // Eliminate branch
+    if (eliminate) {
+      if (eliminate_else) {
+        *node = *node->_if.body;
+      } else if (node->_if._else != nullptr) {
+        *node = *node->_if._else;
+      } else {
+        node->kind = NodeKind::Dead;
+      }
+    }
     break;
   }
   case NodeKind::For: {

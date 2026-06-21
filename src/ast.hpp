@@ -193,6 +193,7 @@ enum class NodeKind {
 
   Attribute,
   CommentGroup,
+  Dead, // Marks a node as useless
 };
 
 struct Node {
