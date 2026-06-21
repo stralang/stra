@@ -2,6 +2,7 @@
 #include "../ast.hpp"
 #include "../containers.hpp"
 #include "../environment.hpp"
+#include "../helper.hpp"
 #include "../operator.hpp"
 #include "../print.hpp"
 #include "../symbol.hpp"
@@ -374,22 +375,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     String name = {.ptr = nullptr};
     bool builtin = false;
     if (node->field.attributes != nullptr) {
-      Node *link_name_node = nullptr;
-      for (size_t i = 0; i < node->field.attributes->children.length; i++) {
-        Node *attr = node->field.attributes->children.data.ptr[i];
-        if (attr->member.name.compare("builtin")) {
-          builtin = true;
-          continue;
-        } else if (!attr->member.name.compare("link_name")) {
-          continue;
-        }
+      builtin = containsAttribute(node->field.attributes, "builtin");
 
-        link_name_node = attr->member.value;
-        break;
-      }
-
-      if (link_name_node != nullptr &&
-          link_name_node->kind == NodeKind::String) {
+      Node *link_name_node = getAttribute(node->field.attributes, "link_name");
+      if (link_name_node != nullptr) {
         name = link_name_node->text;
       }
     }

@@ -29,6 +29,7 @@ add_executable(stra
   src/codegen/abi/sysvamd64.cpp
 
   src/environment.cpp
+  src/helper.cpp
 
   src/main.cpp
 )

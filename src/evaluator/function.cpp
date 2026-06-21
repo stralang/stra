@@ -1,3 +1,4 @@
+#include "../helper.hpp"
 #include "../print.hpp"
 #include "define.hpp"
 #include "evaluator.hpp"
@@ -174,16 +175,7 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   if (fn_scope->parent->node->kind == NodeKind::Field) {
     Node *attributes = fn_scope->parent->node->field.attributes;
-    bool builtin = false;
-
-    for (size_t i = 0; i < attributes->children.length; i++) {
-      if (attributes->children.data.ptr[i]->member.name.compare("builtin")) {
-        builtin = true;
-        break;
-      }
-    }
-
-    if (builtin) {
+    if (containsAttribute(attributes, "builtin")) {
       execute(evaluator, node, scope);
     }
   }
