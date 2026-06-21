@@ -379,7 +379,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       Node *link_name_node = getAttribute(node->field.attributes, "link_name");
       if (link_name_node != nullptr) {
-        name = link_name_node->text;
+        name = link_name_node->member.value->text;
       }
     }
 
