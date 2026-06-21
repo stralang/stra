@@ -309,7 +309,10 @@ int main(int argc, const char **argv) {
   };
   evaluator.eval();
 
-  std::cout << "\e[0;33m" << evaluator.warning_func << " warnings.\e[0m\n";
+  if (evaluator.warning_count > 0) {
+    std::cout << "\e[0;33m" << evaluator.warning_count << " warnings.\e[0m\n";
+  }
+
   if (evaluator.error_count > 0) {
     std::cerr << "\e[0;31m" << evaluator.error_count
               << " errors, exiting.\e[0m\n";
