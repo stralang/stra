@@ -905,6 +905,9 @@ void CodeGenContext::init(Environment *env) {
   env->endianness = LLVMByteOrder(this->target_data) == LLVMLittleEndian
                         ? Endian::Little
                         : Endian::Big;
+
+  env->pointer_size = LLVMSizeOfTypeInBits(
+      this->target_data, LLVMPointerType(LLVMVoidTypeInContext(ctx), 0));
 }
 
 void CodeGenContext::deinit() {

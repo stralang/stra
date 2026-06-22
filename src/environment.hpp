@@ -32,6 +32,7 @@ struct TargetTriple {
 struct Environment {
   TargetTriple target;
   Endian endianness;
+  size_t pointer_size;
 };
 
 TargetTriple decodeTargetTriple(const char *raw);
