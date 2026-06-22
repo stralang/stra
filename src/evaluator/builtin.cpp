@@ -70,20 +70,15 @@ Value getBuiltinValue(TypeCache *type_cache, String name) {
 void populateBuiltinVariable(Evaluator *evaluator, Node *node, Symbol *scope,
                              String name) {
   if (name.compare("TARGET_ARCH")) {
-    // TODO: Get target arch
-    node->value.data.integer = 1;
+    node->value.data.integer = (uint64_t)evaluator->environment->target.arch;
   } else if (name.compare("TARGET_OS")) {
-    // TODO: Get target os
-    node->value.data.integer = 2;
+    node->value.data.integer = (uint64_t)evaluator->environment->target.os;
   } else if (name.compare("TARGET_SUB_OS")) {
-    // TODO: Get target sub os
-    node->value.data.integer = 3;
+    node->value.data.integer = (uint64_t)evaluator->environment->target.sub_os;
   } else if (name.compare("TARGET_VENDOR")) {
-    // TODO: Get target vendor
-    node->value.data.text = String{4, (uint8_t *)"TODO"};
+    node->value.data.text = evaluator->environment->target.vendor;
   } else if (name.compare("TARGET_ENDIAN")) {
-    // TODO: Get target endian
-    node->value.data.integer = 4;
+    node->value.data.integer = (uint64_t)evaluator->environment->endianness;
   } else {
     expect(false, node->location,
            "Builtin variable `" << name << "` doesn't exist\n");
