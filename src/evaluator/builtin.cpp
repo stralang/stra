@@ -88,3 +88,18 @@ void populateBuiltinVariable(Evaluator *evaluator, Node *node, Symbol *scope,
   node->value.has_data = true;
   node->field.undefined = false;
 }
+
+void evaluateBuiltinFunction(Evaluator *evaluator, Node *node, Symbol *scope,
+                             String name) {
+  // TODO: Verify function type
+
+  if (name.compare("sizeof") || name.compare("alignof")) {
+  } else if (name.compare("atomicLoad")) {
+  } else if (name.compare("atomicStore")) {
+  } else if (name.compare("atomicCompareExchange")) {
+  } else {
+    expect(false, node->location,
+           "Builtin function `" << name << "` doesn't exist\n");
+    return;
+  }
+}

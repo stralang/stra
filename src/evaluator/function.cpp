@@ -104,6 +104,32 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     node->value.data.type_value = node->value.type;
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
   }
+
+  // Builtin
+  if (fn_scope->parent->node->kind == NodeKind::Field) {
+    Node *attributes = fn_scope->parent->node->field.attributes;
+    if (attributes == nullptr || !containsAttribute(attributes, "builtin")) {
+      return;
+    }
+
+    expect(node->function.undefined, node->location,
+           "Expected builtin function to be undefined");
+
+    // Get name
+    Node *field_node = fn_scope->parent->node;
+    String name = field_node->field.name;
+
+    if (field_node->field.attributes != nullptr) {
+      Node *link_name_node =
+          getAttribute(field_node->field.attributes, "link_name");
+      if (link_name_node != nullptr) {
+        name = link_name_node->member.value->text;
+      }
+    }
+
+    // Evaluate builtin
+    evaluateBuiltinFunction(evaluator, node, scope, name);
+  }
 }
 
 void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
@@ -173,10 +199,26 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
   node->value.type = fn_type->function.return_type;
   node->value.has_data = false;
 
+  // Builtin
   if (fn_scope->parent->node->kind == NodeKind::Field) {
     Node *attributes = fn_scope->parent->node->field.attributes;
-    if (containsAttribute(attributes, "builtin")) {
-      execute(evaluator, node, scope);
+    if (attributes == nullptr || !containsAttribute(attributes, "builtin")) {
+      return;
     }
+
+    // Get name
+    Node *field_node = fn_scope->parent->node;
+    String name = field_node->field.name;
+
+    if (field_node->field.attributes != nullptr) {
+      Node *link_name_node =
+          getAttribute(field_node->field.attributes, "link_name");
+      if (link_name_node != nullptr) {
+        name = link_name_node->member.value->text;
+      }
+    }
+
+    // Execute builtin
+    // TODO: executeBuiltinCall(evaluator, node, scope, name);
   }
 }
