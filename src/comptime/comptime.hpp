@@ -23,6 +23,8 @@ struct InteropState {
 };
 
 Value execute(Evaluator *evaluator, Node *node, Symbol *scope);
+Value executeBuiltinCall(Evaluator *evaluator, Node *node, Symbol *scope,
+                         String name);
 
 Value *exec(InteropState *state, Node *node, Symbol *scope);
 Value *execUnary(InteropState *state, Node *node, Symbol *scope);

@@ -18,6 +18,7 @@ add_executable(stra
 
   src/comptime/comptime.cpp
   src/comptime/operator.cpp
+  src/comptime/builtin.cpp
 
   src/codegen/codegen.cpp
   src/codegen/convert.cpp

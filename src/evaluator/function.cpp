@@ -1,3 +1,4 @@
+#include "../comptime/comptime.hpp"
 #include "../helper.hpp"
 #include "../print.hpp"
 #include "define.hpp"
@@ -219,6 +220,15 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     // Execute builtin
-    // TODO: executeBuiltinCall(evaluator, node, scope, name);
+    Value val = executeBuiltinCall(evaluator, node, scope, name);
+    node->value = val;
+
+    if (val.type->kind == TypeKind::Integer) {
+      node->kind = NodeKind::Integer;
+      node->integer = node->value.data.integer;
+    } else if (val.type->kind == TypeKind::Float) {
+      node->kind = NodeKind::Float;
+      node->_float = node->value.data._float;
+    }
   }
 }
