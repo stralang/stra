@@ -3,6 +3,7 @@
 #include "../allocator.hpp"
 #include "../ast.hpp"
 #include "../containers.hpp"
+#include "../environment.hpp"
 #include "../symbol.hpp"
 #include "abi/general.hpp"
 #include "llvm-c/Target.h"
@@ -37,7 +38,7 @@ struct CodeGenContext {
   LLVMTargetDataRef target_data;
   char *data_layout_str;
 
-  void init();
+  void init(Environment *environment);
   void deinit();
 };
 

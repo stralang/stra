@@ -2,6 +2,7 @@
 
 #include "../ast.hpp"
 #include "../containers.hpp"
+#include "../environment.hpp"
 #include "../symbol.hpp"
 #include "../types.hpp"
 
@@ -11,6 +12,8 @@ struct Evaluator {
 
   TypeCache *type_cache;
   HashMap<Node *, Type *> type_mapping;
+
+  Environment *environment;
 
   // VM
   ArrayList<Value *> stack;

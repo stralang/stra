@@ -1,6 +1,7 @@
 #include "allocator.hpp"
 #include "codegen/codegen.hpp"
 #include "containers.hpp"
+#include "environment.hpp"
 #include "evaluator/evaluator.hpp"
 #include "parser.hpp"
 #include "print.hpp"
@@ -296,6 +297,11 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
+  // Setup CodeGen Context, and Environment
+  Environment environment;
+  CodeGenContext codegen_ctx;
+  codegen_ctx.init(&environment);
+
   // Evaluate
   SourceFile *root_file = files.data.ptr;
   TypeCache type_cache;
@@ -303,6 +309,7 @@ int main(int argc, const char **argv) {
       .ast = root_file->ast,
       .symbol = root_file->symbol,
       .type_cache = &type_cache,
+      .environment = &environment,
       .error_func = &error_handler,
       .warning_func = &warning_handler,
       .allocator = &global_allocator,
@@ -331,9 +338,6 @@ int main(int argc, const char **argv) {
   }
 
   // Code Gen
-  CodeGenContext codegen_ctx;
-  codegen_ctx.init();
-
   ArrayList<String> outputs;
   outputs.init(&global_allocator, 8);
 

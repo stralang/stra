@@ -1,6 +1,7 @@
 #include "codegen.hpp"
 #include "../ast.hpp"
 #include "../containers.hpp"
+#include "../environment.hpp"
 #include "../operator.hpp"
 #include "../print.hpp"
 #include "../symbol.hpp"
@@ -874,7 +875,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->fn_abi_cache.deinit();
 }
 
-void CodeGenContext::init() {
+void CodeGenContext::init(Environment *env) {
   // Initialize
   LLVMInitializeAllTargetInfos();
   LLVMInitializeAllTargets();
@@ -901,6 +902,12 @@ void CodeGenContext::init() {
   // Context
   this->ctx = LLVMContextCreate();
   this->abi = ABI::SystemV_Amd64;
+
+  // Setup environment
+  env->target = decodeTargetTriple(this->target_triple);
+  env->endianness = LLVMByteOrder(this->target_data) == LLVMLittleEndian
+                        ? Endian::Little
+                        : Endian::Big;
 }
 
 void CodeGenContext::deinit() {
