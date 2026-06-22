@@ -27,5 +27,3 @@ struct Evaluator {
 
   void eval();
 };
-
-Value execute(Evaluator *evaluator, Node *node, Symbol *scope);

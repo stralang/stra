@@ -1,5 +1,6 @@
 #include "evaluator.hpp"
 #include "../ast.hpp"
+#include "../comptime/comptime.hpp"
 #include "../operator.hpp"
 #include "../print.hpp"
 #include "../symbol.hpp"

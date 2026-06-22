@@ -1,3 +1,4 @@
+#include "../comptime/comptime.hpp"
 #include "../print.hpp"
 #include "define.hpp"
 
