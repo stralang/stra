@@ -24,7 +24,8 @@ LLVMValueRef buildAtomicLoad(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   // Result
   LLVMTypeRef result_type = typeToLLVM(codegen, arg_types[0]->child);
-  LLVMValueRef out = LLVMBuildAlloca(builder, result_type, "atomic_result");
+  LLVMValueRef out =
+      BuildAlloca(codegen, builder, result_type, "atomic_result");
 
   // Create Switch
   LLVMBasicBlockRef merge_block =
@@ -135,7 +136,8 @@ LLVMValueRef buildAtomicCompareExchange(CodeGenModule *codegen,
 
   LLVMTypeRef result_type =
       LLVMStructTypeInContext(codegen->ctx, result_elem_types, 2, false);
-  LLVMValueRef out = LLVMBuildAlloca(builder, result_type, "atomic_result");
+  LLVMValueRef out =
+      BuildAlloca(codegen, builder, result_type, "atomic_result");
 
   // Create Switch
   LLVMBasicBlockRef merge_block =

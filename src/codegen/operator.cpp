@@ -203,7 +203,7 @@ LLVMValueRef addrCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
       new_slice = LLVMBuildInsertValue(builder, new_slice, lhs_ptr, 0, "");
 
       LLVMValueRef out_slice =
-          LLVMBuildAlloca(builder, LLVMTypeOf(new_slice), "");
+          BuildAlloca(codegen, builder, LLVMTypeOf(new_slice), "");
       LLVMBuildStore(builder, new_slice, out_slice);
       return out_slice;
     }

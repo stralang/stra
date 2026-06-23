@@ -8,8 +8,12 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope, LLVMTypeRef fn_type, LLVMValueRef func) {
   if (!node->function.undefined &&
       node->location.file.compare(codegen->source_path)) {
+    LLVMBasicBlockRef prev_define = codegen->define_block;
+    codegen->define_block =
+        LLVMAppendBasicBlockInContext(codegen->ctx, func, "defines");
     LLVMBasicBlockRef entry =
         LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
+
     LLVMBuilderRef body_builder = LLVMCreateBuilderInContext(codegen->ctx);
     LLVMPositionBuilderAtEnd(body_builder, entry);
 
@@ -41,7 +45,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       name[key->field.name.len] = 0;
 
       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
-      LLVMValueRef alloca = LLVMBuildAlloca(body_builder, param_ty, name);
+      LLVMValueRef alloca = BuildAlloca(codegen, body_builder, param_ty, name);
       ABIArg abi_arg = abi_cache->args.ptr[i];
       codegen->node_to_value.insert(key, alloca);
 
@@ -79,6 +83,11 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
       LLVMBuildRetVoid(body_builder);
     }
+
+    // Finish define block
+    LLVMPositionBuilderAtEnd(body_builder, codegen->define_block);
+    LLVMBuildBr(body_builder, entry);
+    codegen->define_block = prev_define;
 
     LLVMDisposeBuilder(body_builder);
   }
@@ -156,7 +165,8 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   LLVMValueRef ret_as_arg = nullptr;
   if (abi_cache->return_arg.kind == ABIArgKind::Indirect) {
     // Allocate return
-    ret_as_arg = LLVMBuildAlloca(builder, abi_cache->return_arg.type, "return");
+    ret_as_arg =
+        BuildAlloca(codegen, builder, abi_cache->return_arg.type, "return");
     args.push(ret_as_arg);
   }
 
@@ -181,7 +191,7 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       continue;
     }
 
-    LLVMValueRef alloca = LLVMBuildAlloca(builder, abi_arg.type, "");
+    LLVMValueRef alloca = BuildAlloca(codegen, builder, abi_arg.type, "");
     LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
     args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
   }
@@ -207,7 +217,7 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     ret = LLVMBuildBitCast(builder, ret_as_arg, ret_ty, "");
   } else {
     LLVMValueRef ret_alloca =
-        LLVMBuildAlloca(builder, abi_cache->return_arg.type, "");
+        BuildAlloca(codegen, builder, abi_cache->return_arg.type, "");
     LLVMBuildStore(builder, ret, ret_alloca);
     ret = ret_alloca;
   }

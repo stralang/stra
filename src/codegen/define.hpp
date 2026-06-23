@@ -1,6 +1,8 @@
 #pragma once
 
 #include "codegen.hpp"
+#include "llvm-c/Types.h"
+#include <llvm-c/Core.h>
 
 // Base
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
@@ -33,3 +35,14 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
                             Type *callee_type, Slice<LLVMValueRef> args);
+
+inline LLVMValueRef BuildAlloca(CodeGenModule *codegen, LLVMBuilderRef builder,
+                                LLVMTypeRef ty, const char *name) {
+  LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
+  LLVMPositionBuilderAtEnd(builder, codegen->define_block);
+
+  LLVMValueRef value = LLVMBuildAlloca(builder, ty, name);
+
+  LLVMPositionBuilderAtEnd(builder, insert_block);
+  return value;
+}

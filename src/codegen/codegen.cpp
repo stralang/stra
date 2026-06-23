@@ -296,7 +296,7 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     new_slice = LLVMBuildInsertValue(builder, new_slice, new_length, 1, "");
 
     LLVMValueRef out_slice =
-        LLVMBuildAlloca(builder, LLVMTypeOf(new_slice), "");
+        BuildAlloca(codegen, builder, LLVMTypeOf(new_slice), "");
     LLVMBuildStore(builder, new_slice, out_slice);
     return out_slice;
   }
@@ -420,7 +420,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     } else if (scope->location_aware) {
       // Local Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
-      LLVMValueRef alloca = LLVMBuildAlloca(builder, type, "");
+      LLVMValueRef alloca = BuildAlloca(codegen, builder, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, alloca);
 
@@ -659,7 +659,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef parent_function =
         codegen->function_stack[codegen->function_stack_len - 1].def;
 
-    // Blocks
+    // Block
     LLVMBasicBlockRef condition_block = LLVMAppendBasicBlockInContext(
         codegen->ctx, parent_function, "for_condition");
     LLVMBasicBlockRef do_block =
