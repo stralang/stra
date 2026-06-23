@@ -91,7 +91,7 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
   inc_node->_operator.rhs = one_node;
 
   Node *assign_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
-  assign_node->kind = NodeKind::Operator;
+  assign_node->kind = NodeKind::Assignment;
   assign_node->_operator.opcode = Operator::Assign;
   assign_node->_operator.lhs = var_name_node;
   assign_node->_operator.rhs = inc_node;
