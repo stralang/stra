@@ -113,8 +113,10 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   Symbol *func_symbol = node->call.callee->value.type->function.scope;
 
   // Check Builtin
-  if (func_symbol->parent->node->kind == NodeKind::Field) {
-    Node *attributes = func_symbol->parent->node->field.attributes;
+  Node *parent_node = func_symbol->parent->node;
+  if (parent_node->kind == NodeKind::Field &&
+      parent_node->field.attributes != nullptr) {
+    Node *attributes = parent_node->field.attributes;
     for (size_t i = 0; i < attributes->children.length; i++) {
       if (!attributes->children.data.ptr[i]->member.name.compare("builtin")) {
         continue;
