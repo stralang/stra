@@ -100,12 +100,16 @@ struct Type {
       return this->_float.bits;
     }
     case TypeKind::Pointer: {
-      return this->child->sizeBits(native_size);
+      return native_size;
     }
     case TypeKind::Slice: {
-      size_t elem_size = this->slice.type->sizeBits(native_size);
-      return this->slice.length > 0 ? (elem_size * this->slice.length)
-                                    : (elem_size + native_size);
+      if (this->slice.length > 0) {
+        size_t elem_size = this->slice.type->sizeBits(native_size);
+        return elem_size * this->slice.length; // Array
+      } else if (this->slice.length == 0) {
+        return native_size * 2; // Slice
+      }
+      return native_size; // Pointer Slice
     }
     case TypeKind::SIMD: {
       return this->slice.type->sizeBits(native_size) * this->slice.length;
@@ -124,13 +128,13 @@ struct Type {
             this->_struct.fields.data.ptr[i]->sizeBits(native_size);
         size_t elem_align =
             this->_struct.fields.data.ptr[i]->alignBits(native_size);
-        size_t padding = elem_align - (elem_align - (total_size % elem_align));
+        size_t padding = -total_size % elem_align;
 
         total_size += padding + elem_size;
         max_align = std::max(max_align, elem_align);
       }
 
-      return total_size + (max_align - max_align - (total_size % max_align));
+      return total_size + (-total_size % max_align);
     }
     case TypeKind::Enum: {
       return this->_enum.repr_type->sizeBits(native_size);
@@ -169,7 +173,10 @@ struct Type {
       return native_size;
     }
     case TypeKind::Slice: {
-      return this->slice.type->alignBits(native_size);
+      if (this->slice.length > 0) {
+        return this->slice.type->alignBits(native_size);
+      }
+      return native_size;
     }
     case TypeKind::SIMD: {
       return this->slice.type->alignBits(native_size) * this->slice.length;
