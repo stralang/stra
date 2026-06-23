@@ -406,9 +406,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       // Type
       Type *real_type = node->value.data.type_value;
       if (real_type->kind == TypeKind::Struct) {
-        char *c_name = (char *)malloc(sizeof(char) * name.len + 1);
-        memcpy(c_name, (const char *)name.ptr, name.len);
-        c_name[name.len] = 0;
+        char *c_name = (char *)malloc(sizeof(char) * name.len + 8);
+        memcpy(c_name, "struct_", 7);
+        memcpy(c_name + 7, (const char *)name.ptr, name.len);
+        c_name[name.len + 7] = 0;
 
         LLVMTypeRef type = typeToLLVM(codegen, real_type, c_name);
         free(c_name);
