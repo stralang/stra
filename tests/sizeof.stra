@@ -1,0 +1,12 @@
+Object :: struct {
+  a: i8,
+  b: i32,
+  c: i16,
+}
+
+@(builtin) sizeof :: fn(t: typeid) usize ---;
+
+main :: fn() i32 {
+  size: usize = sizeof(Object);
+  return !(size == 12) as i32;
+}

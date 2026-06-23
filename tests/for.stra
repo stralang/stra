@@ -1,0 +1,14 @@
+main :: fn() i32 {
+  value: i32 = 0;
+  min: i32 = 0;
+  max: i32 = 32;
+  for i in min..<max {
+    value += 1;
+  }
+
+  for i in min..=max {
+    value += 1;
+  }
+
+  return !(value == 65) as i32;
+}

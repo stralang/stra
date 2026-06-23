@@ -1,0 +1,5 @@
+main :: fn() i32 {
+  array: [4]i32 = [4]i32 {1, 2, 3, 4};
+  slice: []i32 = array as []i32;
+  return !(slice[2] == 3) as i32;
+}

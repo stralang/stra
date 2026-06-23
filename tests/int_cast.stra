@@ -1,0 +1,5 @@
+main :: fn() i32 {
+  a: usize = 10;
+  b: i32 = a as i32;
+  return !(b == 10) as i32;
+}

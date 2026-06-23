@@ -1,0 +1,5 @@
+main :: fn() i32 {
+  a: f32 = 12.34;
+  b: i32 = a as i32;
+  return !(b == 12) as i32;
+}

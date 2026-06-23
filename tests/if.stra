@@ -1,0 +1,16 @@
+one: i32 = 1;
+two: i32 = 2;
+three: i32 = 3;
+
+main :: fn() i32 {
+  output: i32 = 12;
+  if output == 12 {
+    output = one;
+  } else if output == 10 {
+    output = two;
+  } else {
+    output = three;
+  }
+
+  return !(output == 1) as i32;
+}

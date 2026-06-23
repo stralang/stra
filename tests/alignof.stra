@@ -1,0 +1,12 @@
+Object :: struct {
+  a: i8,
+  b: i32,
+  c: i16,
+}
+
+@(builtin) alignof :: fn(t: typeid) usize ---;
+
+main :: fn() i32 {
+  align: usize = alignof(Object);
+  return !(align == 4) as i32;
+}
