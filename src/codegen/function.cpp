@@ -89,6 +89,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(body_builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
+      injectDefer(codegen, builder, fn_scope, false);
       LLVMBuildRetVoid(body_builder);
     }
 

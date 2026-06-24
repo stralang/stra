@@ -36,6 +36,10 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
                             Type *callee_type, Slice<LLVMValueRef> args);
 
+// Helpers
+void injectDefer(CodeGenModule *codegen, LLVMBuilderRef builder, Symbol *scope,
+                 bool is_loop);
+
 inline LLVMValueRef BuildAlloca(CodeGenModule *codegen, LLVMBuilderRef builder,
                                 LLVMTypeRef ty, const char *name) {
   LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);

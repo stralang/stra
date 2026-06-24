@@ -546,15 +546,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return agg;
   }
   case NodeKind::Return: {
-    size_t defer_boundary =
-        codegen->function_defer_boundary[codegen->function_stack_len];
-    if (codegen->defer_stack_len - defer_boundary > 0) {
-      size_t i = codegen->defer_stack_len;
-      while (i > defer_boundary) {
-        i -= 1;
-        gen(codegen, builder, codegen->defer_stack[i], scope);
-      }
-    }
+    injectDefer(codegen, builder, scope, false);
 
     if (node->child == nullptr) {
       LLVMBuildRetVoid(builder);
@@ -611,16 +603,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-      size_t defer_boundary =
-          codegen->function_defer_boundary[codegen->function_stack_len];
-      if (codegen->defer_stack_len - defer_boundary > 0) {
-        size_t i = codegen->defer_stack_len;
-        while (i > defer_boundary) {
-          i -= 1;
-          gen(codegen, builder, codegen->defer_stack[i], if_scope);
-        }
-      }
-
+      injectDefer(codegen, builder, if_scope, false);
       LLVMBuildBr(builder, merge_block);
     }
     codegen->defer_stack_len = old_defer_len;
@@ -637,16 +620,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       insert_block = LLVMGetInsertBlock(builder);
       if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-        size_t defer_boundary =
-            codegen->function_defer_boundary[codegen->function_stack_len];
-        if (codegen->defer_stack_len - defer_boundary > 0) {
-          size_t i = codegen->defer_stack_len;
-          while (i > defer_boundary) {
-            i -= 1;
-            gen(codegen, builder, codegen->defer_stack[i], else_scope);
-          }
-        }
-
+        injectDefer(codegen, builder, scope, false);
         LLVMBuildBr(builder, insert_block);
       }
 
@@ -693,16 +667,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-      size_t defer_boundary =
-          codegen->loop_defer_boundary[codegen->loop_stack_len];
-      if (codegen->defer_stack_len - defer_boundary > 0) {
-        size_t i = codegen->defer_stack_len;
-        while (i > defer_boundary) {
-          i -= 1;
-          gen(codegen, builder, codegen->defer_stack[i], for_scope);
-        }
-      }
-
+      injectDefer(codegen, builder, for_scope, true);
       LLVMBuildBr(builder, condition_block);
     }
 
@@ -741,16 +706,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
       if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-        size_t defer_boundary =
-            codegen->function_defer_boundary[codegen->function_stack_len];
-        if (codegen->defer_stack_len - defer_boundary > 0) {
-          size_t i = codegen->defer_stack_len;
-          while (i > defer_boundary) {
-            i -= 1;
-            gen(codegen, builder, codegen->defer_stack[i], case_scope);
-          }
-        }
-
+        injectDefer(codegen, builder, scope, false);
         LLVMBuildBr(builder, merge_block);
       }
 
@@ -769,15 +725,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Break:
   case NodeKind::Continue: {
-    size_t defer_boundary =
-        codegen->loop_defer_boundary[codegen->loop_stack_len];
-    if (codegen->defer_stack_len - defer_boundary > 0) {
-      size_t i = codegen->defer_stack_len;
-      while (i > defer_boundary) {
-        i -= 1;
-        gen(codegen, builder, codegen->defer_stack[i], scope);
-      }
-    }
+    injectDefer(codegen, builder, scope, true);
 
     // TODO: Named Loop
     LoopBlocks blocks = codegen->loop_stack[codegen->loop_stack_len - 1];
@@ -800,6 +748,25 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
 
   return nullptr;
+}
+
+void injectDefer(CodeGenModule *codegen, LLVMBuilderRef builder, Symbol *scope,
+                 bool is_loop) {
+  size_t defer_boundary = 0;
+  if (is_loop) {
+    defer_boundary = codegen->loop_defer_boundary[codegen->loop_stack_len - 1];
+  } else {
+    defer_boundary =
+        codegen->function_defer_boundary[codegen->function_stack_len - 1];
+  }
+
+  if (codegen->defer_stack_len - defer_boundary > 0) {
+    size_t i = codegen->defer_stack_len;
+    while (i > defer_boundary) {
+      i -= 1;
+      gen(codegen, builder, codegen->defer_stack[i], scope);
+    }
+  }
 }
 
 void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
