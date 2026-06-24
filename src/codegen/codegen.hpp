@@ -21,6 +21,8 @@ struct LoopBlocks {
 
 struct FuncStackNode {
   LLVMValueRef def;
+  bool is_ret_arg;
+  LLVMTypeRef ret_type;
   LLVMValueRef ret_ptr;
 };
 

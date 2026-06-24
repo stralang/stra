@@ -1,4 +1,5 @@
 #include "../print.hpp"
+#include "abi/general.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
 #include "llvm-c/Types.h"
@@ -23,11 +24,12 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     FnABICache *abi_cache = codegen->fn_abi_cache.get(fn_type);
 
     // Return as argument
+    bool is_ret_arg = false;
     LLVMValueRef return_ptr = nullptr;
-    LLVMTypeRef return_ty =
-        typeToLLVM(codegen, node->function.return_type->value.data.type_value);
+    LLVMTypeRef return_ty = abi_cache->return_arg.type;
 
     if (abi_cache->return_arg.kind == ABIArgKind::Indirect) {
+      is_ret_arg = true;
       return_ptr = LLVMGetParam(func, 0);
       if (abi_cache->return_arg.attribute != nullptr) {
         LLVMAddAttributeAtIndex(func, param_idx,
@@ -35,6 +37,9 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       param_idx += 1;
+    } else if (abi_cache->return_arg.kind != ABIArgKind::Ignore) {
+      return_ptr =
+          BuildAlloca(codegen, body_builder, return_ty, "return_staging");
     }
 
     // Prepare Parameters
@@ -70,7 +75,10 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Generate body
     codegen->function_stack[codegen->function_stack_len] = {
-        .def = func, .ret_ptr = return_ptr};
+        .def = func,
+        .is_ret_arg = is_ret_arg,
+        .ret_type = return_ty,
+        .ret_ptr = return_ptr};
     codegen->function_defer_boundary[codegen->function_stack_len] =
         codegen->defer_stack_len;
     codegen->function_stack_len += 1;

@@ -563,11 +563,14 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       FuncStackNode parent_func =
           codegen->function_stack[codegen->function_stack_len - 1];
-      if (parent_func.ret_ptr != nullptr) {
-        LLVMBuildStore(builder, value, parent_func.ret_ptr);
+      LLVMBuildStore(builder, value, parent_func.ret_ptr);
+
+      if (parent_func.is_ret_arg) {
         LLVMBuildRetVoid(builder);
       } else {
-        LLVMBuildRet(builder, value);
+        LLVMValueRef conv_value = LLVMBuildLoad2(builder, parent_func.ret_type,
+                                                 parent_func.ret_ptr, "");
+        LLVMBuildRet(builder, conv_value);
       }
     }
 
