@@ -912,7 +912,7 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     expectToken(TokenKind::BlockBegin);
 
     // Parse body
-    out->_for.body = parseStmtCompound(parser, scope);
+    out->_for.body = parseStmtCompound(parser, for_scope);
     break;
   }
   case TokenKind::Switch: {
