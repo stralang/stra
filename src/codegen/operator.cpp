@@ -374,16 +374,9 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
   if (node->_operator.opcode == Operator::MemberAccess) {
     // Get enum value
     Value *lhs_value = &node->_operator.lhs->value;
-    if (lhs_value->type->kind == TypeKind::Enum ||
-        (lhs_value->type->kind == TypeKind::TypeId &&
-         lhs_value->data.type_value->kind == TypeKind::Enum)) {
-      Type *real_ty = lhs_value->type;
-      if (lhs_value->type->kind == TypeKind::TypeId) {
-        real_ty = lhs_value->data.type_value;
-      }
-
+    if (node->value.type->kind == TypeKind::Enum) {
       int64_t value = node->value.data.integer;
-      Type *repr_ty = real_ty->_enum.repr_type;
+      Type *repr_ty = node->value.type->_enum.repr_type;
       return LLVMConstInt(typeToLLVM(codegen, repr_ty), value,
                           repr_ty->integer.is_signed);
     }

@@ -261,6 +261,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     for (size_t i = 0; i < node->_enum.members.length; i++) {
       Node *member = node->_enum.members.data.ptr[i];
       evaluate(evaluator, member, enum_scope);
+      member->value.type = enum_t;
 
       // Infer values
       if (member->value.has_data) {
