@@ -8,6 +8,31 @@
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope, LLVMTypeRef fn_type, LLVMValueRef func) {
+  FnABICache *abi_cache = codegen->fn_abi_cache.get(fn_type);
+
+  // Debug
+  LLVMMetadataRef prev_dbg_scope = codegen->dbg_scope;
+  {
+    LLVMMetadataRef dbg_fn_type = typeToLLVMDebug(codegen, node->value.type);
+    codegen->dbg_scope = LLVMDIBuilderCreateFunction(
+        codegen->dbg_builder, codegen->dbg_scope, "TODO", 4, "TODO", 4,
+        codegen->dbg_file, node->location.line, dbg_fn_type, false, true,
+        node->location.line, LLVMDIFlagZero, false);
+
+    size_t ret_as_arg =
+        abi_cache->return_arg.kind == ABIArgKind::Indirect ? 1 : 0;
+    for (size_t i = 0; i < node->function.parameters.length; i++) {
+      Node *key = node->function.parameters.data.ptr[i];
+
+      LLVMMetadataRef dbg_type = typeToLLVMDebug(codegen, key->value.type);
+      LLVMDIBuilderCreateParameterVariable(
+          codegen->dbg_builder, codegen->dbg_scope,
+          (const char *)key->field.name.ptr, key->field.name.len,
+          i + ret_as_arg, codegen->dbg_file, key->location.line, dbg_type, true,
+          LLVMDIFlagZero);
+    }
+  }
+
   if (!node->function.undefined &&
       node->location.file.compare(codegen->source_path)) {
     LLVMBasicBlockRef prev_define = codegen->define_block;
@@ -19,13 +44,8 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMBasicBlockRef prev_builder_insert_block = LLVMGetInsertBlock(builder);
     LLVMPositionBuilderAtEnd(builder, entry);
 
-    LLVMMetadataRef prev_dbg_scope = codegen->dbg_scope;
-    codegen->dbg_scope = LLVMGetSubprogram(func);
-
     // Prepare Arguments
     size_t param_idx = 0;
-
-    FnABICache *abi_cache = codegen->fn_abi_cache.get(fn_type);
 
     // Return as argument
     bool is_ret_arg = false;
@@ -100,10 +120,12 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, codegen->define_block);
     LLVMBuildBr(builder, entry);
     codegen->define_block = prev_define;
-    codegen->dbg_scope = prev_dbg_scope;
 
     LLVMPositionBuilderAtEnd(builder, prev_builder_insert_block);
   }
+
+  // Debug
+  codegen->dbg_scope = prev_dbg_scope;
 }
 
 LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,

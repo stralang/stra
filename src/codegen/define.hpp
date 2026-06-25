@@ -16,6 +16,9 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type,
                        const char *name = nullptr);
 LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value);
 
+LLVMMetadataRef typeToLLVMDebug(CodeGenModule *codegen, Type *type,
+                                const char *name = nullptr);
+
 // Operator
 LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
                              Node *node, Symbol *scope);

@@ -1,6 +1,9 @@
 #include "codegen.hpp"
 #include "define.hpp"
+#include "llvm-c/DebugInfo.h"
 #include "llvm-c/Types.h"
+#include <cstdlib>
+#include <cstring>
 #include <llvm-c/Core.h>
 
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
@@ -196,4 +199,164 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
   }
 
   return nullptr;
+}
+
+LLVMMetadataRef typeToLLVMDebug(CodeGenModule *codegen, Type *type,
+                                const char *name) {
+  LLVMMetadataRef out;
+  switch (type->kind) {
+  case TypeKind::Void: {
+    out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "void", 4, 0, 0,
+                                       LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Bool: {
+    out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "bool", 3, 1, 0x2,
+                                       LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Integer: {
+    const char *name;
+    if (type->integer.bits == -1) {
+      name = "native int";
+    } else {
+      name = "int";
+    }
+
+    LLVMDWARFTypeEncoding encoding = 0x5;
+    if (!type->integer.is_signed) {
+      encoding = 0x7;
+    }
+
+    size_t name_len = strlen(name);
+    out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, name, name_len,
+                                       type->integer.bits, encoding,
+                                       LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Float: {
+    out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "float", 5,
+                                       type->_float.bits, 0x4, LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Pointer: {
+    out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "pointer", 7,
+                                       codegen->pointer_size, 0x1,
+                                       LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Slice: {
+    if (type->slice.length > 0) {
+      size_t align = type->alignBits(codegen->pointer_size);
+      LLVMMetadataRef meta_ty = typeToLLVMDebug(codegen, type->slice.type);
+      out = LLVMDIBuilderCreateArrayType(
+          codegen->dbg_builder, type->slice.length, align, meta_ty, nullptr, 0);
+    } else if (type->slice.length == 0) {
+      LLVMMetadataRef elements[2];
+      elements[0] = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "ptr", 3,
+                                                 codegen->pointer_size, 0x1,
+                                                 LLVMDIFlagZero);
+      elements[1] = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "len", 3,
+                                                 codegen->pointer_size, 0x7,
+                                                 LLVMDIFlagZero);
+
+      out = LLVMDIBuilderCreateStructType(
+          codegen->dbg_builder, codegen->dbg_scope, "slice", 5,
+          codegen->dbg_file, 0, codegen->pointer_size * 2,
+          codegen->pointer_size, LLVMDIFlagZero, nullptr, elements, 2, 0,
+          nullptr, "", 0);
+    } else if (type->slice.length < 0) {
+      out = LLVMDIBuilderCreateBasicType(codegen->dbg_builder, "pointer slice",
+                                         13, codegen->pointer_size, 0x1,
+                                         LLVMDIFlagZero);
+    }
+    break;
+  }
+  case TypeKind::SIMD: {
+    size_t size = type->sizeBits(codegen->pointer_size);
+    size_t align = type->alignBits(codegen->pointer_size);
+    LLVMMetadataRef meta_ty = typeToLLVMDebug(codegen, type->slice.type);
+    out = LLVMDIBuilderCreateVectorType(codegen->dbg_builder, size, align,
+                                        meta_ty, nullptr, 0);
+    break;
+  }
+  case TypeKind::TypeId: {
+    break;
+  }
+  case TypeKind::Function: {
+    LLVMMetadataRef *parameters = (LLVMMetadataRef *)malloc(
+        sizeof(LLVMMetadataRef) * type->function.arguments.length);
+    for (size_t i = 0; i < type->function.arguments.length; i++) {
+      parameters[i] =
+          typeToLLVMDebug(codegen, type->function.arguments.data.ptr[i]);
+    }
+
+    out = LLVMDIBuilderCreateSubroutineType(
+        codegen->dbg_builder, codegen->dbg_file, parameters,
+        type->function.arguments.length, LLVMDIFlagZero);
+    break;
+  }
+  case TypeKind::Struct: {
+    Symbol *symbol = type->_struct.scope;
+    size_t size = type->sizeBits(codegen->pointer_size);
+    size_t align = type->alignBits(codegen->pointer_size);
+
+    LLVMMetadataRef *elements = (LLVMMetadataRef *)malloc(
+        sizeof(LLVMMetadataRef) * type->_struct.fields.length);
+    for (size_t i = 0; i < type->_struct.fields.length; i++) {
+      elements[i] = typeToLLVMDebug(codegen, type->_struct.fields.data.ptr[i]);
+    }
+
+    out = LLVMDIBuilderCreateStructType(
+        codegen->dbg_builder, codegen->dbg_scope, name, strlen(name),
+        codegen->dbg_file, symbol->node->location.line, size, align,
+        LLVMDIFlagZero, nullptr, elements, type->_struct.fields.length, 0,
+        nullptr, "", 0);
+    break;
+  }
+  case TypeKind::Enum: {
+    LLVMMetadataRef class_ty = typeToLLVMDebug(codegen, type->_enum.repr_type);
+
+    Symbol *symbol = type->_enum.scope;
+    size_t size = type->sizeBits(codegen->pointer_size);
+    size_t align = type->alignBits(codegen->pointer_size);
+
+    size_t element_count = symbol->node->_enum.members.length;
+    LLVMMetadataRef *elements =
+        (LLVMMetadataRef *)malloc(sizeof(LLVMMetadataRef) * element_count);
+    for (size_t i = 0; i < element_count; i++) {
+      Node *member = symbol->node->_enum.members.data.ptr[i];
+      elements[i] = LLVMDIBuilderCreateEnumerator(
+          codegen->dbg_builder, (const char *)member->member.name.ptr,
+          member->member.name.len, member->value.data.integer,
+          !type->_enum.repr_type->_enum.repr_type->integer.is_signed);
+    }
+
+    out = LLVMDIBuilderCreateEnumerationType(
+        codegen->dbg_builder, codegen->dbg_scope, name, strlen(name),
+        codegen->dbg_file, symbol->node->location.line, size, align, elements,
+        element_count, class_ty);
+    break;
+  }
+  case TypeKind::Union: {
+    Symbol *symbol = type->_union.scope;
+    size_t size = type->sizeBits(codegen->pointer_size);
+    size_t align = type->alignBits(codegen->pointer_size);
+
+    size_t element_count = type->_union.variants.length;
+    LLVMMetadataRef *elements =
+        (LLVMMetadataRef *)malloc(sizeof(LLVMMetadataRef) * element_count);
+    for (size_t i = 0; i < element_count; i++) {
+      elements[i] = typeToLLVMDebug(codegen, type->_union.variants.data.ptr[i]);
+    }
+
+    out = LLVMDIBuilderCreateUnionType(
+        codegen->dbg_builder, codegen->dbg_scope, name, strlen(name),
+        codegen->dbg_file, symbol->node->location.line, size, align,
+        LLVMDIFlagZero, elements, element_count, 0, "", 0);
+    break;
+  }
+  }
+
+  return out;
 }

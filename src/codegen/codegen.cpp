@@ -418,6 +418,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       // Build function and set name
       LLVMTypeRef type = typeToLLVM(codegen, node->field.initial->value.type);
       LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
+      // setDebugType(codegen, func, node->field.initial->value.type);
 
       LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
@@ -444,9 +445,30 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = BuildAlloca(codegen, builder, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
-      setDebugLocation(codegen, alloca, node->location);
       codegen->node_to_value.insert(node, alloca);
 
+      // Debug
+      {
+        size_t align = node->value.type->alignBits(codegen->pointer_size);
+        LLVMMetadataRef meta_ty = typeToLLVMDebug(codegen, node->value.type);
+        LLVMMetadataRef var_info = LLVMDIBuilderCreateAutoVariable(
+            codegen->dbg_builder, codegen->dbg_scope,
+            (const char *)node->field.name.ptr, node->field.name.len,
+            codegen->dbg_file, node->location.line, meta_ty, true,
+            LLVMDIFlagZero, align);
+
+        LLVMMetadataRef expr =
+            LLVMDIBuilderCreateExpression(codegen->dbg_builder, nullptr, 0);
+        LLVMMetadataRef dbg_loc = LLVMDIBuilderCreateDebugLocation(
+            codegen->ctx, node->location.line, node->location.column,
+            codegen->dbg_scope, nullptr);
+
+        LLVMDIBuilderInsertDeclareRecordAtEnd(codegen->dbg_builder, alloca,
+                                              var_info, expr, dbg_loc,
+                                              LLVMGetInsertBlock(builder));
+      }
+
+      // Initial
       LLVMValueRef value = LLVMConstNull(type);
       if (node->value.has_data) {
         value = valueToLLVM(codegen, &node->value);
@@ -464,6 +486,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMValueRef alloca = LLVMAddGlobal(codegen->mod, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, alloca);
+
+      setDebugLocation(codegen, alloca, node->location);
+      // setDebugType(codegen, alloca, node->value.type);
 
       if (!node->field.undefined &&
           node->location.file.compare(codegen->source_path)) {
@@ -818,6 +843,14 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->ctx = context->ctx;
   this->mod = LLVMModuleCreateWithNameInContext(name, this->ctx);
   this->builder = LLVMCreateBuilderInContext(this->ctx);
+
+  this->dbg_builder = LLVMCreateDIBuilder(this->mod);
+  this->dbg_file = LLVMDIBuilderCreateFile(this->dbg_builder, name,
+                                           this->source_path.len, "", 0);
+  this->dbg_scope = LLVMDIBuilderCreateCompileUnit(
+      this->dbg_builder, LLVMDWARFSourceLanguageC, this->dbg_file, "stra", 4,
+      opt != Optimization::None, "", 0, 0, "", 0, LLVMDWARFEmissionFull, 0,
+      false, true, "", 0, "", 0);
 
   // Setup target info
   LLVMSetTarget(this->mod, context->target_triple);

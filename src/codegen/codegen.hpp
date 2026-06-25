@@ -55,7 +55,10 @@ struct CodeGenModule {
   HashMap<Type *, LLVMTypeRef> type_to_llvm;
   HashMap<LLVMTypeRef, FnABICache> fn_abi_cache;
   LLVMBasicBlockRef define_block = nullptr;
+
+  LLVMMetadataRef dbg_file;
   LLVMMetadataRef dbg_scope;
+  LLVMDIBuilderRef dbg_builder;
 
   // Stacks
   Node *defer_stack[64];
