@@ -787,6 +787,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   // Setup Module
   this->ctx = context->ctx;
   this->mod = LLVMModuleCreateWithNameInContext(name, this->ctx);
+  this->builder = LLVMCreateBuilderInContext(this->ctx);
 
   // Setup target info
   LLVMSetTarget(this->mod, context->target_triple);
@@ -799,7 +800,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->target_abi = ABIcreateTarget(context->abi);
 
   // Generate
-  gen(this, nullptr, this->ast, this->symbol);
+  gen(this, this->builder, this->ast, this->symbol);
 
   // Optimize
   if (opt != Optimization::None) {
@@ -837,6 +838,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
 
   // Cleanup
   LLVMDisposeMessage(error);
+  LLVMDisposeBuilder(this->builder);
 
   this->type_to_llvm.deinit();
   this->node_to_value.deinit();

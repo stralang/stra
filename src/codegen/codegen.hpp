@@ -71,8 +71,10 @@ struct CodeGenModule {
   // LLVM Context
   TargetABI target_abi;
   size_t pointer_size;
+
   LLVMContextRef ctx;
   LLVMModuleRef mod;
+  LLVMBuilderRef builder;
 
   void generate(CodeGenContext *context, bool emit_ir, bool emit_asm,
                 Optimization opt);

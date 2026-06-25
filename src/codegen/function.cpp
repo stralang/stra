@@ -15,8 +15,8 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMBasicBlockRef entry =
         LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
 
-    LLVMBuilderRef body_builder = LLVMCreateBuilderInContext(codegen->ctx);
-    LLVMPositionBuilderAtEnd(body_builder, entry);
+    LLVMBasicBlockRef prev_builder_insert_block = LLVMGetInsertBlock(builder);
+    LLVMPositionBuilderAtEnd(builder, entry);
 
     // Prepare Arguments
     size_t param_idx = 0;
@@ -38,8 +38,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       param_idx += 1;
     } else if (abi_cache->return_arg.kind != ABIArgKind::Ignore) {
-      return_ptr =
-          BuildAlloca(codegen, body_builder, return_ty, "return_staging");
+      return_ptr = BuildAlloca(codegen, builder, return_ty, "return_staging");
     }
 
     // Prepare Parameters
@@ -50,20 +49,20 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       name[key->field.name.len] = 0;
 
       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
-      LLVMValueRef alloca = BuildAlloca(codegen, body_builder, param_ty, name);
+      LLVMValueRef alloca = BuildAlloca(codegen, builder, param_ty, name);
       ABIArg abi_arg = abi_cache->args.ptr[i];
       codegen->node_to_value.insert(key, alloca);
 
       if (abi_arg.kind == ABIArgKind::Ignore) {
         continue;
       } else if (abi_arg.kind == ABIArgKind::Direct) {
-        LLVMBuildStore(body_builder, LLVMGetParam(func, param_idx), alloca);
+        LLVMBuildStore(builder, LLVMGetParam(func, param_idx), alloca);
       } else if (abi_arg.kind == ABIArgKind::Indirect) {
         // Dereference
         LLVMValueRef val = LLVMGetParam(func, param_idx);
         LLVMTypeRef ptr_ty = LLVMPointerType(abi_arg.type, 0);
-        val = LLVMBuildLoad2(body_builder, ptr_ty, val, "");
-        LLVMBuildStore(body_builder, val, alloca);
+        val = LLVMBuildLoad2(builder, ptr_ty, val, "");
+        LLVMBuildStore(builder, val, alloca);
       }
 
       if (abi_arg.attribute != nullptr) {
@@ -84,21 +83,21 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     codegen->function_stack_len += 1;
 
     Symbol *fn_scope = scope->findSymbolByNode(node);
-    gen(codegen, body_builder, node->function.body, fn_scope);
+    gen(codegen, builder, node->function.body, fn_scope);
     codegen->function_stack_len -= 1;
 
-    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(body_builder);
+    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
       injectDefer(codegen, builder, fn_scope, false);
-      LLVMBuildRetVoid(body_builder);
+      LLVMBuildRetVoid(builder);
     }
 
     // Finish define block
-    LLVMPositionBuilderAtEnd(body_builder, codegen->define_block);
-    LLVMBuildBr(body_builder, entry);
+    LLVMPositionBuilderAtEnd(builder, codegen->define_block);
+    LLVMBuildBr(builder, entry);
     codegen->define_block = prev_define;
 
-    LLVMDisposeBuilder(body_builder);
+    LLVMPositionBuilderAtEnd(builder, prev_builder_insert_block);
   }
 }
 
