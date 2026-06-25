@@ -1,5 +1,6 @@
 #include "codegen.hpp"
 #include "define.hpp"
+#include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
@@ -185,6 +186,12 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
     }
 
     return LLVMConstArray(elem_type, values, value->data.text.len);
+  }
+  case TypeKind::Enum: {
+    Type *repr_type = value->type->_enum.repr_type;
+    LLVMTypeRef type = typeToLLVM(codegen, repr_type);
+    return LLVMConstInt(type, value->data.integer,
+                        repr_type->integer.is_signed);
   }
   }
 

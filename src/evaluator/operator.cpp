@@ -339,6 +339,8 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
       }
 
       allowed &= compareTypes(src_type->slice.type, dst_type->slice.type);
+    } else if (src_type->kind == TypeKind::Enum) {
+      allowed = dst_type->kind == TypeKind::Integer;
     }
 
     expect(allowed, rhs->location,

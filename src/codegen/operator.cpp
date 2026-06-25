@@ -358,6 +358,9 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
   } else if (src_type->kind == TypeKind::Pointer) {
     // Pointer Cast
     return LLVMBuildPointerCast(builder, lhs_value, dst_llvm_type, "");
+  } else if (src_type->kind == TypeKind::Enum) {
+    return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
+                             src_type->_enum.repr_type->integer.is_signed, "");
   }
 
   std::cerr << "Unhandled `as` cast in codegen\n";
