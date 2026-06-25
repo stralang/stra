@@ -44,7 +44,7 @@ Precedence operatorPrecedence(Operator opcode) {
   case Operator::GreaterThen:
   case Operator::LessThenOrEqualTo:
   case Operator::GreaterThenOrEqualTo: {
-    return Precedence::Equality_2;
+    return Precedence::Relational;
   }
   case Operator::MemberAccess: {
     return Precedence::MemberAccess;

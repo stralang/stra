@@ -348,7 +348,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
 
     expectEOF(parser->nextToken());
     out->unary_operator.child =
-        parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
+        parseExpr(parser, Precedence::Unary, scope, allow_init);
     expect(out->unary_operator.child != nullptr, out->location,
            "Failed to parse child expression");
     break;
