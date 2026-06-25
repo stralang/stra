@@ -2,6 +2,7 @@
 #include "abi/general.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
+#include "llvm-c/DebugInfo.h"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
@@ -17,6 +18,9 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     LLVMBasicBlockRef prev_builder_insert_block = LLVMGetInsertBlock(builder);
     LLVMPositionBuilderAtEnd(builder, entry);
+
+    LLVMMetadataRef prev_dbg_scope = codegen->dbg_scope;
+    codegen->dbg_scope = LLVMGetSubprogram(func);
 
     // Prepare Arguments
     size_t param_idx = 0;
@@ -96,6 +100,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMPositionBuilderAtEnd(builder, codegen->define_block);
     LLVMBuildBr(builder, entry);
     codegen->define_block = prev_define;
+    codegen->dbg_scope = prev_dbg_scope;
 
     LLVMPositionBuilderAtEnd(builder, prev_builder_insert_block);
   }

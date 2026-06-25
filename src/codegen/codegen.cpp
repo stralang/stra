@@ -10,6 +10,7 @@
 #include "abi/general.hpp"
 #include "define.hpp"
 #include "llvm-c/Core.h"
+#include "llvm-c/DebugInfo.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Transforms/PassBuilder.h"
@@ -139,6 +140,15 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
 LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                   Symbol *scope) {
+  // Debug
+  LLVMMetadataRef prev_dbg_loc = LLVMGetCurrentDebugLocation2(builder);
+  {
+    LLVMMetadataRef dbg_loc = LLVMDIBuilderCreateDebugLocation(
+        codegen->ctx, node->location.line, node->location.column,
+        codegen->dbg_scope, nullptr);
+    LLVMSetCurrentDebugLocation2(builder, dbg_loc);
+  }
+
   switch (node->kind) {
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
@@ -305,11 +315,23 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   }
 
+  // Debug
+  LLVMSetCurrentDebugLocation2(builder, prev_dbg_loc);
+
   return nullptr;
 }
 
 LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Symbol *scope) {
+  // Debug
+  LLVMMetadataRef prev_dbg_loc = LLVMGetCurrentDebugLocation2(builder);
+  {
+    LLVMMetadataRef dbg_loc = LLVMDIBuilderCreateDebugLocation(
+        codegen->ctx, node->location.line, node->location.column,
+        codegen->dbg_scope, nullptr);
+    LLVMSetCurrentDebugLocation2(builder, dbg_loc);
+  }
+
   switch (node->kind) {
   case NodeKind::Compound: {
     Symbol *compound_scope = scope->findSymbolByNode(node);
@@ -422,6 +444,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
       LLVMValueRef alloca = BuildAlloca(codegen, builder, type, "");
       LLVMSetValueName2(alloca, (const char *)name.ptr, name.len);
+      setDebugLocation(codegen, alloca, node->location);
       codegen->node_to_value.insert(node, alloca);
 
       LLVMValueRef value = LLVMConstNull(type);
@@ -431,7 +454,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
         value = gen(codegen, builder, node->field.initial, field_symbol);
       }
 
-      LLVMBuildStore(builder, value, alloca);
+      LLVMValueRef store_inst = LLVMBuildStore(builder, value, alloca);
+      if (node->field.initial != nullptr) {
+        setDebugLocation(codegen, store_inst, node->field.initial->location);
+      }
     } else {
       // Global Variable
       LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
@@ -541,6 +567,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       agg = LLVMBuildInsertValue(builder, agg, value, idx, "");
+      setDebugLocation(codegen, agg, setter->location);
     }
 
     return agg;
@@ -548,8 +575,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Return: {
     injectDefer(codegen, builder, scope, false);
 
+    LLVMValueRef ret;
     if (node->child == nullptr) {
-      LLVMBuildRetVoid(builder);
+      ret = LLVMBuildRetVoid(builder);
     } else {
       LLVMValueRef value = gen(codegen, builder, node->child, scope);
 
@@ -558,14 +586,13 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       LLVMBuildStore(builder, value, parent_func.ret_ptr);
 
       if (parent_func.is_ret_arg) {
-        LLVMBuildRetVoid(builder);
+        ret = LLVMBuildRetVoid(builder);
       } else {
         LLVMValueRef conv_value = LLVMBuildLoad2(builder, parent_func.ret_type,
                                                  parent_func.ret_ptr, "");
-        LLVMBuildRet(builder, conv_value);
+        ret = LLVMBuildRet(builder, conv_value);
       }
     }
-
     break;
   }
   case NodeKind::If: {
@@ -733,7 +760,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (node->kind == NodeKind::Break) {
       block = blocks.merge;
     }
-    LLVMBuildBr(builder, block);
+    LLVMValueRef inst = LLVMBuildBr(builder, block);
     break;
   }
   case NodeKind::Defer: {
@@ -746,6 +773,9 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     break;
   }
   }
+
+  // Debug
+  LLVMSetCurrentDebugLocation2(builder, prev_dbg_loc);
 
   return nullptr;
 }

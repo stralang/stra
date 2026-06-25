@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codegen.hpp"
+#include "llvm-c/DebugInfo.h"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
@@ -49,4 +50,12 @@ inline LLVMValueRef BuildAlloca(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   LLVMPositionBuilderAtEnd(builder, insert_block);
   return value;
+}
+
+inline void setDebugLocation(CodeGenModule *codegen, LLVMValueRef inst,
+                             SrcLoc location) {
+  LLVMMetadataRef metadata = LLVMDIBuilderCreateDebugLocation(
+      codegen->ctx, location.line, location.column, codegen->dbg_scope,
+      nullptr);
+  LLVMInstructionSetDebugLoc(inst, metadata);
 }
