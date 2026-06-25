@@ -257,8 +257,28 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
 
     // Evaluate members
+    uint64_t next_value = 0;
     for (size_t i = 0; i < node->_enum.members.length; i++) {
-      evaluate(evaluator, node->_enum.members.data.ptr[i], enum_scope);
+      Node *member = node->_enum.members.data.ptr[i];
+      evaluate(evaluator, member, enum_scope);
+
+      // Infer values
+      if (member->value.has_data) {
+        next_value = member->value.data.integer;
+      } else {
+        member->value.has_data = true;
+        member->value.data.integer = next_value;
+      }
+      next_value += 1;
+
+      // Duplication check
+      for (size_t k = 0; k < i; k++) {
+        Node *dup_mem = node->_enum.members.data.ptr[k];
+        if (member->value.data.integer == dup_mem->value.data.integer) {
+          warn(node->location, "Duplicate enumerator constant `"
+                                   << member->value.data.integer << "`");
+        }
+      }
     }
 
     // Evaluate children
