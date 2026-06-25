@@ -12,6 +12,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
   // Debug
   LLVMMetadataRef prev_dbg_scope = codegen->dbg_scope;
+  LLVMMetadataRef prev_dbg_loc = LLVMGetCurrentDebugLocation2(builder);
   {
     LLVMMetadataRef dbg_fn_type = typeToLLVMDebug(codegen, node->value.type);
     codegen->dbg_scope = LLVMDIBuilderCreateFunction(
@@ -31,6 +32,11 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
           i + ret_as_arg, codegen->dbg_file, key->location.line, dbg_type, true,
           LLVMDIFlagZero);
     }
+
+    LLVMMetadataRef dbg_loc = LLVMDIBuilderCreateDebugLocation(
+        codegen->ctx, node->location.line, node->location.column,
+        codegen->dbg_scope, nullptr);
+    LLVMSetCurrentDebugLocation2(builder, dbg_loc);
   }
 
   if (!node->function.undefined &&
@@ -118,7 +124,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Finish define block
     LLVMPositionBuilderAtEnd(builder, codegen->define_block);
-    LLVMBuildBr(builder, entry);
+    LLVMValueRef entry_br = LLVMBuildBr(builder, entry);
     codegen->define_block = prev_define;
 
     LLVMPositionBuilderAtEnd(builder, prev_builder_insert_block);
@@ -126,6 +132,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
   // Debug
   codegen->dbg_scope = prev_dbg_scope;
+  LLVMSetCurrentDebugLocation2(builder, prev_dbg_loc);
 }
 
 LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,

@@ -852,6 +852,13 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
       opt != Optimization::None, "", 0, 0, "", 0, LLVMDWARFEmissionFull, 0,
       false, true, "", 0, "", 0);
 
+  // Debug Version
+  LLVMValueRef dbg_version =
+      LLVMConstInt(LLVMInt32TypeInContext(this->ctx), 3, false);
+  LLVMMetadataRef dbg_version_meta = LLVMValueAsMetadata(dbg_version);
+  LLVMAddModuleFlag(this->mod, LLVMModuleFlagBehaviorWarning,
+                    "Debug Info Version", 18, dbg_version_meta);
+
   // Setup target info
   LLVMSetTarget(this->mod, context->target_triple);
   LLVMSetDataLayout(this->mod, context->data_layout_str);
@@ -900,6 +907,9 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   }
 
   // Cleanup
+  LLVMDIBuilderFinalize(this->dbg_builder);
+  LLVMDisposeDIBuilder(this->dbg_builder);
+
   LLVMDisposeMessage(error);
   LLVMDisposeBuilder(this->builder);
 
