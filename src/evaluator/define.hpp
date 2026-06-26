@@ -36,6 +36,9 @@ bool compareTypes(Type *lhs, Type *rhs);
 /// Returns `dst` if it can convert, otherwise `src`
 Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst);
 
+// Converts `src` to `dst`, injecting a cast if necessary
+void autoCast(Evaluator *evaluator, Node *src, Type *dst);
+
 // Function
 void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope);
 void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope);

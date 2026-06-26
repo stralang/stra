@@ -162,9 +162,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
           node->value.type = value->type;
         }
       } else {
-        Type *conv_type = autoConvert(
-            evaluator, node->field.initial->value.type, node->value.type);
-        if (!compareTypes(node->value.type, conv_type)) {
+        autoCast(evaluator, node->field.initial, node->value.type);
+        if (!compareTypes(node->value.type, value->type)) {
           std::cerr << node->field.initial->location
                     << " Field initial doesn't match type. ";
           std::cerr << "Field Type: `" << *node->value.type << "` ";
@@ -537,8 +536,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         Type *field_type;
         if (node->initializer.is_list) {
           field_type = node->value.type->_struct.fields.data.ptr[i];
-          setter->value.type =
-              autoConvert(evaluator, setter->value.type, field_type);
+          autoCast(evaluator, setter, field_type);
         } else {
           for (size_t l = 0; l < struct_node->_struct.fields.length; l++) {
             Node *field_node = struct_node->_struct.fields.data.ptr[l];
@@ -548,8 +546,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
             }
           }
 
-          setter->member.value->value.type = autoConvert(
-              evaluator, setter->member.value->value.type, field_type);
+          autoCast(evaluator, setter->member.value, field_type);
         }
 
         expect(compareTypes(setter->value.type, field_type), setter->location,
@@ -566,9 +563,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       for (size_t i = 0; i < node->initializer.setters.length; i++) {
         Node *setter = node->initializer.setters.data.ptr[i];
         evaluate(evaluator, setter, scope);
-        setter->value.type =
-            autoConvert(evaluator, setter->value.type,
-                        record->value.data.type_value->slice.type);
+        autoCast(evaluator, setter, record->value.data.type_value->slice.type);
 
         expect(compareTypes(setter->value.type,
                             record->value.data.type_value->slice.type),
@@ -606,8 +601,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
              "Function expects return value");
     } else {
       evaluate(evaluator, node->child, scope);
-      node->child->value.type =
-          autoConvert(evaluator, node->child->value.type, expected_type);
+      autoCast(evaluator, node->child, expected_type);
 
       expect(compareTypes(expected_type, node->child->value.type),
              node->child->location,

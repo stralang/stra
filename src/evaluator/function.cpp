@@ -190,7 +190,7 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     Type *expected_type = fn_type->function.arguments.data.ptr[i + initial_idx];
 
     evaluate(evaluator, arg, scope);
-    arg->value.type = autoConvert(evaluator, arg->value.type, expected_type);
+    autoCast(evaluator, arg, expected_type);
 
     expect(compareTypes(expected_type, arg->value.type), arg->location,
            "Argument `" << *arg->value.type << "` doesn't match expected `"

@@ -1,4 +1,5 @@
 #include "define.hpp"
+#include "evaluator.hpp"
 
 bool compareTypes(Type *lhs, Type *rhs) {
   if (lhs->kind != rhs->kind) {
@@ -82,22 +83,45 @@ bool compareTypes(Type *lhs, Type *rhs) {
 /// Checks if `src` can auto convert to `dst`
 /// Returns `dst` if it can convert, otherwise `src`
 Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst) {
-  if (src->kind != dst->kind) {
-    return src;
-  }
-
-  if (src->kind == TypeKind::Integer && src->integer.is_untyped) {
+  if (src->kind == TypeKind::Integer && src->integer.is_untyped &&
+      dst->kind == TypeKind::Integer) {
     if (dst->integer.is_signed || !src->integer.is_signed) {
       return dst;
     }
-  } else if (src->kind == TypeKind::Float && src->_float.is_untyped) {
+  } else if (src->kind == TypeKind::Float && src->_float.is_untyped &&
+             dst->kind == TypeKind::Float) {
     return dst;
   } else if (src->kind == TypeKind::Pointer && dst->kind == TypeKind::Slice &&
              dst->slice.length < 0 &&
              compareTypes(src->child, dst->slice.type)) {
-    // Pointer to pointer slice
+    // Pointer to Pointer Slice
     return dst;
   }
 
   return src;
+}
+
+void autoCast(Evaluator *evaluator, Node *src, Type *dst) {
+  if (src->value.type->kind == TypeKind::Slice &&
+      src->value.type->slice.length > 0 && dst->kind == TypeKind::Slice &&
+      dst->slice.length == 0) {
+    Node *nodes = (Node *)evaluator->allocator->alloc(sizeof(Node) * 2);
+    Node *lhs = nodes + 0;
+    Node *rhs = nodes + 1;
+    *lhs = *src;
+
+    rhs->kind = NodeKind::Dead;
+    rhs->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
+    rhs->value.has_data = true;
+    rhs->value.data.type_value = dst;
+
+    src->kind = NodeKind::Operator;
+    src->_operator.opcode = Operator::As;
+    src->_operator.lhs = lhs;
+    src->_operator.rhs = rhs;
+    src->value.type = rhs->value.data.type_value;
+    return;
+  }
+
+  src->value.type = autoConvert(evaluator, src->value.type, dst);
 }
