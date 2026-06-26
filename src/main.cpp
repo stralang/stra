@@ -51,21 +51,8 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     String output = outputs.ptr[i];
     std::string cpp_output((const char *)output.ptr, output.len);
 
-    cmd.append(" ");
+    cmd.push_back(' ');
     cmd.append(cpp_output);
-  }
-
-  if (emit == EmitMode::Object) {
-    switch (linker) {
-    case Linker::Clang: {
-      cmd.append(" -c");
-      break;
-    }
-    case Linker::LD: {
-      cmd.append("");
-      break;
-    }
-    }
   }
 
   for (size_t i = 0; i < env->link_libraries.length; i++) {
@@ -74,6 +61,8 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
 
     if (lib->scope == LibraryScope::Dynamic) {
       cmd.append(" -l");
+    } else {
+      cmd.push_back(' ');
     }
 
     cmd.append(lib_name);
