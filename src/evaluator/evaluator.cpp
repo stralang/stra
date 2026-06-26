@@ -27,6 +27,9 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     for (size_t i = 0; i < node->children.length; i++) {
       evaluate(evaluator, node->children.data.ptr[i], compound_scope);
     }
+
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    node->value.has_data = false;
     break;
   }
   case NodeKind::Name: {

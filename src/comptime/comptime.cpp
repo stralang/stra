@@ -33,6 +33,10 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
         break;
       }
     }
+
+    if (out == nullptr) {
+      out = &node->value;
+    }
     break;
   }
   case NodeKind::Name: {
