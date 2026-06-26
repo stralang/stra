@@ -26,6 +26,17 @@ Value executeBuiltinCall(Evaluator *evaluator, Node *node, Symbol *scope,
     out.data.integer = arg_0->value.data.type_value->alignBits(
         evaluator->environment->pointer_size);
     out.data.integer = (out.data.integer + 7) / 8;
+  } else if (name.compare("linkLibrary")) {
+    Node *name_arg = node->call.arguments.data.ptr[0];
+    Node *scope_arg = node->call.arguments.data.ptr[1];
+
+    evaluator->environment->link_libraries.push({
+        .name = name_arg->value.data.text,
+        .scope = (LibraryScope)scope_arg->value.data.integer,
+    });
+
+    out.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    out.has_data = false;
   }
 
   return out;

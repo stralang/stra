@@ -33,7 +33,7 @@ enum class Linker {
 };
 
 void link(Linker linker, Slice<String> outputs, EmitMode emit,
-          String output_path) {
+          String output_path, Environment *env) {
   std::string cmd;
 
   switch (linker) {
@@ -66,6 +66,29 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
       break;
     }
     }
+  }
+
+  bool is_static = false;
+  for (size_t i = 0; i < env->link_libraries.length; i++) {
+    Library *lib = env->link_libraries.data.ptr + i;
+    std::string lib_name((const char *)lib->name.ptr, lib->name.len);
+
+    if (is_static && lib->scope == LibraryScope::Dynamic) {
+      is_static = false;
+      cmd.append(" -Bdynamic ");
+    } else if (!is_static && lib->scope == LibraryScope::Static) {
+      is_static = true;
+      cmd.append(" -Bstatic ");
+    }
+
+    bool is_file = lib->name.ptr[0] == '.' || lib->name.ptr[0] == '/';
+    if (is_file) {
+      cmd.append(" -l:");
+    } else {
+      cmd.append(" -l");
+    }
+
+    cmd.append(lib_name);
   }
 
   std::string out_path((const char *)output_path.ptr, output_path.len);
@@ -311,6 +334,8 @@ int main(int argc, const char **argv) {
 
   // Setup CodeGen Context, and Environment
   Environment environment;
+  environment.link_libraries.init(&global_allocator, 32);
+
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);
 
@@ -397,7 +422,8 @@ int main(int argc, const char **argv) {
   }
 
   // Link
-  link(args.linker, outputs.slice(), args.emit_mode, args.output_path);
+  link(args.linker, outputs.slice(), args.emit_mode, args.output_path,
+       &environment);
 
   // Cleanup
   for (size_t i = 0; i < outputs.length; i++) {

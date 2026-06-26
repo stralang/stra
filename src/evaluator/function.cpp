@@ -223,7 +223,9 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     Value val = executeBuiltinCall(evaluator, node, scope, name);
     node->value = val;
 
-    if (val.type->kind == TypeKind::Integer) {
+    if (val.type->kind == TypeKind::Void) {
+      node->kind = NodeKind::Dead;
+    } else if (val.type->kind == TypeKind::Integer) {
       node->kind = NodeKind::Integer;
       node->integer = node->value.data.integer;
     } else if (val.type->kind == TypeKind::Float) {

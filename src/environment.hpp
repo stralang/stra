@@ -29,10 +29,19 @@ struct TargetTriple {
   SubOs sub_os = SubOs::Default;
 };
 
+enum class LibraryScope : uint8_t { Static, Dynamic };
+
+struct Library {
+  String name;
+  LibraryScope scope;
+};
+
 struct Environment {
   TargetTriple target;
   Endian endianness;
   size_t pointer_size;
+
+  ArrayList<Library> link_libraries;
 };
 
 TargetTriple decodeTargetTriple(const char *raw);
