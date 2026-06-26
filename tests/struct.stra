@@ -1,0 +1,14 @@
+Addition :: struct {
+  a: i32,
+  b: i32,
+
+  result :: fn(self: &Addition) i32 {
+    return self.a + self.b;
+  }
+}
+
+main :: fn() i32 {
+  addition := Addition{ a = 1, b = 2 };
+  result := addition.result();
+  return !(result == 3) as i32;
+}

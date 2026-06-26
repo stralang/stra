@@ -1,0 +1,16 @@
+Test :: enum {
+  A,
+  B,
+  C = 3,
+  D,
+}
+
+main :: fn() i32 {
+  a := Test.A as i32 == 0;
+  b := Test.B as i32 == 1;
+  c := Test.C as i32 == 3;
+  d := Test.D as i32 == 4;
+  return !(a && b && c && d) as i32;
+}
+
+

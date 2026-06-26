@@ -19,6 +19,9 @@ check float_cast 0
 check slice_cast 0
 check sizeof 0
 check alignof 0
+check function 0
+check struct 0
+check enum 0
 
 rm test.out
 if [ $fail_count -ne 0 ]; then
