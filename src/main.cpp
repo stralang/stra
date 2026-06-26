@@ -68,23 +68,11 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     }
   }
 
-  bool is_static = false;
   for (size_t i = 0; i < env->link_libraries.length; i++) {
     Library *lib = env->link_libraries.data.ptr + i;
     std::string lib_name((const char *)lib->name.ptr, lib->name.len);
 
-    if (is_static && lib->scope == LibraryScope::Dynamic) {
-      is_static = false;
-      cmd.append(" -Bdynamic ");
-    } else if (!is_static && lib->scope == LibraryScope::Static) {
-      is_static = true;
-      cmd.append(" -Bstatic ");
-    }
-
-    bool is_file = lib->name.ptr[0] == '.' || lib->name.ptr[0] == '/';
-    if (is_file) {
-      cmd.append(" -l:");
-    } else {
+    if (lib->scope == LibraryScope::Dynamic) {
       cmd.append(" -l");
     }
 
