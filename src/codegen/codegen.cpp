@@ -15,6 +15,7 @@
 #include "llvm-c/Transforms/PassBuilder.h"
 #include "llvm-c/Types.h"
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <llvm-c/TargetMachine.h>
@@ -845,7 +846,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->fn_abi_cache.deinit();
 }
 
-void CodeGenContext::init(Environment *env) {
+void CodeGenContext::init(Environment *env, String user_target_triple) {
   // Initialize
   LLVMInitializeAllTargetInfos();
   LLVMInitializeAllTargets();
@@ -854,7 +855,15 @@ void CodeGenContext::init(Environment *env) {
   LLVMInitializeAllAsmPrinters();
 
   // Target Info
-  this->target_triple = LLVMGetDefaultTargetTriple();
+  if (user_target_triple.ptr == nullptr) {
+    this->target_triple = LLVMGetDefaultTargetTriple();
+  } else {
+    char *s = (char *)malloc(sizeof(char) * (user_target_triple.len + 1));
+    memcpy(s, (const char *)user_target_triple.ptr, user_target_triple.len);
+    s[user_target_triple.len] = 0;
+    this->target_triple = s;
+  }
+
   LLVMTargetRef target = nullptr;
   char *errors;
   if (LLVMGetTargetFromTriple(this->target_triple, &target, &errors)) {

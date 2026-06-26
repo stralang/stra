@@ -79,10 +79,11 @@ struct Args {
   EmitMode emit_mode = EmitMode::Executable;
   Linker linker = Linker::Clang;
   Optimization optimize = Optimization::Minimal;
+  String target_triple = {.len = 0, .ptr = nullptr};
 
   bool run = false;
   ArrayList<String> paths;
-  String output_path;
+  String output_path = {.len = 5, .ptr = (uint8_t *)"a.out"};
 };
 
 void error_handler(SrcLoc srcloc, String msg) {
@@ -99,7 +100,6 @@ int main(int argc, const char **argv) {
   // Parse Arguments
   Args args;
   args.paths.init(&global_allocator, 4);
-  args.output_path = {.len = 5, .ptr = (uint8_t *)"a.out"};
 
   size_t i = 1;
   bool print_help = false;
@@ -170,6 +170,17 @@ int main(int argc, const char **argv) {
           .len = strlen(argv[i]),
           .ptr = (uint8_t *)argv[i],
       };
+    } else if (strcmp(argv[i], "--target") == 0) {
+      i += 1;
+      if (argc <= i) {
+        std::cerr << "target flag missing target triple\n";
+        return 1;
+      }
+
+      args.target_triple = {
+          .len = strlen(argv[i]),
+          .ptr = (uint8_t *)argv[i],
+      };
     } else {
       args.paths.push({
           .len = strlen(argv[i]),
@@ -198,6 +209,7 @@ int main(int argc, const char **argv) {
     std::cout << "      `none` No optimizations\n";
     std::cout << "      `minimal` Minimal optimizations [default]\n";
     std::cout << "  `--output` output path [default: 'a.out']\n";
+    std::cout << "  `--target` Sets the target to compile for\n";
     return 0;
   }
 
@@ -300,7 +312,7 @@ int main(int argc, const char **argv) {
   // Setup CodeGen Context, and Environment
   Environment environment;
   CodeGenContext codegen_ctx;
-  codegen_ctx.init(&environment);
+  codegen_ctx.init(&environment, args.target_triple);
 
   // Evaluate
   SourceFile *root_file = files.data.ptr;

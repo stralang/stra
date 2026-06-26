@@ -40,7 +40,7 @@ struct CodeGenContext {
   LLVMTargetDataRef target_data;
   char *data_layout_str;
 
-  void init(Environment *environment);
+  void init(Environment *environment, String user_target_triple);
   void deinit();
 };
 
