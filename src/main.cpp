@@ -47,6 +47,7 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
   }
   }
 
+  // Get Objects
   for (size_t i = 0; i < outputs.len; i++) {
     String output = outputs.ptr[i];
     std::string cpp_output((const char *)output.ptr, output.len);
@@ -55,6 +56,25 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     cmd.append(cpp_output);
   }
 
+  // Link Directories
+  for (size_t i = 0; i < env->link_directories.length; i++) {
+    String *path = env->link_directories.data.ptr + i;
+    std::string dir_path((const char *)path->ptr, path->len);
+
+    cmd.append(" -Wl,-L");
+    cmd.append(dir_path);
+    cmd.append(" -Wl,-rpath,");
+
+    if (dir_path[0] == '.') {
+      cmd.append("'$ORIGIN");
+      cmd.append(dir_path.substr(1));
+      cmd.push_back('\'');
+    } else {
+      cmd.append(dir_path);
+    }
+  }
+
+  // Link Libraries
   bool link_dynamic = true;
   for (size_t i = 0; i < env->link_libraries.length; i++) {
     Library *lib = env->link_libraries.data.ptr + i;
@@ -79,12 +99,16 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     cmd.append(lib_name);
   }
 
-  cmd.append(" -Wl,-Bdynamic");
+  if (!link_dynamic) {
+    cmd.append(" -Wl,-Bdynamic");
+  }
 
+  // Output
   std::string out_path((const char *)output_path.ptr, output_path.len);
   cmd.append(" -o ");
   cmd.append(out_path);
 
+  // Execute
   std::system(cmd.data());
 }
 
@@ -325,6 +349,7 @@ int main(int argc, const char **argv) {
   // Setup CodeGen Context, and Environment
   Environment environment;
   environment.link_libraries.init(&global_allocator, 32);
+  environment.link_directories.init(&global_allocator, 8);
 
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);

@@ -42,6 +42,7 @@ struct Environment {
   size_t pointer_size;
 
   ArrayList<Library> link_libraries;
+  ArrayList<String> link_directories;
 };
 
 TargetTriple decodeTargetTriple(const char *raw);
