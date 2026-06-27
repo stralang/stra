@@ -55,18 +55,31 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     cmd.append(cpp_output);
   }
 
+  bool link_dynamic = true;
   for (size_t i = 0; i < env->link_libraries.length; i++) {
     Library *lib = env->link_libraries.data.ptr + i;
     std::string lib_name((const char *)lib->name.ptr, lib->name.len);
 
-    if (lib->scope == LibraryScope::Dynamic) {
-      cmd.append(" -l");
-    } else {
+    // Enforce Type
+    if (!link_dynamic && lib->scope == LibraryScope::Dynamic) {
+      link_dynamic = true;
+      cmd.append(" -Wl,-Bdynamic");
+    } else if (link_dynamic && lib->scope == LibraryScope::Static) {
+      link_dynamic = false;
+      cmd.append(" -Wl,-Bstatic");
+    }
+
+    // Check Path vs Name
+    if (lib_name[0] == '.' || lib_name[0] == '/') {
       cmd.push_back(' ');
+    } else {
+      cmd.append(" -l");
     }
 
     cmd.append(lib_name);
   }
+
+  cmd.append(" -Wl,-Bdynamic");
 
   std::string out_path((const char *)output_path.ptr, output_path.len);
   cmd.append(" -o ");
