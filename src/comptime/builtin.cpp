@@ -39,8 +39,13 @@ Value executeBuiltinCall(Evaluator *evaluator, Node *node, Symbol *scope,
     out.has_data = false;
   } else if (name.compare("linkDirectory")) {
     Node *path_arg = node->call.arguments.data.ptr[0];
-
     evaluator->environment->link_directories.push(path_arg->value.data.text);
+
+    out.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    out.has_data = false;
+  } else if (name.compare("linkerScript")) {
+    Node *path_arg = node->call.arguments.data.ptr[0];
+    evaluator->environment->linker_scripts.push(path_arg->value.data.text);
 
     out.type = evaluator->type_cache->get({.kind = TypeKind::Void});
     out.has_data = false;

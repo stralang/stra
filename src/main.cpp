@@ -56,6 +56,14 @@ void link(Linker linker, Slice<String> outputs, EmitMode emit,
     cmd.append(cpp_output);
   }
 
+  // Linker Scripts
+  for (size_t i = 0; i < env->linker_scripts.length; i++) {
+    String *path = env->linker_scripts.data.ptr + i;
+    std::string script_path((const char *)path->ptr, path->len);
+    cmd.append("-Wl,-T ");
+    cmd.append(script_path);
+  }
+
   // Link Directories
   for (size_t i = 0; i < env->link_directories.length; i++) {
     String *path = env->link_directories.data.ptr + i;
@@ -350,6 +358,7 @@ int main(int argc, const char **argv) {
   Environment environment;
   environment.link_libraries.init(&global_allocator, 32);
   environment.link_directories.init(&global_allocator, 8);
+  environment.linker_scripts.init(&global_allocator, 4);
 
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);

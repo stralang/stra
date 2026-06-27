@@ -43,6 +43,7 @@ struct Environment {
 
   ArrayList<Library> link_libraries;
   ArrayList<String> link_directories;
+  ArrayList<String> linker_scripts;
 };
 
 TargetTriple decodeTargetTriple(const char *raw);

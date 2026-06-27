@@ -99,6 +99,7 @@ void evaluateBuiltinFunction(Evaluator *evaluator, Node *node, Symbol *scope,
   } else if (name.compare("atomicCompareExchange")) {
   } else if (name.compare("linkLibrary")) {
   } else if (name.compare("linkDirectory")) {
+  } else if (name.compare("linkerScript")) {
   } else {
     expect(false, node->location,
            "Builtin function `" << name << "` doesn't exist\n");
