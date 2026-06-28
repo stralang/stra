@@ -107,7 +107,12 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       expect(value->type->kind == TypeKind::TypeId, node->field.type->location,
              "Field type must be a type");
 
-      node->value.type = value->data.type_value;
+      if (value->has_data) {
+        node->value.type = value->data.type_value;
+      } else {
+        node->value.type =
+            evaluator->type_cache->get({.kind = TypeKind::Generic});
+      }
     }
 
     // Evaluate Initial

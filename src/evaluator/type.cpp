@@ -3,7 +3,7 @@
 
 bool compareTypes(Type *lhs, Type *rhs) {
   if (lhs->kind != rhs->kind) {
-    return false;
+    return lhs->kind == TypeKind::Generic;
   }
 
   switch (lhs->kind) {
@@ -36,9 +36,6 @@ bool compareTypes(Type *lhs, Type *rhs) {
   case TypeKind::SIMD: {
     return lhs->slice.length == rhs->slice.length &&
            compareTypes(lhs->slice.type, rhs->slice.type);
-  }
-  case TypeKind::TypeId: {
-    return true;
   }
   case TypeKind::Function: {
     if (lhs->function.arguments.length != rhs->function.arguments.length) {
@@ -74,6 +71,10 @@ bool compareTypes(Type *lhs, Type *rhs) {
       }
     }
     return compareTypes(lhs->_union.repr_type, rhs->_union.repr_type);
+  }
+  case TypeKind::TypeId:
+  case TypeKind::Generic: {
+    return true;
   }
   }
 

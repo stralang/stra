@@ -1,5 +1,6 @@
 #pragma once
 
+#include "allocator.hpp"
 #include "ast.hpp"
 #include <cstring>
 
@@ -15,3 +16,5 @@ inline bool containsAttribute(Node *attributes, const char *name) {
   return containsAttribute(attributes,
                            String{.len = strlen(name), .ptr = (uint8_t *)name});
 }
+
+Node *astCopy(Allocator *allocator, Node *src, Symbol *scope);
