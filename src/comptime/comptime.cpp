@@ -1,7 +1,8 @@
 #include "comptime.hpp"
 #include "../ast.hpp"
 #include "../containers.hpp"
-#include "../evaluator/evaluator.hpp"
+#include "../evaluator/define.hpp"
+#include "../helper.hpp"
 #include "../operator.hpp"
 #include "../print.hpp"
 #include <cstring>
@@ -85,7 +86,9 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
   case NodeKind::Struct:
   case NodeKind::Enum:
   case NodeKind::Union: {
-    out = &node->value;
+    Node *copy = astCopy(state->evaluator->allocator, node, scope);
+    evaluate(state->evaluator, copy, scope); // Re-evaluate
+    out = &copy->value;
     break;
   }
   // TODO: ...
