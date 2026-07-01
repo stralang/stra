@@ -267,6 +267,10 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
+  // Initialize
+  TypeCache type_cache;
+  type_cache.init(&global_allocator);
+
   // Compile
   struct SourceFile {
     String path;
@@ -307,6 +311,7 @@ int main(int argc, const char **argv) {
     ASTParser parser = ASTParser{
         .tokenizer = tokenizer,
         .error_func = &error_handler,
+        .type_cache = &type_cache,
         .allocator = &global_allocator,
     };
     parser.parse();
@@ -375,7 +380,6 @@ int main(int argc, const char **argv) {
 
   // Evaluate
   SourceFile *root_file = files.data.ptr;
-  TypeCache type_cache;
   Evaluator evaluator = {
       .ast = root_file->ast,
       .symbol = root_file->symbol,

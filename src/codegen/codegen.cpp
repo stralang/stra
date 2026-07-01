@@ -72,7 +72,7 @@ void genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       // Literals
-      if (arg->node->kind == NodeKind::Integer) {
+      if (arg->node->kind == NodeKind::Value) {
         assembly << " $$" << arg->node->value.data.integer;
         continue;
       }
@@ -348,19 +348,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return LLVMBuildLoad2(
         builder, typeToLLVM(codegen, symbol->node->value.type), *value, "");
   }
-  case NodeKind::Bool: {
-    return valueToLLVM(codegen, &node->value);
-  }
-  case NodeKind::Integer: {
-    return valueToLLVM(codegen, &node->value);
-  }
-  case NodeKind::Float: {
-    return valueToLLVM(codegen, &node->value);
-  }
-  case NodeKind::Char: {
-    return valueToLLVM(codegen, &node->value);
-  }
-  case NodeKind::String: {
+  case NodeKind::Value: {
     return valueToLLVM(codegen, &node->value);
   }
   case NodeKind::Field: {

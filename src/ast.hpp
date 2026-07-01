@@ -157,11 +157,8 @@ struct Value {
 enum class NodeKind {
   Compound,
   Name,
-  Bool,
-  Integer,
-  Float,
-  Char,
-  String,
+  RawString,
+  Value,
   Field,
   Function,
   Struct,
@@ -208,10 +205,8 @@ struct Node {
   NodeKind kind;
   union {
     ArrayList<Node *> children;
-    Node *child;
     String text;
-    int64_t integer;
-    double _float;
+    Node *child;
     NodeField field;
     NodeFunction function;
     NodeStruct _struct;

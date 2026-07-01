@@ -36,8 +36,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     Value builtin_value = getBuiltinValue(evaluator->type_cache, node->text);
     if (builtin_value.type != nullptr) {
       node->value = builtin_value;
-      if (node->value.type->kind == TypeKind::Bool) {
-        node->kind = NodeKind::Bool;
+      if (node->value.type->kind != TypeKind::TypeId) {
+        node->kind = NodeKind::Value;
       }
     } else {
       Symbol *symbol = scope->findSymbol(&node->text, &node->location);
@@ -48,41 +48,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
     break;
   }
-  case NodeKind::Integer: {
-    Type t;
-    t.kind = TypeKind::Integer;
-    t.integer = {
-        .is_untyped = true,
-        .is_signed = node->integer < 0,
-        .bits = 0,
-    };
-
-    node->value.type = evaluator->type_cache->get(t);
-    node->value.has_data = true;
-    node->value.data = {.integer = node->integer};
-    break;
-  }
-  case NodeKind::Float: {
-    Type t;
-    t.kind = TypeKind::Float;
-    t._float = {.is_untyped = true, .bits = 0};
-
-    node->value.type = evaluator->type_cache->get(t);
-    node->value.has_data = true;
-    node->value.data = {._float = node->_float};
-    break;
-  }
-  case NodeKind::Char: {
-    Type t;
-    t.kind = TypeKind::Integer;
-    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
-
-    node->value.type = evaluator->type_cache->get(t);
-    node->value.has_data = true;
-    node->value.data = {.integer = node->integer};
-    break;
-  }
-  case NodeKind::String: {
+  case NodeKind::RawString: {
     Type int_t = {.kind = TypeKind::Integer};
     int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
@@ -115,6 +81,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         .type = evaluator->type_cache->get(int_t),
     };
 
+    node->kind = NodeKind::Value;
     node->value.type = evaluator->type_cache->get(slice_t);
     node->value.has_data = true;
     node->value.data.text = {.len = len, .ptr = real_text};
@@ -755,8 +722,18 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       if (child->member.name.compare("link_name")) {
         expect(child->member.value != nullptr, node->location,
                "`link_name` attribute expects value");
-        expect(child->member.value->kind == NodeKind::String, node->location,
-               "`link_name` attribute expects string value");
+
+        Type *child_type = child->member.value->value.type;
+        bool is_valid = child_type->kind == TypeKind::Slice;
+        if (is_valid) {
+          is_valid = child_type->slice.type->kind == TypeKind::Integer &&
+                     !child_type->slice.type->integer.is_untyped &&
+                     !child_type->slice.type->integer.is_signed &&
+                     child_type->slice.type->integer.bits == 8;
+        }
+
+        expect(is_valid, node->location,
+               "`link_name` attribute expects string");
       } else if (child->member.name.compare("builtin")) {
         expect(child->member.value == nullptr, node->location,
                "`builtin` attribute expects no value");
@@ -768,7 +745,6 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 }
 
 void Evaluator::eval() {
-  this->type_cache->init(this->allocator);
   this->type_mapping.init(this->allocator, 64);
   this->stack.init(this->allocator, 16);
 

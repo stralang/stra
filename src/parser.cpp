@@ -360,26 +360,59 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     break;
   }
   case TokenKind::Integer: {
-    out->kind = NodeKind::Integer;
-    out->integer = parser->cur_token.integer;
+    out->kind = NodeKind::Value;
+    out->value.has_data = true;
+    out->value.data.integer = parser->cur_token.integer;
+
+    // Setup Type
+    Type t = {.kind = TypeKind::Integer};
+    t.integer = {.is_untyped = true, .is_signed = out->value.data.integer < 0};
+    out->value.type = parser->type_cache->get(t);
+
     parser->nextToken();
     break;
   }
   case TokenKind::Float: {
-    out->kind = NodeKind::Float;
-    out->_float = parser->cur_token._float;
+    out->kind = NodeKind::Value;
+    out->value.has_data = true;
+    out->value.data._float = parser->cur_token._float;
+
+    // Setup Type
+    Type t = {.kind = TypeKind::Float};
+    t._float = {.is_untyped = true};
+    out->value.type = parser->type_cache->get(t);
+
     parser->nextToken();
     break;
   }
   case TokenKind::Char: {
-    out->kind = NodeKind::Char;
-    out->integer = parser->cur_token.integer;
+    out->kind = NodeKind::Value;
+    out->value.has_data = true;
+    out->value.data.integer = parser->cur_token.integer;
+
+    // Setup Type
+    Type t = {.kind = TypeKind::Integer};
+    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
+    out->value.type = parser->type_cache->get(t);
+
     parser->nextToken();
     break;
   }
   case TokenKind::String: {
-    out->kind = NodeKind::String;
-    out->text = parser->cur_token.text;
+    out->kind = NodeKind::Value;
+    out->value.has_data = true;
+    out->value.data.text = parser->cur_token.text;
+
+    // Setup Type
+    Type t = {.kind = TypeKind::Integer};
+    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
+    out->value.type = parser->type_cache->get(t);
+
+    t = {.kind = TypeKind::Slice};
+    t.slice = {.length = (int64_t)out->value.data.text.len,
+               .type = out->value.type};
+    out->value.type = parser->type_cache->get(t);
+
     parser->nextToken();
     break;
   }

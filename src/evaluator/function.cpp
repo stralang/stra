@@ -124,7 +124,7 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
       if (link_name_node != nullptr) {
-        name = link_name_node->member.value->text;
+        name = link_name_node->member.value->value.data.text;
       }
     }
 
@@ -215,7 +215,7 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
       if (link_name_node != nullptr) {
-        name = link_name_node->member.value->text;
+        name = link_name_node->member.value->value.data.text;
       }
     }
 
@@ -225,12 +225,8 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     if (val.type->kind == TypeKind::Void) {
       node->kind = NodeKind::Dead;
-    } else if (val.type->kind == TypeKind::Integer) {
-      node->kind = NodeKind::Integer;
-      node->integer = node->value.data.integer;
-    } else if (val.type->kind == TypeKind::Float) {
-      node->kind = NodeKind::Float;
-      node->_float = node->value.data._float;
+    } else {
+      node->kind = NodeKind::Value;
     }
   }
 }

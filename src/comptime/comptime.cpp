@@ -52,11 +52,7 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
     }
     break;
   }
-  case NodeKind::Bool:
-  case NodeKind::Integer:
-  case NodeKind::Float:
-  case NodeKind::Char:
-  case NodeKind::String: {
+  case NodeKind::Value: {
     if (!node->value.has_data) {
       std::cerr << "Literal `" << node->kind
                 << "` does not have data. Aborting\n";
@@ -200,23 +196,7 @@ Value execute(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   // Apply
   node->value = out;
-  switch (out.type->kind) {
-  case TypeKind::Bool: {
-    node->kind = NodeKind::Bool;
-    node->integer = out.data._bool;
-    break;
-  }
-  case TypeKind::Integer: {
-    node->kind = NodeKind::Integer;
-    node->integer = out.data.integer;
-    break;
-  }
-  case TypeKind::Float: {
-    node->kind = NodeKind::Float;
-    node->_float = out.data._float;
-    break;
-  }
-  }
+  node->kind = NodeKind::Value;
 
   // Cleanup
   state.ret_stack.deinit();

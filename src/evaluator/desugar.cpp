@@ -17,10 +17,12 @@ void desugarModifyAssign(Evaluator *evaluator, Node *node, Symbol *scope) {
 
 Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
                      Symbol *parent_scope) {
+  evaluate(evaluator, node->_for.conditional->in.range, for_scope);
+
+  // Clone
   Node *desugar_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
   Symbol *desugar_scope = (Symbol *)evaluator->allocator->alloc(sizeof(Symbol));
 
-  // Clone
   *desugar_node = *node;
   *desugar_scope = *for_scope;
 
@@ -81,8 +83,10 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
 
   // Setup defer increment
   Node *one_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
-  one_node->kind = NodeKind::Integer;
-  one_node->integer = 1;
+  one_node->kind = NodeKind::Value;
+  one_node->value.type = in_var->value.type;
+  one_node->value.has_data = true;
+  one_node->value.data.integer = 1;
 
   Node *inc_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
   inc_node->kind = NodeKind::Operator;
