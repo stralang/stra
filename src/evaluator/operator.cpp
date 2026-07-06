@@ -174,6 +174,11 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     evaluate(evaluator, node->_operator.rhs, access_scope);
     node->value = node->_operator.rhs->value;
+
+    // Inject compile-time known result
+    if (node->value.has_data) {
+      node->kind = NodeKind::Value;
+    }
     return;
   }
 

@@ -45,6 +45,12 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
              "Symbol not found: \"" << node->text << '\"');
       evaluate(evaluator, symbol->node, symbol->parent);
       node->value = symbol->node->value;
+
+      // Inject compile-time field value
+      if (symbol->node->kind == NodeKind::Field &&
+          symbol->node->field.comptime) {
+        node->kind = NodeKind::Value;
+      }
     }
     break;
   }

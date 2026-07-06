@@ -357,6 +357,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       return nullptr;
     }
 
+    // Skip compile-time fields
+    if (node->field.comptime) {
+      return nullptr;
+    }
+
     // Get Symbol
     Symbol *field_symbol = scope->findSymbolByNode(node);
 

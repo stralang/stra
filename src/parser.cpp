@@ -657,6 +657,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   out->field.initial = nullptr;
   out->field.attributes = nullptr;
   out->field.definition = false;
+  out->field.comptime = false;
 
   // Check for duplicate field
   // Symbol *duplicate_symbol =
@@ -1017,13 +1018,24 @@ Node *parseStmt(ASTParser *parser, Symbol *scope) {
     break;
   }
   case TokenKind::Comptime: {
-    out = (Node *)parser->allocator->alloc(sizeof(Node));
-    out->token = parser->cur_token;
-    out->location = parser->cur_token.location;
-    out->kind = NodeKind::Comptime;
+    Token tmp_token = parser->cur_token;
+    SrcLoc tmp_location = parser->cur_token.location;
 
     expectEOF(parser->nextToken());
-    out->child = parseStmt(parser, scope);
+    Node *tmp_stmt = parseStmt(parser, scope);
+
+    if (tmp_stmt->kind == NodeKind::Field) {
+      tmp_stmt->field.comptime = true;
+      out = tmp_stmt;
+      expect(out->field.initial != nullptr, out->location,
+             "Inject field must have an initial value");
+    } else {
+      out = (Node *)parser->allocator->alloc(sizeof(Node));
+      out->token = tmp_token;
+      out->location = tmp_location;
+      out->kind = NodeKind::Comptime;
+      out->child = tmp_stmt;
+    }
     break;
   }
   case TokenKind::Assembly: {

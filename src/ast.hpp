@@ -18,6 +18,7 @@ struct NodeField {
   Node *attributes;
   bool definition;
   bool undefined;
+  bool comptime; // Replace references to this field with the field's value
 };
 
 struct NodeFunction {
