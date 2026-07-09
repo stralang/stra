@@ -1,6 +1,7 @@
 #include "../print.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
+#include "llvm-c/Types.h"
 #include <iostream>
 #include <llvm-c/Core.h>
 
@@ -20,7 +21,45 @@ LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
   }
 
   // Access
-  if (lhs_type->kind == TypeKind::Struct) {
+  if (lhs_type->kind == TypeKind::Slice) {
+    LLVMValueRef value = auto_dereference ? gen(codegen, builder, lhs, scope)
+                                          : addr(codegen, builder, lhs, scope);
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+
+    // `len`
+    if (node->_operator.rhs->text.compare("len")) {
+      LLVMTypeRef llvm_usize_ty =
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
+
+      // Compile-time
+      if (lhs_type->slice.length > 0) {
+        LLVMValueRef alloca =
+            LLVMBuildAlloca(builder, llvm_usize_ty, "slice.len");
+        LLVMBuildStore(
+            builder, LLVMConstInt(llvm_usize_ty, lhs_type->slice.length, false),
+            alloca);
+        return alloca;
+      }
+
+      // Runtime
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+      return LLVMBuildGEP2(builder, typeToLLVM(codegen, lhs_type), value,
+                           indices, 2, "slice.len");
+    }
+
+    // `ptr`
+    if (lhs_type->slice.length == 0) {
+      return value; // First element of slice is pointer
+    }
+
+    LLVMTypeRef llvm_elem_ty = typeToLLVM(codegen, lhs_type->slice.type);
+    LLVMValueRef alloca = LLVMBuildAlloca(
+        builder, LLVMPointerType(LLVMPointerType(llvm_elem_ty, 0), 0), "");
+    LLVMBuildStore(builder, value, alloca);
+
+    return alloca;
+  } else if (lhs_type->kind == TypeKind::Struct) {
     Symbol *struct_symbol = lhs_type->_struct.scope;
     Node *struct_node = struct_symbol->node;
 

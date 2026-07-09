@@ -143,12 +143,40 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
       lhs_type = lhs_type->child; // Auto Dereference
     }
 
+    // Slice
+    if (lhs_type->kind == TypeKind::Slice) {
+      expect(lhs_type->slice.length >= 0, lhs->location,
+             "Cannot member access a pointer slice");
+
+      expect(node->_operator.rhs->kind == NodeKind::Name,
+             node->_operator.rhs->location,
+             "Slice member access must be a name");
+
+      Type out_ty = {};
+      if (node->_operator.rhs->text.compare("ptr")) {
+        out_ty.kind = TypeKind::Pointer;
+        out_ty.is_constant = true;
+        out_ty.child = lhs_type->slice.type;
+        node->value.has_data = false;
+      } else if (node->_operator.rhs->text.compare("len")) {
+        out_ty.kind = TypeKind::Integer;
+        out_ty.is_constant = true;
+        out_ty.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
+
+        node->value.has_data = lhs_type->slice.length > 0;
+        node->value.data.integer = lhs_type->slice.length;
+      } else {
+        expect(false, node->_operator.rhs->location,
+               "Unknown slice access must be one of `ptr`, `len`");
+      }
+
+      node->value.type = evaluator->type_cache->get(out_ty);
+      return;
+    }
+
+    // Record
     Symbol *access_scope = nullptr;
     switch (lhs_type->kind) {
-    case TypeKind::Function: {
-      access_scope = lhs_type->function.scope;
-      break;
-    }
     case TypeKind::Struct: {
       access_scope = lhs_type->_struct.scope;
       break;
@@ -167,7 +195,7 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
     }
     default: {
       expect(false, lhs->location,
-             "LHS must be a Function, Struct, Enum, Union, or Namespace. Got `"
+             "LHS must be a Slice, Struct, Enum, Union, or Namespace. Got `"
                  << *lhs_type << "`");
     }
     }
