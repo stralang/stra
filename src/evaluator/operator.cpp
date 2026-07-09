@@ -360,10 +360,17 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
       allowed = (dst_type->kind == TypeKind::Bool ||
                  dst_type->kind == TypeKind::Integer ||
                  dst_type->kind == TypeKind::Float);
-    } else if (src_type->kind == TypeKind::Integer ||
-               src_type->kind == TypeKind::Float) {
-      allowed = (dst_type->kind == TypeKind::Integer ||
-                 dst_type->kind == TypeKind::Float);
+    } else if (src_type->kind == TypeKind::Integer) {
+      allowed = dst_type->kind == TypeKind::Integer ||
+                dst_type->kind == TypeKind::Float ||
+                dst_type->kind == TypeKind::Pointer;
+    } else if (src_type->kind == TypeKind::Float) {
+      allowed = dst_type->kind == TypeKind::Integer ||
+                dst_type->kind == TypeKind::Float;
+    } else if (src_type->kind == TypeKind::Pointer) {
+      allowed = dst_type->kind == TypeKind::Integer &&
+                !dst_type->integer.is_untyped && !dst_type->integer.is_signed &&
+                dst_type->integer.bits == -1;
     } else if (src_type->kind == TypeKind::Slice) {
       if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
         allowed = true; // No-Op

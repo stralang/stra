@@ -380,6 +380,9 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
     } else if (dst_type->kind == TypeKind::Float &&
                !src_type->integer.is_signed) {
       return LLVMBuildUIToFP(builder, lhs_value, dst_llvm_type, "");
+    } else if (dst_type->kind == TypeKind::Pointer) {
+      return LLVMBuildIntToPtr(builder, lhs_value,
+                               typeToLLVM(codegen, dst_type), "");
     }
 
     return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
@@ -396,6 +399,12 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
     return LLVMBuildFPCast(builder, lhs_value, dst_llvm_type, "");
   } else if (src_type->kind == TypeKind::Pointer) {
     // Pointer Cast
+    if (dst_type->kind == TypeKind::Integer) {
+      return LLVMBuildPtrToInt(
+          builder, lhs_value,
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size), "");
+    }
+
     return LLVMBuildPointerCast(builder, lhs_value, dst_llvm_type, "");
   } else if (src_type->kind == TypeKind::Enum) {
     return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,

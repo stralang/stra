@@ -1,0 +1,15 @@
+ten: u8 = 10;
+twenty: u8 = 20;
+
+main :: fn() i32 {
+  array: [4]u8;
+  slice: []u8 = array[1..<4];
+  array[1] = ten;
+  slice[1] = twenty;
+
+  set_eq := array[1] == ten && slice[1] == twenty;
+  value_eq := array[1] == slice[0] && array[2] == slice[1];
+  len_eq := array.len - 1 == slice.len;
+  ptr_eq := array.ptr as usize + 1 == slice.ptr as usize;
+  return !(set_eq && value_eq && len_eq && ptr_eq) as i32;
+}
