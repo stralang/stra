@@ -725,6 +725,13 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
   case NodeKind::Attribute: {
     for (size_t i = 0; i < node->children.length; i++) {
       Node *child = node->children.data.ptr[i];
+      if (child->member.value != nullptr) {
+        evaluate(evaluator, child->member.value, scope);
+        if (!child->member.value->value.has_data) {
+          execute(evaluator, child->member.value, scope);
+        }
+      }
+
       if (child->member.name.compare("link_name")) {
         expect(child->member.value != nullptr, node->location,
                "`link_name` attribute expects value");

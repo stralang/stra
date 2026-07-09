@@ -399,19 +399,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     break;
   }
   case TokenKind::String: {
-    out->kind = NodeKind::Value;
-    out->value.has_data = true;
-    out->value.data.text = parser->cur_token.text;
-
-    // Setup Type
-    Type t = {.kind = TypeKind::Integer};
-    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
-    out->value.type = parser->type_cache->get(t);
-
-    t = {.kind = TypeKind::Slice};
-    t.slice = {.length = (int64_t)out->value.data.text.len,
-               .type = out->value.type};
-    out->value.type = parser->type_cache->get(t);
+    out->kind = NodeKind::RawString;
+    out->text = parser->cur_token.text;
 
     parser->nextToken();
     break;
