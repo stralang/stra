@@ -186,7 +186,7 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   for (size_t i = 0; i < node->call.arguments.length; i++) {
     Node *arg = node->call.arguments.data.ptr[i];
     LLVMTypeRef ty = typeToLLVM(codegen, arg->value.type);
-    ABIArg abi_arg = abi_cache->args.ptr[i];
+    ABIArg abi_arg = abi_cache->args.ptr[i + has_receiver];
     if (abi_arg.kind == ABIArgKind::Ignore) {
       continue;
     }
