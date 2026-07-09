@@ -66,6 +66,7 @@ Precedence operatorPrecedence(Operator opcode) {
 Associativity operatorAssociativity(Operator opcode) {
   switch (opcode) {
   case Operator::Assign:
+  case Operator::MemberAccess:
   case Operator::Unary_Logical_Not:
   case Operator::Unary_Bitwise_Not: {
     return Associativity::Right;
@@ -88,7 +89,6 @@ Associativity operatorAssociativity(Operator opcode) {
   case Operator::GreaterThen:
   case Operator::LessThenOrEqualTo:
   case Operator::GreaterThenOrEqualTo:
-  case Operator::MemberAccess:
   case Operator::As:
   case Operator::Bitcast: {
     return Associativity::Left;
