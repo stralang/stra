@@ -9,7 +9,9 @@
 #include "../types.hpp"
 #include "abi/general.hpp"
 #include "define.hpp"
+#include "passes.hpp"
 #include "llvm-c/Core.h"
+#include "llvm-c/Error.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Transforms/PassBuilder.h"
@@ -812,14 +814,23 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   // Generate
   gen(this, this->builder, this->ast, this->symbol);
 
-  // Optimize
+// Optimize
+#ifdef LLVM_OPT_AVAILABLE
   if (opt != Optimization::None) {
-    const char *passes = "sroa,simplifycfg,instcombine,gvn,loop-mssa,licm,dce,"
-                         "indvars,loop-unroll,tailcallelim,early-cse";
     LLVMPassBuilderOptionsRef pass_options = LLVMCreatePassBuilderOptions();
-    LLVMRunPasses(this->mod, passes, context->target_machine, pass_options);
+    LLVMErrorRef error = LLVMRunPasses(this->mod, LLVM_OPT_MINIMAL,
+                                       context->target_machine, pass_options);
     LLVMDisposePassBuilderOptions(pass_options);
+
+    if (error != NULL) {
+      char *msg = LLVMGetErrorMessage(error);
+      std::cerr << "LLVM Error: " << msg << "\n";
+      std::cerr << "Failed to optimize module. Aborting.\n";
+      LLVMDisposeErrorMessage(msg);
+      std::abort();
+    }
   }
+#endif // LLVM_OPT_AVAILABLE
 
   // Cleanup
   char *output_path =
