@@ -158,6 +158,22 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // TODO: A variable may not be generated for runtime
     return *value;
   }
+  case NodeKind::Value: {
+    LLVMValueRef *cache = codegen->node_to_value.get(node);
+    if (cache != nullptr) {
+      return *cache;
+    }
+
+    LLVMValueRef result = valueToLLVM(codegen, &node->value);
+
+    LLVMValueRef global = LLVMAddGlobal(codegen->mod, LLVMTypeOf(result), "");
+    LLVMSetGlobalConstant(global, true);
+    LLVMSetLinkage(global, LLVMPrivateLinkage);
+    LLVMSetInitializer(global, result);
+
+    codegen->node_to_value.insert(node, global);
+    return global;
+  }
   case NodeKind::UnaryOperator: {
     if (node->unary_operator.opcode == UnaryOperator::Dereference) {
       return gen(codegen, builder, node->unary_operator.child, scope);
