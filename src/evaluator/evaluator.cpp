@@ -428,8 +428,31 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     evaluate(evaluator, node->range.min, scope);
     evaluate(evaluator, node->range.max, scope);
 
+    expect(node->range.min->value.type->kind == TypeKind::Integer,
+           node->location, "Range min and max types must be of Integer");
     expect(node->range.min->value.type == node->range.max->value.type,
            node->location, "Range min and max types must match");
+
+    // Fix untyped
+    bool min_untyped = node->range.min->value.type->integer.is_untyped;
+    bool max_untyped = node->range.max->value.type->integer.is_untyped;
+    if (min_untyped && !max_untyped) {
+      fixUntyped(evaluator, node->range.min, node->range.max->value.type);
+    } else if (!min_untyped && max_untyped) {
+      fixUntyped(evaluator, node->range.max, node->range.min->value.type);
+    } else if (min_untyped && max_untyped) {
+      Type ty = {.kind = TypeKind::Integer};
+      ty.integer = {
+          .is_untyped = false,
+          .is_signed = node->range.min->value.type->integer.is_signed ||
+                       node->range.min->value.type->integer.is_signed,
+          .bits = -1,
+      };
+
+      Type *usize_ty = evaluator->type_cache->get(ty);
+      fixUntyped(evaluator, node->range.min, usize_ty);
+      fixUntyped(evaluator, node->range.max, usize_ty);
+    }
 
     node->value.type = nullptr;
     node->value.has_data = false;
@@ -718,6 +741,17 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         }
 
         evaluate(evaluator, arg->node, scope);
+
+        // Fix untyped
+        if (arg->node->value.type->integer.is_untyped) {
+          Type real_ty = {.kind = TypeKind::Integer};
+          real_ty.integer = {
+              .is_untyped = false,
+              .is_signed = arg->node->value.type->integer.is_signed,
+              .bits = (int32_t)evaluator->environment->pointer_size,
+          };
+          fixUntyped(evaluator, arg->node, evaluator->type_cache->get(real_ty));
+        }
       }
     }
     break;

@@ -39,6 +39,8 @@ Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst);
 // Converts `src` to `dst`, injecting a cast if necessary
 void autoCast(Evaluator *evaluator, Node *src, Type *dst);
 
+void fixUntyped(Evaluator *evaluator, Node *node, Type *real);
+
 // Function
 void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope);
 void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope);

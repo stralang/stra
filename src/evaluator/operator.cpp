@@ -7,6 +7,7 @@ void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope) {
   Node *rhs = node->_operator.rhs;
   evaluate(evaluator, lhs, scope);
   evaluate(evaluator, rhs, scope);
+  fixUntyped(evaluator, rhs, lhs->value.type);
 
   if (node->_operator.opcode != Operator::Assign) {
     desugarModifyAssign(evaluator, node, scope);
@@ -228,13 +229,10 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
       rhs_untyped = rhs->value.type->_float.is_untyped;
     }
 
-    if (lhs_untyped && rhs_untyped) {
-      execute(evaluator, node, scope);
-      return;
-    } else if (lhs_untyped) {
-      lhs->value.type = rhs->value.type;
-    } else if (rhs_untyped) {
-      rhs->value.type = lhs->value.type;
+    if (lhs_untyped && !rhs_untyped) {
+      fixUntyped(evaluator, lhs, rhs->value.type);
+    } else if (!lhs_untyped && rhs_untyped) {
+      fixUntyped(evaluator, rhs, lhs->value.type);
     }
   }
 

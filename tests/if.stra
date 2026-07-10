@@ -1,15 +1,11 @@
-one: i32 = 1;
-two: i32 = 2;
-three: i32 = 3;
-
 main :: fn() i32 {
   output: i32 = 12;
   if output == 12 {
-    output = one;
+    output = 1;
   } else if output == 10 {
-    output = two;
+    output = 2;
   } else {
-    output = three;
+    output = 3;
   }
 
   return !(output == 1) as i32;

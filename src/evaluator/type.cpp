@@ -102,9 +102,14 @@ Type *autoConvert(Evaluator *evaluator, Type *src, Type *dst) {
 }
 
 void autoCast(Evaluator *evaluator, Node *src, Type *dst) {
-  if (src->value.type->kind == TypeKind::Slice &&
-      src->value.type->slice.length > 0 && dst->kind == TypeKind::Slice &&
-      dst->slice.length == 0) {
+  if ((src->value.type->kind == TypeKind::Integer &&
+       src->value.type->integer.is_untyped) ||
+      (src->value.type->kind == TypeKind::Float &&
+       src->value.type->_float.is_untyped)) {
+    fixUntyped(evaluator, src, dst);
+  } else if (src->value.type->kind == TypeKind::Slice &&
+             src->value.type->slice.length > 0 &&
+             dst->kind == TypeKind::Slice && dst->slice.length == 0) {
     Node *nodes = (Node *)evaluator->allocator->alloc(sizeof(Node) * 2);
     Node *lhs = nodes + 0;
     Node *rhs = nodes + 1;
@@ -124,4 +129,36 @@ void autoCast(Evaluator *evaluator, Node *src, Type *dst) {
   }
 
   src->value.type = autoConvert(evaluator, src->value.type, dst);
+}
+
+#include "../print.hpp"
+
+void fixUntyped(Evaluator *evaluator, Node *node, Type *real) {
+  // not untyped
+  if ((node->value.type->kind != TypeKind::Integer ||
+       !node->value.type->integer.is_untyped) &&
+      (node->value.type->kind != TypeKind::Float ||
+       !node->value.type->_float.is_untyped)) {
+    return;
+  }
+
+  node->value.type = real;
+
+  switch (node->kind) {
+  case NodeKind::UnaryOperator: {
+    fixUntyped(evaluator, node->unary_operator.child, real);
+    break;
+  }
+  case NodeKind::Assignment:
+  case NodeKind::Operator: {
+    fixUntyped(evaluator, node->_operator.lhs, real);
+    fixUntyped(evaluator, node->_operator.rhs, real);
+    break;
+  }
+  case NodeKind::Range: {
+    fixUntyped(evaluator, node->range.min, real);
+    fixUntyped(evaluator, node->range.max, real);
+    break;
+  }
+  }
 }
