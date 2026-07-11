@@ -2,6 +2,71 @@
 #include "comptime.hpp"
 #include <iostream>
 
+Value *execMemberAccess(InteropState *state, Node *node, Symbol *scope) {
+  Value *lhs = exec(state, node->_operator.lhs, scope);
+  Value *rhs = exec(state, node->_operator.rhs, scope);
+  Type *lhs_type = lhs->type;
+
+  Value *out = &node->value;
+
+  ArrayList<Node *> *impl_children = nullptr;
+  Symbol *impl_scope = nullptr;
+
+  // Slice
+  if (lhs_type->kind == TypeKind::Slice) {
+    if (rhs->data.text.compare("ptr")) {
+      out->type = state->evaluator->type_cache->get(
+          {.kind = TypeKind::Pointer, .child = lhs_type->slice.type});
+      std::cerr << __FILE__ << ":" << __LINE__ << " TODO: `<slice>.ptr`\n";
+      std::abort();
+    } else if (rhs->data.text.compare("len")) {
+      Type ty = {.kind = TypeKind::Integer};
+      ty.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
+      out->type = state->evaluator->type_cache->get(ty);
+      out->data.integer = lhs->data.text.len;
+      return out;
+    }
+  } else if (lhs_type->kind == TypeKind::Struct) {
+    std::cerr << __FILE__ << ":" << __LINE__ << " TODO: struct access\n";
+    std::abort();
+  } else if (lhs_type->kind == TypeKind::Enum) {
+    std::cerr << __FILE__ << ":" << __LINE__ << " TODO: enum access\n";
+    std::abort();
+  } else if (lhs_type->kind == TypeKind::Union) {
+    std::cerr << __FILE__ << ":" << __LINE__ << " TODO: union access\n";
+    std::abort();
+  } else if (lhs_type->kind == TypeKind::TypeId) {
+    Type *real_ty = lhs->data.type_value;
+    if (real_ty->kind == TypeKind::Struct) {
+      impl_scope = real_ty->_struct.scope;
+      impl_children = &impl_scope->node->_struct.body;
+    } else if (real_ty->kind == TypeKind::Enum) {
+      impl_scope = real_ty->_enum.scope;
+      impl_children = &impl_scope->node->_enum.body;
+    } else if (real_ty->kind == TypeKind::Union) {
+      impl_scope = real_ty->_union.scope;
+      impl_children = &impl_scope->node->_union.body;
+    } else if (real_ty->kind == TypeKind::Namespace) {
+      impl_scope = real_ty->_namespace.scope;
+      impl_children = &impl_scope->node->children;
+    }
+  }
+
+  if (impl_children != nullptr) {
+    for (size_t i = 0; i < impl_children->length; i++) {
+      Node *body = impl_children->data.ptr[i];
+      if (!body->field.name.compare(node->_operator.rhs->text)) {
+        continue;
+      }
+
+      *out = *exec(state, node->_operator.rhs, impl_scope);
+      break;
+    }
+  }
+
+  return out;
+}
+
 Value *execUnary(InteropState *state, Node *node, Symbol *scope) {
   return &node->value;
 }
@@ -45,6 +110,10 @@ void castAs(Value *out, Value *src, Value *dst) {
 }
 
 Value *execBinary(InteropState *state, Node *node, Symbol *scope) {
+  if (node->_operator.opcode == Operator::MemberAccess) {
+    return execMemberAccess(state, node, scope);
+  }
+
   Value *lhs = exec(state, node->_operator.lhs, scope);
   Value *rhs = exec(state, node->_operator.rhs, scope);
 
