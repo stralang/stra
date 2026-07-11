@@ -457,7 +457,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
   case NodeKind::Function: {
     LLVMValueRef *cache = codegen->node_to_value.get(node);
-    if (codegen != nullptr) {
+    if (cache != nullptr) {
       return *cache;
     }
 
