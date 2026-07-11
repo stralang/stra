@@ -127,19 +127,24 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     needs_dereference = true;
   }
 
-  Symbol *func_symbol = node->call.callee->value.type->function.scope;
+  Symbol *func_symbol = nullptr;
+  if (node->call.callee->value.has_data) {
+    func_symbol = node->call.callee->value.data.symbol;
+  }
 
   // Check Builtin
-  Node *parent_node = func_symbol->parent->node;
-  if (parent_node->kind == NodeKind::Field &&
-      parent_node->field.attributes != nullptr) {
-    Node *attributes = parent_node->field.attributes;
-    for (size_t i = 0; i < attributes->children.length; i++) {
-      if (!attributes->children.data.ptr[i]->member.name.compare("builtin")) {
-        continue;
-      }
+  if (func_symbol != nullptr) {
+    Node *parent_node = func_symbol->parent->node;
+    if (parent_node->kind == NodeKind::Field &&
+        parent_node->field.attributes != nullptr) {
+      Node *attributes = parent_node->field.attributes;
+      for (size_t i = 0; i < attributes->children.length; i++) {
+        if (!attributes->children.data.ptr[i]->member.name.compare("builtin")) {
+          continue;
+        }
 
-      return prepareCallBuiltin(codegen, builder, node, scope, func_symbol);
+        return prepareCallBuiltin(codegen, builder, node, scope, func_symbol);
+      }
     }
   }
 
@@ -155,10 +160,10 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     has_receiver = 1;
 
     // Load
-    Node *arg0 = func_symbol->node->function.parameters.data.ptr[0];
-    if (arg0->value.type->kind != TypeKind::Pointer) {
-      receiver = LLVMBuildLoad2(builder, typeToLLVM(codegen, arg0->value.type),
-                                receiver, "");
+    Type *arg0 = callee_type->function.arguments.data.ptr[0];
+    if (arg0->kind != TypeKind::Pointer) {
+      receiver =
+          LLVMBuildLoad2(builder, typeToLLVM(codegen, arg0), receiver, "");
     }
   }
 
@@ -205,7 +210,19 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   }
 
   // Build Call
-  LLVMValueRef function = addr(codegen, builder, node->call.callee, scope);
+  LLVMValueRef function;
+  if (node->call.callee->value.has_data) {
+    LLVMValueRef *opt_function = codegen->node_to_value.get(func_symbol->node);
+    if (opt_function == nullptr) {
+      gen(codegen, builder, func_symbol->node, func_symbol);
+      opt_function = codegen->node_to_value.get(func_symbol->node);
+    }
+
+    function = *opt_function;
+  } else {
+    function = addr(codegen, builder, node->call.callee, scope);
+  }
+
   if (needs_dereference) {
     function = LLVMBuildLoad2(
         builder, LLVMPointerType(typeToLLVM(codegen, callee_type), 0), function,

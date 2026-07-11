@@ -406,14 +406,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       // Build function and set name
-      LLVMTypeRef type = typeToLLVM(codegen, node->field.initial->value.type);
-      LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
+      LLVMValueRef func =
+          gen(codegen, builder, node->field.initial, field_symbol);
 
       LLVMSetValueName2(func, (const char *)name.ptr, name.len);
       codegen->node_to_value.insert(node, func);
-
-      genFunctionBody(codegen, builder, node->field.initial, field_symbol, type,
-                      func);
     } else if (node->value.type->kind == TypeKind::TypeId) {
       // Type
       Type *real_type = node->value.data.type_value;
@@ -461,6 +458,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   case NodeKind::Function: {
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
+    codegen->node_to_value.insert(node, func);
+
     genFunctionBody(codegen, builder, node, scope, type, func);
     return func;
   }

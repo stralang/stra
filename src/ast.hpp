@@ -152,6 +152,7 @@ struct Value {
     int64_t integer;
     double _float;
     Node *node;
+    Symbol *symbol;
   } data;
 };
 

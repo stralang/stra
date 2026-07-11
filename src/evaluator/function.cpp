@@ -57,7 +57,8 @@ bool checkForReturn(Evaluator *evaluator, Node *node, Symbol *scope) {
 
 void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   Symbol *fn_scope = scope->findSymbolByNode(node);
-  node->value.has_data = false;
+  node->value.has_data = true;
+  node->value.data.symbol = fn_scope;
 
   // Prepare type
   Type *fn_t = evaluator->type_cache->get(

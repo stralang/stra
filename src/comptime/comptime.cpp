@@ -109,7 +109,7 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
 
     // Get function
     Value *fn_value = exec(state, node->call.callee, scope);
-    Symbol *fn_symbol = fn_value->type->function.scope;
+    Symbol *fn_symbol = fn_value->data.symbol;
     Node *fn_node = fn_symbol->node;
 
     // Apply arguments

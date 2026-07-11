@@ -137,6 +137,14 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
   evaluate(evaluator, node->_operator.lhs, scope);
   Node *lhs = node->_operator.lhs;
   if (node->_operator.opcode == Operator::MemberAccess) {
+    // Handle RHS Value
+    if (node->_operator.rhs->kind == NodeKind::Value) {
+      node->kind = NodeKind::Value;
+      node->value = node->_operator.rhs->value;
+      return;
+    }
+
+    // Member access
     Type *lhs_type = lhs->value.type;
     if (lhs_type->kind == TypeKind::TypeId) {
       lhs_type = lhs->value.data.type_value;
@@ -203,11 +211,6 @@ void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     evaluate(evaluator, node->_operator.rhs, access_scope);
     node->value = node->_operator.rhs->value;
-
-    // Inject compile-time known result
-    if (node->value.has_data) {
-      node->kind = NodeKind::Value;
-    }
     return;
   }
 
