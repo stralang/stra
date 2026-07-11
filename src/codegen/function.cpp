@@ -130,10 +130,8 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
   Symbol *func_symbol = nullptr;
   if (node->call.callee->value.has_data) {
     func_symbol = node->call.callee->value.data.symbol;
-  }
 
-  // Check Builtin
-  if (func_symbol != nullptr) {
+    // Check Builtin
     Node *parent_node = func_symbol->parent->node;
     if (parent_node->kind == NodeKind::Field &&
         parent_node->field.attributes != nullptr) {

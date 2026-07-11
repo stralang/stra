@@ -456,6 +456,11 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     break;
   }
   case NodeKind::Function: {
+    LLVMValueRef *cache = codegen->node_to_value.get(node);
+    if (codegen != nullptr) {
+      return *cache;
+    }
+
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", type);
     codegen->node_to_value.insert(node, func);
