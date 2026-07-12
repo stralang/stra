@@ -13,7 +13,7 @@ Node *getAttribute(Node *attributes, String name) {
 }
 
 Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
-  if (src == nullptr) {
+  if (src == nullptr || src->kind == NodeKind::Dead) {
     return nullptr;
   }
 
@@ -39,7 +39,12 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
   case NodeKind::Attribute: {
     dst->children.init(allocator, src->children.length);
     for (size_t i = 0; i < src->children.length; i++) {
-      dst->children.push(astCopy(allocator, src->children.data.ptr[i], scope));
+      Node *child = astCopy(allocator, src->children.data.ptr[i], scope);
+      if (child == nullptr) {
+        continue;
+      }
+
+      dst->children.push(child);
     }
     break;
   }
@@ -70,6 +75,7 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     dst->field.attributes = astCopy(allocator, src->field.attributes, symbol);
     dst->field.definition = src->field.definition;
     dst->field.undefined = src->field.undefined;
+    dst->field.comptime = src->field.comptime;
     break;
   }
   case NodeKind::Function: {
@@ -86,6 +92,7 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
         astCopy(allocator, src->function.return_type, scope);
     dst->function.body = astCopy(allocator, src->function.body, fn_scope);
     dst->function.undefined = src->function.undefined;
+    dst->function.polymorphic = src->function.polymorphic;
     break;
   }
   case NodeKind::Struct: {
@@ -171,10 +178,17 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
         astCopy(allocator, src->unary_operator.child, scope);
     break;
   }
+  case NodeKind::Assignment:
   case NodeKind::Operator: {
     dst->_operator.opcode = src->_operator.opcode;
     dst->_operator.lhs = astCopy(allocator, src->_operator.lhs, scope);
     dst->_operator.rhs = astCopy(allocator, src->_operator.rhs, scope);
+    break;
+  }
+  case NodeKind::Range: {
+    dst->range.mode = src->range.mode;
+    dst->range.min = src->range.min;
+    dst->range.max = src->range.max;
     break;
   }
   case NodeKind::Call: {
@@ -238,6 +252,11 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     dst->_for.body = astCopy(allocator, src->_if.body, for_scope);
     break;
   }
+  case NodeKind::In: {
+    dst->in.name = src->in.name;
+    dst->in.range = src->in.range;
+    break;
+  }
   case NodeKind::Switch: {
     dst->_switch.conditional =
         astCopy(allocator, src->_switch.conditional, scope);
@@ -298,6 +317,9 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     for (size_t i = 0; i < src->comment_group.length; i++) {
       dst->comment_group.push(src->comment_group.data.ptr[i]);
     }
+    break;
+  }
+  case NodeKind::Dead: {
     break;
   }
   }

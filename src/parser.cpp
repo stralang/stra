@@ -412,6 +412,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     out->function.return_type = nullptr;
     out->function.body = nullptr;
     out->function.undefined = false;
+    out->function.polymorphic = false;
 
     // Create Scope
     Symbol *fn_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
@@ -424,6 +425,12 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     expectToken(TokenKind::ScopeBegin);
     expectEOF(parser->nextToken());
     while (parser->cur_token.kind != TokenKind::ScopeEnd) {
+      bool is_comptime = parser->cur_token.kind == TokenKind::Comptime;
+      if (is_comptime) {
+        out->function.polymorphic = true;
+        expectEOF(parser->nextToken());
+      }
+
       Node *parameter = (Node *)parser->allocator->alloc(sizeof(Node));
       parameter->token = parser->cur_token;
       parameter->location = parser->cur_token.location;
@@ -432,6 +439,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
       expectEOF(parser->nextToken());
 
       parameter = parseField(parser, parameter, fn_scope);
+      parameter->field.comptime = is_comptime;
       out->function.parameters.push(parameter);
 
       if (parser->cur_token.kind != TokenKind::CommaDelimiter) {

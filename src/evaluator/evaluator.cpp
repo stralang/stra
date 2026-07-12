@@ -48,7 +48,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       // Inject compile-time field value
       if (symbol->node->kind == NodeKind::Field &&
-          symbol->node->field.comptime) {
+          symbol->node->field.comptime && symbol->node->value.has_data) {
         node->kind = NodeKind::Value;
       }
     }

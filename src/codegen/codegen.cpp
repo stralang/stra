@@ -405,7 +405,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
-      if (builtin) {
+      if (builtin || node->field.initial->function.polymorphic) {
         return nullptr;
       }
 
@@ -460,6 +460,10 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     break;
   }
   case NodeKind::Function: {
+    if (node->function.polymorphic) {
+      return nullptr;
+    }
+
     LLVMValueRef *cache = codegen->node_to_value.get(node);
     if (cache != nullptr) {
       return *cache;
@@ -470,6 +474,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     codegen->node_to_value.insert(node, func);
 
     genFunctionBody(codegen, builder, node, scope, type, func);
+    codegen->node_to_value.insert(node, func);
     return func;
   }
   case NodeKind::Struct: {

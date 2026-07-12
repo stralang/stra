@@ -4,6 +4,7 @@
 #include "codegen.hpp"
 #include "define.hpp"
 #include "llvm-c/Types.h"
+#include <iostream>
 #include <llvm-c/Core.h>
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,

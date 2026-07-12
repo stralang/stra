@@ -15,6 +15,7 @@ add_executable(stra
   src/evaluator/type.cpp
   src/evaluator/builtin.cpp
   src/evaluator/desugar.cpp
+  src/evaluator/generics.cpp
 
   src/comptime/comptime.cpp
   src/comptime/operator.cpp

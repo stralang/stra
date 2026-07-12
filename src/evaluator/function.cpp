@@ -68,6 +68,10 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   for (size_t i = 0; i < node->function.parameters.length; i++) {
     Node *param = node->function.parameters.data.ptr[i];
     evaluate(evaluator, param, fn_scope);
+
+    if (param->field.comptime) {
+      continue;
+    }
     Value *val = &param->value;
     expect(val->type != nullptr, param->location,
            "Failed to evaluate function parameter");
@@ -243,5 +247,10 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     } else {
       node->kind = NodeKind::Value;
     }
+  }
+
+  // Generics
+  if (fn_scope != nullptr && fn_scope->node->function.polymorphic) {
+    specializeCall(evaluator, node, scope, fn_scope->node, fn_scope);
   }
 }
