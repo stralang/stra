@@ -27,6 +27,7 @@ struct NodeFunction {
   Node *body;
   bool undefined;
   bool comptime;
+  bool polymorphic;
 };
 
 struct NodeStruct {

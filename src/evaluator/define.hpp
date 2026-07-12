@@ -56,3 +56,7 @@ void evaluateBuiltinFunction(Evaluator *evaluator, Node *node, Symbol *scope,
 void desugarModifyAssign(Evaluator *evaluator, Node *node, Symbol *scope);
 Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
                      Symbol *parent_scope);
+
+// Generics
+void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
+                    Node *fn_node, Symbol *fn_scope);
