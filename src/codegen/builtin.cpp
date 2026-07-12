@@ -202,12 +202,12 @@ LLVMValueRef buildAtomicCompareExchange(CodeGenModule *codegen,
 
 // TODO: Should the function be created instead?
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
-                            Type *callee_type, Slice<LLVMValueRef> args) {
-  assert(callee_type->kind == TypeKind::Function &&
+                            Value *callee, Slice<LLVMValueRef> args) {
+  assert(callee->type->kind == TypeKind::Function &&
          "Callee must be a function");
 
-  Slice<Type *> arg_types = callee_type->function.arguments.slice();
-  Symbol *fn_scope = callee_type->function.scope;
+  Slice<Type *> arg_types = callee->type->function.arguments.slice();
+  Symbol *fn_scope = callee->data.symbol;
   Symbol *parent_scope = fn_scope->parent;
   if (parent_scope == nullptr || parent_scope->node->kind != NodeKind::Field) {
     std::cerr << "Cannot generate builtin function from floating function\n";

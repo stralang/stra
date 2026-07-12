@@ -115,7 +115,8 @@ LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
     args.push(gen(codegen, builder, arg, scope));
   }
 
-  return genCallBuiltin(codegen, builder, callee_type, args.slice());
+  return genCallBuiltin(codegen, builder, &node->call.callee->value,
+                        args.slice());
 }
 
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,

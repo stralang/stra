@@ -61,10 +61,8 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   node->value.data.symbol = fn_scope;
 
   // Prepare type
-  Type *fn_t = evaluator->type_cache->get(
-      {.kind = TypeKind::Function, .function = {.scope = fn_scope}});
-  node->value.type = fn_t;
-  fn_t->function.arguments.init(evaluator->allocator, 4);
+  Type fn_t = {.kind = TypeKind::Function};
+  fn_t.function.arguments.init(evaluator->allocator, 4);
 
   // Evaluate parameters
   for (size_t i = 0; i < node->function.parameters.length; i++) {
@@ -73,7 +71,7 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     Value *val = &param->value;
     expect(val->type != nullptr, param->location,
            "Failed to evaluate function parameter");
-    fn_t->function.arguments.push(val->type);
+    fn_t.function.arguments.push(val->type);
   }
 
   // Evaluate return type
@@ -85,17 +83,20 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     expect(val->type->kind == TypeKind::TypeId,
            node->function.return_type->location,
            "Function return type must be a type");
-    fn_t->function.return_type = val->data.type_value;
+    fn_t.function.return_type = val->data.type_value;
   } else {
-    fn_t->function.return_type =
+    fn_t.function.return_type =
         evaluator->type_cache->get({.kind = TypeKind::Void});
   }
+
+  // Set type
+  node->value.type = evaluator->type_cache->get(fn_t);
 
   // Evaluate Body
   if (node->function.body != nullptr) {
     evaluate(evaluator, node->function.body, fn_scope);
 
-    if (fn_t->function.return_type->kind != TypeKind::Void) {
+    if (fn_t.function.return_type->kind != TypeKind::Void) {
       bool does_return =
           checkForReturn(evaluator, node->function.body, fn_scope);
       expect(does_return, node->function.body->end_location,
@@ -150,7 +151,6 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
          "Callee must be a function. Got `" << *callee_type << "`");
 
   Type *fn_type = callee_type;
-  Symbol *fn_scope = fn_type->function.scope;
   Node *method = scope->node;
 
   // Get receiver
@@ -202,8 +202,14 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
   node->value.type = fn_type->function.return_type;
   node->value.has_data = false;
 
+  // Scope
+  Symbol *fn_scope = nullptr;
+  if (node->call.callee->value.has_data) {
+    fn_scope = node->call.callee->value.data.symbol;
+  }
+
   // Builtin
-  if (fn_scope->parent->node->kind == NodeKind::Field) {
+  if (fn_scope != nullptr && fn_scope->parent->node->kind == NodeKind::Field) {
     Node *attributes = fn_scope->parent->node->field.attributes;
     if (attributes == nullptr || !containsAttribute(attributes, "builtin")) {
       return;

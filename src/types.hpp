@@ -30,7 +30,6 @@ struct SliceType {
 struct FunctionType {
   ArrayList<Type *> arguments;
   Type *return_type;
-  Symbol *scope;
 };
 
 struct StructType {
@@ -279,7 +278,10 @@ struct TypeCache {
       break;
     }
     case TypeKind::Function: {
-      hasher.hash(&t->function.scope);
+      for (size_t i = 0; i < t->function.arguments.length; i++) {
+        hasher.hash(&t->function.arguments.data.ptr[i]->hashcode);
+      }
+      hasher.hash(&t->function.return_type->hashcode);
       break;
     }
     case TypeKind::Struct: {

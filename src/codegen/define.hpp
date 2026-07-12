@@ -34,7 +34,7 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope);
 
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
-                            Type *callee_type, Slice<LLVMValueRef> args);
+                            Value *callee, Slice<LLVMValueRef> args);
 
 // Helpers
 void injectDefer(CodeGenModule *codegen, LLVMBuilderRef builder, Symbol *scope,
