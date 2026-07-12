@@ -145,6 +145,7 @@ struct NodeAssembly {
 struct Value {
   Type *type;
   bool has_data;
+  enum { Direct, Indirect } addressing;
   union {
     Type *type_value;
     String text;
@@ -153,6 +154,7 @@ struct Value {
     double _float;
     Node *node;
     Symbol *symbol;
+    Value *ptr;
   } data;
 };
 

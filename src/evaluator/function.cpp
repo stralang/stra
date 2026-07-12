@@ -124,7 +124,8 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     if (field_node->field.attributes != nullptr) {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
-      if (link_name_node != nullptr) {
+      if (link_name_node != nullptr &&
+          link_name_node->member.value != nullptr) {
         name = link_name_node->member.value->value.data.text;
       }
     }
@@ -215,7 +216,8 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     if (field_node->field.attributes != nullptr) {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
-      if (link_name_node != nullptr) {
+      if (link_name_node != nullptr &&
+          link_name_node->member.value != nullptr) {
         name = link_name_node->member.value->value.data.text;
       }
     }

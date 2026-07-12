@@ -767,20 +767,19 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
       }
 
       if (child->member.name.compare("link_name")) {
-        expect(child->member.value != nullptr, node->location,
-               "`link_name` attribute expects value");
+        if (child->member.value != nullptr) {
+          Type *child_type = child->member.value->value.type;
+          bool is_valid = child_type->kind == TypeKind::Slice;
+          if (is_valid) {
+            is_valid = child_type->slice.type->kind == TypeKind::Integer &&
+                       !child_type->slice.type->integer.is_untyped &&
+                       !child_type->slice.type->integer.is_signed &&
+                       child_type->slice.type->integer.bits == 8;
+          }
 
-        Type *child_type = child->member.value->value.type;
-        bool is_valid = child_type->kind == TypeKind::Slice;
-        if (is_valid) {
-          is_valid = child_type->slice.type->kind == TypeKind::Integer &&
-                     !child_type->slice.type->integer.is_untyped &&
-                     !child_type->slice.type->integer.is_signed &&
-                     child_type->slice.type->integer.bits == 8;
+          expect(is_valid, node->location,
+                 "`link_name` attribute expects string");
         }
-
-        expect(is_valid, node->location,
-               "`link_name` attribute expects string");
       } else if (child->member.name.compare("builtin")) {
         expect(child->member.value == nullptr, node->location,
                "`builtin` attribute expects no value");
