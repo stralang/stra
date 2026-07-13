@@ -1,3 +1,4 @@
+#include "../helper.hpp"
 #include "../print.hpp"
 #include "abi/general.hpp"
 #include "codegen.hpp"
@@ -102,8 +103,8 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 }
 
 LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
-                                Node *node, Symbol *scope,
-                                Symbol *func_symbol) {
+                                Node *node, Symbol *scope, Symbol *func_symbol,
+                                Node *builtin_name) {
   Type *callee_type = node->call.callee->value.type;
 
   // Arguments
@@ -115,8 +116,8 @@ LLVMValueRef prepareCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
     args.push(gen(codegen, builder, arg, scope));
   }
 
-  return genCallBuiltin(codegen, builder, &node->call.callee->value,
-                        args.slice());
+  return genCallBuiltin(codegen, builder, builtin_name,
+                        &node->call.callee->value, args.slice());
 }
 
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
@@ -137,12 +138,10 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (parent_node->kind == NodeKind::Field &&
         parent_node->field.attributes != nullptr) {
       Node *attributes = parent_node->field.attributes;
-      for (size_t i = 0; i < attributes->children.length; i++) {
-        if (!attributes->children.data.ptr[i]->member.name.compare("builtin")) {
-          continue;
-        }
-
-        return prepareCallBuiltin(codegen, builder, node, scope, func_symbol);
+      Node *builtin = getAttribute(attributes, "builtin");
+      if (builtin != nullptr) {
+        return prepareCallBuiltin(codegen, builder, node, scope, func_symbol,
+                                  builtin->member.value);
       }
     }
   }

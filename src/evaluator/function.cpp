@@ -111,7 +111,9 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   // Builtin
   if (fn_scope->parent->node->kind == NodeKind::Field) {
     Node *attributes = fn_scope->parent->node->field.attributes;
-    if (attributes == nullptr || !containsAttribute(attributes, "builtin")) {
+    Node *builtin =
+        attributes != nullptr ? getAttribute(attributes, "builtin") : nullptr;
+    if (builtin == nullptr) {
       return;
     }
 
@@ -121,8 +123,9 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     // Get name
     Node *field_node = fn_scope->parent->node;
     String name = field_node->field.name;
-
-    if (field_node->field.attributes != nullptr) {
+    if (builtin->member.value != nullptr) {
+      name = builtin->member.value->value.data.text;
+    } else {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
       if (link_name_node != nullptr &&
@@ -211,15 +214,18 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
   // Builtin
   if (fn_scope != nullptr && fn_scope->parent->node->kind == NodeKind::Field) {
     Node *attributes = fn_scope->parent->node->field.attributes;
-    if (attributes == nullptr || !containsAttribute(attributes, "builtin")) {
+    Node *builtin =
+        attributes != nullptr ? getAttribute(attributes, "builtin") : nullptr;
+    if (builtin == nullptr) {
       return;
     }
 
     // Get name
     Node *field_node = fn_scope->parent->node;
     String name = field_node->field.name;
-
-    if (field_node->field.attributes != nullptr) {
+    if (builtin->member.value != nullptr) {
+      name = builtin->member.value->value.data.text;
+    } else {
       Node *link_name_node =
           getAttribute(field_node->field.attributes, "link_name");
       if (link_name_node != nullptr &&

@@ -1,3 +1,4 @@
+#include "../helper.hpp"
 #include "../print.hpp"
 #include "../symbol.hpp"
 #include "codegen.hpp"
@@ -202,7 +203,8 @@ LLVMValueRef buildAtomicCompareExchange(CodeGenModule *codegen,
 
 // TODO: Should the function be created instead?
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
-                            Value *callee, Slice<LLVMValueRef> args) {
+                            Node *builtin_name, Value *callee,
+                            Slice<LLVMValueRef> args) {
   assert(callee->type->kind == TypeKind::Function &&
          "Callee must be a function");
 
@@ -214,9 +216,20 @@ LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
     return nullptr;
   }
 
+  // Get Name
   Node *field_node = parent_scope->node;
   String name = field_node->field.name;
+  if (builtin_name != nullptr) {
+    name = builtin_name->value.data.text;
+  } else {
+    Node *link_name_node =
+        getAttribute(field_node->field.attributes, "link_name");
+    if (link_name_node != nullptr && link_name_node->member.value != nullptr) {
+      name = link_name_node->member.value->value.data.text;
+    }
+  }
 
+  // Generate
   if (name.compare("atomicLoad")) {
     return buildAtomicLoad(codegen, builder, args, arg_types);
   } else if (name.compare("atomicStore")) {

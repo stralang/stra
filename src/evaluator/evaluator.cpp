@@ -94,10 +94,10 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Field: {
-    bool is_builtin = false;
+    Node *builtin = nullptr;
     if (node->field.attributes != nullptr) {
       evaluate(evaluator, node->field.attributes, scope);
-      is_builtin = containsAttribute(node->field.attributes, "builtin");
+      builtin = getAttribute(node->field.attributes, "builtin");
     }
 
     Symbol *field_symbol = scope->findSymbolByNode(node);
@@ -118,7 +118,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     // Evaluate Initial
     if (node->field.initial != nullptr) {
-      expect(!is_builtin || node->field.initial->kind == NodeKind::Function,
+      expect(builtin == nullptr ||
+                 node->field.initial->kind == NodeKind::Function,
              node->location, "Builtin variable must be undefined");
 
       evaluate(evaluator, node->field.initial, field_symbol);
@@ -149,15 +150,20 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
       node->value.has_data = value->has_data;
       node->value.data = value->data;
-    } else if (is_builtin) {
+    } else if (builtin != nullptr) {
       expect(node->field.undefined, node->location,
              "Builtin variable must be undefined");
 
       // Get "real" name
-      Node *link_name_node = getAttribute(node->field.attributes, "link_name");
       String name = node->field.name;
-      if (link_name_node != nullptr) {
-        name = link_name_node->member.value->text;
+      if (builtin->member.value != nullptr) {
+        name = builtin->member.value->value.data.text;
+      } else {
+        Node *link_name_node =
+            getAttribute(node->field.attributes, "link_name");
+        if (link_name_node != nullptr) {
+          name = link_name_node->member.value->value.data.text;
+        }
       }
 
       // set
@@ -766,7 +772,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
         }
       }
 
-      if (child->member.name.compare("link_name")) {
+      if (child->member.name.compare("link_name") ||
+          child->member.name.compare("builtin")) {
         if (child->member.value != nullptr) {
           Type *child_type = child->member.value->value.type;
           bool is_valid = child_type->kind == TypeKind::Slice;
@@ -778,11 +785,8 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
           }
 
           expect(is_valid, node->location,
-                 "`link_name` attribute expects string");
+                 "`" << child->member.name << "` attribute expects string");
         }
-      } else if (child->member.name.compare("builtin")) {
-        expect(child->member.value == nullptr, node->location,
-               "`builtin` attribute expects no value");
       }
     }
     break;
