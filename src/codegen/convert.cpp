@@ -185,7 +185,26 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
       values[i] = LLVMConstInt(elem_type, value->data.text.ptr[i], false);
     }
 
-    return LLVMConstArray(elem_type, values, value->data.text.len);
+    LLVMValueRef data = LLVMConstArray(elem_type, values, value->data.text.len);
+
+    // Runtime
+    if (value->type->slice.length == 0) {
+      LLVMValueRef ptr = LLVMAddGlobal(
+          codegen->mod, LLVMArrayType(elem_type, value->data.text.len),
+          "const_ptr");
+      LLVMSetGlobalConstant(ptr, true);
+      LLVMSetLinkage(ptr, LLVMPrivateLinkage);
+      LLVMSetInitializer(ptr, data);
+
+      LLVMValueRef slice_out[2];
+      slice_out[0] = ptr;
+      slice_out[1] = LLVMConstInt(
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          value->data.text.len, false);
+      data = LLVMConstStructInContext(codegen->ctx, slice_out, 2, false);
+    }
+
+    return data;
   }
   case TypeKind::Enum: {
     Type *repr_type = value->type->_enum.repr_type;
