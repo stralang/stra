@@ -7,7 +7,7 @@ void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope) {
   Node *rhs = node->_operator.rhs;
   evaluate(evaluator, lhs, scope);
   evaluate(evaluator, rhs, scope);
-  fixUntyped(evaluator, rhs, lhs->value.type);
+  autoCast(evaluator, rhs, lhs->value.type);
 
   if (node->_operator.opcode != Operator::Assign) {
     desugarModifyAssign(evaluator, node, scope);
