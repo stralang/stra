@@ -55,25 +55,13 @@ bool compareTypes(Type *lhs, Type *rhs) {
     return compareTypes(lhs->function.return_type, rhs->function.return_type);
   }
   case TypeKind::Struct: {
-    for (size_t i = 0; i < lhs->_struct.fields.length; i++) {
-      if (!compareTypes(lhs->_struct.fields.data.ptr[i],
-                        rhs->_struct.fields.data.ptr[i])) {
-        return false;
-      }
-    }
-    return true;
+    return lhs->_struct.scope == rhs->_struct.scope;
   }
   case TypeKind::Enum: {
     return compareTypes(lhs->_enum.repr_type, rhs->_enum.repr_type);
   }
   case TypeKind::Union: {
-    for (size_t i = 0; i < lhs->_union.variants.length; i++) {
-      if (!compareTypes(lhs->_union.variants.data.ptr[i],
-                        rhs->_union.variants.data.ptr[i])) {
-        return false;
-      }
-    }
-    return compareTypes(lhs->_union.repr_type, rhs->_union.repr_type);
+    return lhs->_union.scope == rhs->_union.scope;
   }
   }
 
@@ -130,8 +118,6 @@ void autoCast(Evaluator *evaluator, Node *src, Type *dst) {
 
   src->value.type = autoConvert(evaluator, src->value.type, dst);
 }
-
-#include "../print.hpp"
 
 void fixUntyped(Evaluator *evaluator, Node *node, Type *real) {
   // not untyped
