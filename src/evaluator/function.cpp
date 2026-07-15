@@ -69,9 +69,6 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
     Node *param = node->function.parameters.data.ptr[i];
     evaluate(evaluator, param, fn_scope);
 
-    if (param->field.comptime) {
-      continue;
-    }
     Value *val = &param->value;
     expect(val->type != nullptr, param->location,
            "Failed to evaluate function parameter");

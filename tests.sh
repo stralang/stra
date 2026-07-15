@@ -23,6 +23,7 @@ check function 0
 check struct 0
 check enum 0
 check slice 0
+check generics 0
 
 rm test.out
 if [ $fail_count -ne 0 ]; then

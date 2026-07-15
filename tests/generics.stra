@@ -1,0 +1,7 @@
+test :: fn($a: i32) i32 {
+  return a + 10;
+}
+
+main :: fn() i32 {
+  return !(test(100) == 110) as i32;
+}

@@ -18,7 +18,6 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
     }
   }
 
-  // Use cached function if available, overwise
   // TODO: Cached function
 
   // Copy function
@@ -45,17 +44,21 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
   evaluate(evaluator, new_fn_node, new_fn_scope);
 
   // Remove Compile-time arguments
+  Type new_fn_type = *new_fn_node->value.type;
   for (size_t l = call_node->call.arguments.length; l > 0; l--) {
     size_t i = l - 1;
     Node *param = new_fn_node->function.parameters.data[i];
     if (param->field.comptime) {
       new_fn_node->function.parameters.remove(i);
       call_node->call.arguments.remove(i);
+      new_fn_type.function.arguments.remove(i);
     }
   }
 
-  call_node->call.callee->value.has_data = true;
-  call_node->call.callee->value.data.symbol = new_fn_scope;
+  new_fn_node->value.type = evaluator->type_cache->get(new_fn_type);
+  new_fn_node->value.has_data = true;
+  new_fn_node->value.data.symbol = new_fn_scope;
+  call_node->call.callee->value = new_fn_node->value;
 
   // Cache function
   // TODO: Cache function
