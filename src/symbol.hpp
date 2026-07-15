@@ -17,7 +17,7 @@ struct Symbol {
 
   String mangled_name;
 
-  Symbol *findSymbol(String *name, SrcLoc *location) {
+  Symbol *getSymbolInScope(String *name, SrcLoc *location) {
     for (size_t i = 0; i < this->children.length; i++) {
       Symbol *child = this->children.data.ptr[i];
       if (child->node == nullptr) {
@@ -47,6 +47,15 @@ struct Symbol {
       }
 
       return child;
+    }
+
+    return nullptr;
+  }
+
+  Symbol *findSymbol(String *name, SrcLoc *location) {
+    Symbol *found = this->getSymbolInScope(name, location);
+    if (found != nullptr) {
+      return found;
     }
 
     if (this->parent != nullptr) {

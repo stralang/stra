@@ -1,6 +1,93 @@
 #include "../comptime/comptime.hpp"
 #include "../print.hpp"
 #include "define.hpp"
+#include "evaluator.hpp"
+#include <cstdint>
+
+void evaluateMemberAccess(Evaluator *evaluator, Node *node, Symbol *scope) {
+  // Handle RHS Value
+  if (node->_operator.rhs->kind == NodeKind::Value) {
+    node->kind = NodeKind::Value;
+    node->value = node->_operator.rhs->value;
+    return;
+  }
+
+  // Member access
+  Node *lhs = node->_operator.lhs;
+  evaluate(evaluator, lhs, scope);
+
+  Type *lhs_type = lhs->value.type;
+  if (lhs_type->kind == TypeKind::Pointer) {
+    lhs_type = lhs_type->child; // Auto Dereference
+  }
+
+  Symbol *impl_scope = nullptr;
+
+  // Slice
+  if (lhs_type->kind == TypeKind::Slice) {
+    expect(lhs_type->slice.length >= 0, lhs->location,
+           "Cannot member access a pointer slice");
+
+    expect(node->_operator.rhs->kind == NodeKind::Name,
+           node->_operator.rhs->location, "Slice member access must be a name");
+
+    Type out_ty = {};
+    if (node->_operator.rhs->text.compare("ptr")) {
+      out_ty.kind = TypeKind::Pointer;
+      out_ty.is_constant = true;
+      out_ty.child = lhs_type->slice.type;
+      node->value.has_data = false;
+    } else if (node->_operator.rhs->text.compare("len")) {
+      out_ty.kind = TypeKind::Integer;
+      out_ty.is_constant = true;
+      out_ty.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
+
+      node->value.has_data = lhs_type->slice.length > 0;
+      node->value.data.integer = lhs_type->slice.length;
+    } else {
+      expect(false, node->_operator.rhs->location,
+             "Unknown slice access must be one of `ptr`, `len`");
+    }
+
+    node->value.type = evaluator->type_cache->get(out_ty);
+    return;
+  }
+
+  // Get "real" type
+  bool is_typeid = lhs_type->kind == TypeKind::TypeId;
+  if (is_typeid) {
+    lhs_type = lhs->value.data.type_value;
+  }
+
+  // Get scope
+  if (lhs_type->kind == TypeKind::Struct) {
+    impl_scope = lhs_type->_struct.scope;
+  } else if (lhs_type->kind == TypeKind::Enum) {
+    impl_scope = lhs_type->_enum.scope;
+  } else if (lhs_type->kind == TypeKind::Union) {
+    impl_scope = lhs_type->_union.scope;
+  } else if (lhs_type->kind == TypeKind::Namespace) {
+    impl_scope = lhs_type->_namespace.scope;
+  }
+
+  // Find symbol
+  Symbol *found =
+      impl_scope->getSymbolInScope(&node->_operator.rhs->text, nullptr);
+  expect(found != nullptr, node->_operator.rhs->location,
+         "Couldn't find member \"" << node->_operator.rhs->text << "\"");
+
+  evaluate(evaluator, found->node, found->parent);
+  node->_operator.rhs->value = found->node->value;
+  node->value = found->node->value;
+
+  // Check if symbol is accessible from typeid
+  if (is_typeid && found->node->kind == NodeKind::Field &&
+      (lhs_type->kind == TypeKind::Struct ||
+       lhs_type->kind == TypeKind::Union)) {
+    expect(found->node->field.definition, node->_operator.rhs->location,
+           "Cannot access field of TypeId `" << lhs_type->kind << "`");
+  }
+}
 
 void evaluateAssignment(Evaluator *evaluator, Node *node, Symbol *scope) {
   Node *lhs = node->_operator.lhs;
@@ -134,88 +221,15 @@ void evaluateUnary(Evaluator *evaluator, Node *node, Symbol *scope) {
 }
 
 void evaluateBinary(Evaluator *evaluator, Node *node, Symbol *scope) {
-  evaluate(evaluator, node->_operator.lhs, scope);
-  Node *lhs = node->_operator.lhs;
   if (node->_operator.opcode == Operator::MemberAccess) {
-    // Handle RHS Value
-    if (node->_operator.rhs->kind == NodeKind::Value) {
-      node->kind = NodeKind::Value;
-      node->value = node->_operator.rhs->value;
-      return;
-    }
-
-    // Member access
-    Type *lhs_type = lhs->value.type;
-    if (lhs_type->kind == TypeKind::TypeId) {
-      lhs_type = lhs->value.data.type_value;
-    } else if (lhs_type->kind == TypeKind::Pointer) {
-      lhs_type = lhs_type->child; // Auto Dereference
-    }
-
-    // Slice
-    if (lhs_type->kind == TypeKind::Slice) {
-      expect(lhs_type->slice.length >= 0, lhs->location,
-             "Cannot member access a pointer slice");
-
-      expect(node->_operator.rhs->kind == NodeKind::Name,
-             node->_operator.rhs->location,
-             "Slice member access must be a name");
-
-      Type out_ty = {};
-      if (node->_operator.rhs->text.compare("ptr")) {
-        out_ty.kind = TypeKind::Pointer;
-        out_ty.is_constant = true;
-        out_ty.child = lhs_type->slice.type;
-        node->value.has_data = false;
-      } else if (node->_operator.rhs->text.compare("len")) {
-        out_ty.kind = TypeKind::Integer;
-        out_ty.is_constant = true;
-        out_ty.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
-
-        node->value.has_data = lhs_type->slice.length > 0;
-        node->value.data.integer = lhs_type->slice.length;
-      } else {
-        expect(false, node->_operator.rhs->location,
-               "Unknown slice access must be one of `ptr`, `len`");
-      }
-
-      node->value.type = evaluator->type_cache->get(out_ty);
-      return;
-    }
-
-    // Record
-    Symbol *access_scope = nullptr;
-    switch (lhs_type->kind) {
-    case TypeKind::Struct: {
-      access_scope = lhs_type->_struct.scope;
-      break;
-    }
-    case TypeKind::Enum: {
-      access_scope = lhs_type->_enum.scope;
-      break;
-    }
-    case TypeKind::Union: {
-      access_scope = lhs_type->_union.scope;
-      break;
-    }
-    case TypeKind::Namespace: {
-      access_scope = lhs_type->_namespace.scope;
-      break;
-    }
-    default: {
-      expect(false, lhs->location,
-             "LHS must be a Slice, Struct, Enum, Union, or Namespace. Got `"
-                 << *lhs_type << "`");
-    }
-    }
-
-    evaluate(evaluator, node->_operator.rhs, access_scope);
-    node->value = node->_operator.rhs->value;
+    evaluateMemberAccess(evaluator, node, scope);
     return;
   }
 
-  evaluate(evaluator, node->_operator.rhs, scope);
+  Node *lhs = node->_operator.lhs;
   Node *rhs = node->_operator.rhs;
+  evaluate(evaluator, lhs, scope);
+  evaluate(evaluator, rhs, scope);
 
   // Convert from untyped
   if (lhs->value.type->kind == rhs->value.type->kind) {
