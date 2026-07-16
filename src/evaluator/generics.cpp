@@ -18,7 +18,21 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
     }
   }
 
-  // TODO: Cached function
+  // Get cached function
+  Symbol **cached = evaluator->specialized_cache.get(hasher.state);
+  if (cached != nullptr) {
+    // Remove Compile-time arguments
+    for (size_t l = call_node->call.arguments.length; l > 0; l--) {
+      size_t i = l - 1;
+      Node *param = fn_node->function.parameters.data[i];
+      if (param->field.comptime) {
+        call_node->call.arguments.remove(i);
+      }
+    }
+
+    call_node->call.callee->value = (*cached)->node->value;
+    return;
+  }
 
   // Copy function
   Symbol *parent_scope = fn_scope->parent;
@@ -61,5 +75,5 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
   call_node->call.callee->value = new_fn_node->value;
 
   // Cache function
-  // TODO: Cache function
+  evaluator->specialized_cache.insert(hasher.state, new_fn_scope);
 }
