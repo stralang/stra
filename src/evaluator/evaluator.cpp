@@ -800,8 +800,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 }
 
 void Evaluator::eval() {
-  this->type_mapping.init(this->allocator, 64);
-  this->stack.init(this->allocator, 16);
+  this->specialized_cache.init(this->allocator, 64);
 
   evaluate(this, this->ast, this->symbol);
 }

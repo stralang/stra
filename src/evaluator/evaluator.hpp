@@ -11,12 +11,9 @@ struct Evaluator {
   Symbol *symbol;
 
   TypeCache *type_cache;
-  HashMap<Node *, Type *> type_mapping;
+  HashMap<uint64_t, Symbol *> specialized_cache;
 
   Environment *environment;
-
-  // VM
-  ArrayList<Value *> stack;
 
   size_t error_count = 0;
   size_t warning_count = 0;
