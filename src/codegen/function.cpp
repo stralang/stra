@@ -9,7 +9,7 @@
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                      Symbol *scope, LLVMTypeRef fn_type, LLVMValueRef func) {
   if (!node->function.undefined &&
-      node->location.file.compare(codegen->source_path)) {
+      node->location.file_hashcode == codegen->source_path_hashcode) {
     LLVMBasicBlockRef prev_define = codegen->define_block;
     codegen->define_block =
         LLVMAppendBasicBlockInContext(codegen->ctx, func, "defines");

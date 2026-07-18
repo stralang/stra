@@ -6,6 +6,7 @@
 
 struct Tokenizer {
   String path;
+  uint64_t path_hashcode;
   String source;
 
   size_t index;

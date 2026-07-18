@@ -361,7 +361,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Import: {
-    evaluate(evaluator, node->import.node, node->import.scope);
+    evaluate(evaluator, node->import.scope->node, node->import.scope);
 
     // Type
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});

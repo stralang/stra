@@ -320,7 +320,7 @@ LLVMValueRef addr(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return out_slice;
   }
   case NodeKind::Import: {
-    return addr(codegen, builder, node->import.node, node->import.scope);
+    return addr(codegen, builder, node->import.scope->node, node->import.scope);
   }
   }
 
@@ -453,7 +453,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       codegen->node_to_value.insert(node, alloca);
 
       if (!node->field.undefined &&
-          node->location.file.compare(codegen->source_path)) {
+          node->location.file_hashcode == codegen->source_path_hashcode) {
         LLVMSetInitializer(alloca, valueToLLVM(codegen, &node->value));
       }
     }
@@ -504,7 +504,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     return valueToLLVM(codegen, &node->value);
   }
   case NodeKind::Import: {
-    return gen(codegen, builder, node->import.node, node->import.scope);
+    return gen(codegen, builder, node->import.scope->node, node->import.scope);
   }
   case NodeKind::Const:
   case NodeKind::Slice: {
@@ -793,9 +793,9 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
                              bool emit_asm, Optimization opt) {
   // Setup State
   char *name =
-      (char *)allocator->alloc(sizeof(char) * this->source_path.len + 1);
-  memcpy(name, this->source_path.ptr, this->source_path.len);
-  *(name + this->source_path.len) = 0;
+      (char *)allocator->alloc(sizeof(char) * this->module_name.len + 1);
+  memcpy(name, this->module_name.ptr, this->module_name.len);
+  *(name + this->module_name.len) = 0;
 
   this->type_to_llvm.init(this->allocator, 32);
   this->node_to_value.init(this->allocator, 32);

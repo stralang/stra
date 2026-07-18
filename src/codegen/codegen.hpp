@@ -45,7 +45,9 @@ struct CodeGenContext {
 };
 
 struct CodeGenModule {
-  String source_path;
+  String module_name;
+  uint64_t source_path_hashcode;
+
   String output_path;
   Node *ast;
   Symbol *symbol;

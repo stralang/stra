@@ -15,6 +15,8 @@
 #include <iostream>
 #include <string>
 
+namespace fs = std::filesystem;
+
 const char *NAME = "Stra";
 const char *VERSION = "0";
 
@@ -138,6 +140,48 @@ struct Args {
   bool run = false;
   ArrayList<String> paths;
   String output_path = {.len = 5, .ptr = (uint8_t *)"a.out"};
+};
+
+struct SourceFile {
+  String fullpath;
+  uint64_t hashcode;
+
+  Symbol *root;
+  ASTParser parser;
+};
+struct SourceFiles {
+  ArrayList<SourceFile> list;
+  HashMap<uint64_t, size_t> indices;
+  Allocator *allocator;
+
+  void init(Allocator *allocator) {
+    this->list.init(allocator, 32);
+    this->indices.init(allocator, 32);
+    this->allocator = allocator;
+  }
+
+  Symbol *push(String fullpath) {
+    Hasher hasher;
+    hasher.hash_raw(fullpath.ptr, fullpath.len);
+
+    this->indices.insert(hasher.state, this->list.length);
+
+    Symbol *symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
+    symbol->parent = nullptr;
+    symbol->children.init(allocator, 8);
+
+    this->list.push(SourceFile{
+        .fullpath = fullpath,
+        .hashcode = hasher.state,
+        .root = symbol,
+    });
+    return symbol;
+  }
+
+  SourceFile *getPtrUnchecked(size_t i) { return this->list.data.ptr + i; }
+  size_t *getIndex(uint64_t hashcode) { return this->indices.get(hashcode); }
+
+  size_t len() { return this->list.length; }
 };
 
 void error_handler(SrcLoc srcloc, String msg) {
@@ -272,91 +316,101 @@ int main(int argc, const char **argv) {
   type_cache.init(&global_allocator);
 
   // Compile
-  struct SourceFile {
-    String path;
-    Node *ast;
-    Symbol *symbol;
-    ASTParser parser;
-  };
-  struct PendingFile {
-    String path;
-    Node *importer;
-  };
-
-  ArrayList<SourceFile> files;
-  ArrayList<PendingFile> pending;
+  SourceFiles files;
   HashMap<uint64_t, size_t> path_to_file;
 
-  files.init(&global_allocator, 8);
-  pending.init(&global_allocator, 8);
+  files.init(&global_allocator);
   path_to_file.init(&global_allocator, 64);
 
+  // Add command line supplied files
   for (size_t i = 0; i < args.paths.length; i++) {
-    pending.push({
-        .path = args.paths.data.ptr[i],
-        .importer = nullptr,
-    });
+    String path = args.paths.data.ptr[i];
+
+    std::string cpp_path((const char *)path.ptr, path.len);
+    fs::path cpp_fullpath = fs::canonical(cpp_path);
+    std::string cpp_fullpath_str = cpp_fullpath.string();
+    String out = {
+        cpp_fullpath_str.length(),
+        global_allocator.alloc(cpp_fullpath_str.length() * sizeof(char)),
+    };
+    memcpy(out.ptr, cpp_fullpath_str.data(),
+           cpp_fullpath_str.length() * sizeof(char));
+
+    files.push(out);
   }
 
   size_t total_parse_errors = 0;
-  while (pending.length > 0) {
-    PendingFile file = pending.pop();
+  size_t file_idx = 0;
+  while (file_idx < files.len()) {
+    SourceFile *file = files.getPtrUnchecked(file_idx);
+    std::string cpp_fullpath_str((const char *)file->fullpath.ptr,
+                                 file->fullpath.len);
+    fs::path cpp_fullpath = cpp_fullpath_str;
+
+    std::string cpp_filename = cpp_fullpath.stem();
+    String filename = {
+        cpp_filename.length(),
+        global_allocator.alloc(cpp_filename.length() * sizeof(char))};
+    memcpy(filename.ptr, cpp_filename.data(),
+           cpp_filename.length() * sizeof(char));
 
     // Tokenize
     Tokenizer tokenizer;
-    tokenizer.path = file.path;
+    tokenizer.path = file->fullpath;
+    tokenizer.path_hashcode = file->hashcode;
     tokenizer.init();
 
     // Parse
-    ASTParser parser = ASTParser{
+    // FIXME: `filename` Two files with the same name can causes linker errors
+    file->parser = ASTParser{
         .tokenizer = tokenizer,
+        .filename = filename,
+        .symbol = file->root,
         .error_func = &error_handler,
         .type_cache = &type_cache,
         .allocator = &global_allocator,
     };
-    parser.parse();
+    file->parser.parse();
 
     // Emit AST
     if (args.emit_mode == EmitMode::AST) {
-      std::cout << "---- " << file.path << " ----\n";
-      std::cout << *parser.ast << "\n";
+      std::cout << "---- " << file->fullpath << " ----\n";
+      std::cout << *file->parser.ast << "\n";
     }
 
-    total_parse_errors += parser.error_count;
-
-    // Finish
-    files.push({
-        .path = file.path,
-        .ast = parser.ast,
-        .symbol = parser.symbol,
-        .parser = parser,
-    });
-
-    Hasher hasher;
-    hasher.hash_raw(file.path.ptr, file.path.len);
-    path_to_file.insert(hasher.state, files.length - 1);
-
-    if (file.importer != nullptr) {
-      file.importer->import.node = parser.ast;
-      file.importer->import.scope = parser.symbol;
-    }
+    total_parse_errors += file->parser.error_count;
 
     // Handle Imports
-    for (size_t i = 0; i < parser.imports.length; i++) {
-      Node *import = parser.imports.data.ptr[i];
+    for (size_t i = 0; i < file->parser.imports.length; i++) {
+      Node *import = file->parser.imports.data.ptr[i];
       String import_path = import->import.path;
 
+      std::string cpp_path((const char *)import_path.ptr, import_path.len);
+      fs::path fullpath = fs::canonical(cpp_fullpath.parent_path() / cpp_path);
+      std::string fullpath_str = fullpath.string();
+
       Hasher hasher;
-      hasher.hash_raw(import_path.ptr, import_path.len);
-      size_t *import_idx = path_to_file.get(hasher.state);
+      hasher.hash_raw((uint8_t *)fullpath_str.data(), fullpath_str.length());
+
+      // Check existing
+      size_t *import_idx = files.getIndex(hasher.state);
       if (import_idx != nullptr) {
-        SourceFile *import_file = files.data.ptr + *import_idx;
-        import->import.node = import_file->ast;
-        import->import.scope = import_file->symbol;
-      } else {
-        pending.push({.path = import_path, .importer = import});
+        SourceFile *import_file = files.getPtrUnchecked(*import_idx);
+        import->import.scope = import_file->root;
+        continue;
       }
+
+      // Add new file
+      String out = {
+          fullpath_str.length(),
+          global_allocator.alloc(fullpath_str.length() * sizeof(char)),
+      };
+      memcpy(out.ptr, fullpath_str.data(),
+             fullpath_str.length() * sizeof(char));
+      import->import.scope = files.push(out);
     }
+
+    file_idx += 1;
   }
 
   if (total_parse_errors > 0) {
@@ -379,10 +433,10 @@ int main(int argc, const char **argv) {
   codegen_ctx.init(&environment, args.target_triple);
 
   // Evaluate
-  SourceFile *root_file = files.data.ptr;
+  SourceFile *root_file = files.getPtrUnchecked(0);
   Evaluator evaluator = {
-      .ast = root_file->ast,
-      .symbol = root_file->symbol,
+      .ast = root_file->root->node,
+      .symbol = root_file->root,
       .type_cache = &type_cache,
       .environment = &environment,
       .error_func = &error_handler,
@@ -403,10 +457,10 @@ int main(int argc, const char **argv) {
 
   // Emit Evaluted AST
   if (args.emit_mode == EmitMode::EvaluatedAST) {
-    for (size_t i = 0; i < files.length; i++) {
-      SourceFile *file = files.data.ptr + i;
-      std::cout << "---- " << file->path << " ----\n";
-      std::cout << *file->ast << "\n";
+    for (size_t i = 0; i < files.len(); i++) {
+      SourceFile *file = files.getPtrUnchecked(i);
+      std::cout << "---- " << file->fullpath << " ----\n";
+      std::cout << *file->root->node << "\n";
     }
 
     return 0;
@@ -419,22 +473,23 @@ int main(int argc, const char **argv) {
   bool emit_ir = args.emit_mode == EmitMode::IR;
   bool emit_asm = args.emit_mode == EmitMode::Assembly;
 
-  for (size_t i = 0; i < files.length; i++) {
-    SourceFile *file = files.data.ptr + i;
+  for (size_t i = 0; i < files.len(); i++) {
+    SourceFile *file = files.getPtrUnchecked(i);
 
     // Get File name
-    std::string cpp_str((const char *)file->path.ptr, file->path.len);
-    std::filesystem::path path = cpp_str;
-    std::filesystem::path name = path.filename();
+    std::string cpp_fullpath_str((const char *)file->fullpath.ptr,
+                                 file->fullpath.len);
+    fs::path name_path = cpp_fullpath_str;
+    name_path = name_path.filename();
     if (emit_ir) {
-      name.replace_extension("ll");
+      name_path.replace_extension("ll");
     } else if (emit_asm) {
-      name.replace_extension("S");
+      name_path.replace_extension("S");
     } else {
-      name.replace_extension("o");
+      name_path.replace_extension("o");
     }
 
-    std::string cpp_name = name.string();
+    std::string cpp_name = name_path.string();
 
     String out_name = {
         .len = cpp_name.size(),
@@ -443,11 +498,20 @@ int main(int argc, const char **argv) {
     memcpy(out_name.ptr, cpp_name.data(), cpp_name.size());
     outputs.push(out_name);
 
+    // Get module name
+    std::string cpp_module_name((const char *)file->parser.filename.ptr,
+                                file->parser.filename.len);
+    cpp_module_name.append("-");
+    cpp_module_name.append(std::to_string(file->hashcode));
+    String module_name = {cpp_module_name.length(),
+                          (uint8_t *)cpp_module_name.data()};
+
     // Generate
     CodeGenModule codegen = {
-        .source_path = file->path,
-        .ast = file->ast,
-        .symbol = file->symbol,
+        .module_name = module_name,
+        .source_path_hashcode = file->hashcode,
+        .ast = file->root->node,
+        .symbol = file->root,
         .allocator = &global_allocator,
     };
     codegen.output_path = out_name;

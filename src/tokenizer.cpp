@@ -40,7 +40,8 @@ void Tokenizer::init() {
   std::string filepath((const char *)this->path.ptr, this->path.len);
   std::ifstream file(filepath);
   if (!file) {
-    assert("Failed to open file" && 0);
+    std::cerr << "Failed to open file: `" << filepath << "`\n";
+    std::abort();
   }
 
   file.seekg(0, std::ios::end);
@@ -137,6 +138,7 @@ Token Tokenizer::next() {
   token.kind = TokenKind::Eof;
   token.location = SrcLoc{
       .file = this->path,
+      .file_hashcode = this->path_hashcode,
       .index = this->index,
       .line = this->line,
       .column = this->column,

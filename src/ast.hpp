@@ -52,7 +52,6 @@ struct NodeMember {
 
 struct NodeImport {
   String path;
-  Node *node;
   Symbol *scope;
 };
 

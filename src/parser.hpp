@@ -9,6 +9,7 @@
 
 struct ASTParser {
   Tokenizer tokenizer;
+  String filename;
   Node *ast;
   Symbol *symbol;
   ArrayList<Node *> imports;

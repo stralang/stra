@@ -546,7 +546,6 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     expectToken(TokenKind::String);
 
     out->import.path = parser->cur_token.text;
-    out->import.node = nullptr;
     out->import.scope = nullptr;
     expectEOF(parser->nextToken());
     parser->imports.push(out);
@@ -1180,20 +1179,22 @@ void ASTParser::parse() {
     return;
   }
 
-  this->symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
-  this->symbol->parent = nullptr;
+  if (this->symbol == nullptr) {
+    this->symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
+    this->symbol->parent = nullptr;
+    this->symbol->children.init(this->allocator, 8);
+  }
   this->symbol->location_aware = false;
-  this->symbol->children.init(this->allocator, 8);
 
   // Setup symbol mangled name
   {
-    std::string len_str = std::to_string(this->tokenizer.path.len);
-    this->symbol->mangled_name.len = len_str.size() + this->tokenizer.path.len;
+    std::string len_str = std::to_string(this->filename.len);
+    this->symbol->mangled_name.len = len_str.size() + this->filename.len;
     this->symbol->mangled_name.ptr =
         (uint8_t *)allocator->alloc(this->symbol->mangled_name.len);
     memcpy(this->symbol->mangled_name.ptr, len_str.data(), len_str.size());
-    memcpy(this->symbol->mangled_name.ptr + len_str.size(),
-           this->tokenizer.path.ptr, this->tokenizer.path.len);
+    memcpy(this->symbol->mangled_name.ptr + len_str.size(), this->filename.ptr,
+           this->filename.len);
   }
 
   this->imports.init(this->allocator, 8);
