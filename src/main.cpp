@@ -3,6 +3,7 @@
 #include "containers.hpp"
 #include "environment.hpp"
 #include "evaluator/evaluator.hpp"
+#include "helper.hpp"
 #include "parser.hpp"
 #include "print.hpp"
 #include "token.hpp"
@@ -323,11 +324,16 @@ int main(int argc, const char **argv) {
   path_to_file.init(&global_allocator, 64);
 
   // Add command line supplied files
+  fs::path relative_root;
   for (size_t i = 0; i < args.paths.length; i++) {
     String path = args.paths.data.ptr[i];
 
     std::string cpp_path((const char *)path.ptr, path.len);
     fs::path cpp_fullpath = fs::canonical(cpp_path);
+    if (i == 0) {
+      relative_root = cpp_fullpath.parent_path();
+    }
+
     std::string cpp_fullpath_str = cpp_fullpath.string();
     String out = {
         cpp_fullpath_str.length(),
@@ -347,7 +353,14 @@ int main(int argc, const char **argv) {
                                  file->fullpath.len);
     fs::path cpp_fullpath = cpp_fullpath_str;
 
-    std::string cpp_filename = cpp_fullpath.stem();
+    // Get relative path for mangling
+    fs::path cpp_relativepath = fs::relative(cpp_fullpath, relative_root);
+    cpp_relativepath.replace_extension();
+    std::string cpp_filename = cpp_relativepath;
+    cpp_filename = replaceAll(cpp_filename, "/", "_");
+    cpp_filename = replaceAll(cpp_filename, "\\", "_");
+    cpp_filename = replaceAll(cpp_filename, ".", "_");
+
     String filename = {
         cpp_filename.length(),
         global_allocator.alloc(cpp_filename.length() * sizeof(char))};
@@ -361,7 +374,6 @@ int main(int argc, const char **argv) {
     tokenizer.init();
 
     // Parse
-    // FIXME: `filename` Two files with the same name can causes linker errors
     file->parser = ASTParser{
         .tokenizer = tokenizer,
         .filename = filename,
@@ -477,9 +489,9 @@ int main(int argc, const char **argv) {
     SourceFile *file = files.getPtrUnchecked(i);
 
     // Get File name
-    std::string cpp_fullpath_str((const char *)file->fullpath.ptr,
-                                 file->fullpath.len);
-    fs::path name_path = cpp_fullpath_str;
+    std::string cpp_filename_str((const char *)file->parser.filename.ptr,
+                                 file->parser.filename.len);
+    fs::path name_path = cpp_filename_str;
     name_path = name_path.filename();
     if (emit_ir) {
       name_path.replace_extension("ll");
@@ -499,12 +511,8 @@ int main(int argc, const char **argv) {
     outputs.push(out_name);
 
     // Get module name
-    std::string cpp_module_name((const char *)file->parser.filename.ptr,
-                                file->parser.filename.len);
-    cpp_module_name.append("-");
-    cpp_module_name.append(std::to_string(file->hashcode));
-    String module_name = {cpp_module_name.length(),
-                          (uint8_t *)cpp_module_name.data()};
+    String module_name = {cpp_filename_str.length(),
+                          (uint8_t *)cpp_filename_str.data()};
 
     // Generate
     CodeGenModule codegen = {
