@@ -571,18 +571,16 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     if (node->child == nullptr) {
       LLVMBuildRetVoid(builder);
     } else {
-      LLVMValueRef value = gen(codegen, builder, node->child, scope);
-
       FuncStackNode parent_func =
           codegen->function_stack[codegen->function_stack_len - 1];
-      LLVMBuildStore(builder, value, parent_func.ret_ptr);
+      LLVMValueRef value = gen(codegen, builder, node->child, scope);
 
-      if (parent_func.is_ret_arg) {
+      if (parent_func.ret_ptr != nullptr) {
+        LLVMBuildStore(builder, value, parent_func.ret_ptr);
         LLVMBuildRetVoid(builder);
       } else {
-        LLVMValueRef conv_value = LLVMBuildLoad2(builder, parent_func.ret_type,
-                                                 parent_func.ret_ptr, "");
-        LLVMBuildRet(builder, conv_value);
+        LLVMValueRef val = BuildABICast(builder, value, parent_func.ret_type);
+        LLVMBuildRet(builder, val);
       }
     }
 

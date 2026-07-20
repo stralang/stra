@@ -38,12 +38,15 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       }
 
       param_idx += 1;
-    } else if (abi_cache->return_arg.kind != ABIArgKind::Ignore) {
-      return_ptr = BuildAlloca(codegen, builder, return_ty, "return_staging");
     }
 
     // Prepare Parameters
     for (size_t i = 0; i < node->function.parameters.length; i++) {
+      ABIArg abi_arg = abi_cache->args.ptr[i];
+      if (abi_arg.kind == ABIArgKind::Ignore) {
+        continue;
+      }
+
       Node *key = node->function.parameters.data.ptr[i];
       char *name = (char *)codegen->allocator->alloc(key->field.name.len + 1);
       memcpy(name, key->field.name.ptr, key->field.name.len);
@@ -51,21 +54,19 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
       LLVMValueRef alloca = BuildAlloca(codegen, builder, param_ty, name);
-      ABIArg abi_arg = abi_cache->args.ptr[i];
       codegen->node_to_value.insert(key, alloca);
 
-      if (abi_arg.kind == ABIArgKind::Ignore) {
-        continue;
-      } else if (abi_arg.kind == ABIArgKind::Direct) {
-        LLVMBuildStore(builder, LLVMGetParam(func, param_idx), alloca);
+      // Get
+      LLVMValueRef val = LLVMGetParam(func, param_idx);
+      if (abi_arg.kind == ABIArgKind::Direct) {
+        val = BuildABICast(builder, val, param_ty);
       } else if (abi_arg.kind == ABIArgKind::Indirect) {
-        // Dereference
-        LLVMValueRef val = LLVMGetParam(func, param_idx);
-        LLVMTypeRef ptr_ty = LLVMPointerType(abi_arg.type, 0);
-        val = LLVMBuildLoad2(builder, ptr_ty, val, "");
-        LLVMBuildStore(builder, val, alloca);
+        val = BuildABICast(builder, val, LLVMPointerType(param_ty, 0));
+        val = LLVMBuildLoad2(builder, param_ty, val, "");
       }
 
+      // Store
+      LLVMBuildStore(builder, val, alloca);
       if (abi_arg.attribute != nullptr) {
         LLVMAddAttributeAtIndex(func, param_idx, abi_arg.attribute);
       }
@@ -156,13 +157,6 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
       node->call.callee->_operator.lhs->value.type->kind != TypeKind::TypeId) {
     receiver = addr(codegen, builder, node->call.callee->_operator.lhs, scope);
     has_receiver = 1;
-
-    // Load
-    Type *arg0 = callee_type->function.arguments.data.ptr[0];
-    if (arg0->kind != TypeKind::Pointer) {
-      receiver =
-          LLVMBuildLoad2(builder, typeToLLVM(codegen, arg0), receiver, "");
-    }
   }
 
   // Arguments
@@ -183,6 +177,17 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
   // Receiver argument
   if (receiver != nullptr) {
+    ABIArg *abi_arg = abi_cache->args.ptr + 0;
+    LLVMTypeRef abi_ty = abi_arg->type;
+    receiver = BuildABICast(builder, receiver, LLVMPointerType(abi_ty, 0));
+
+    // Dereference
+    if (abi_arg->kind == ABIArgKind::Direct &&
+        callee_type->function.arguments.data.ptr[0]->kind !=
+            TypeKind::Pointer) {
+      receiver = LLVMBuildLoad2(builder, abi_ty, receiver, "");
+    }
+
     args.push(receiver);
   }
 
@@ -197,14 +202,14 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     // Messy argument casting
     if (abi_arg.kind == ABIArgKind::Indirect) {
       LLVMValueRef val = addr(codegen, builder, arg, scope);
-      val = LLVMBuildBitCast(builder, val, abi_arg.type, "");
+      val = BuildABICast(builder, val, LLVMPointerType(abi_arg.type, 0));
       args.push(val);
       continue;
     }
 
-    LLVMValueRef alloca = BuildAlloca(codegen, builder, abi_arg.type, "");
-    LLVMBuildStore(builder, gen(codegen, builder, arg, scope), alloca);
-    args.push(LLVMBuildLoad2(builder, abi_arg.type, alloca, ""));
+    LLVMValueRef val = gen(codegen, builder, arg, scope);
+    val = BuildABICast(builder, val, abi_arg.type);
+    args.push(val);
   }
 
   // Build Call
@@ -237,10 +242,11 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
   // Messy return casting
   if (ret_as_arg != nullptr) {
-    ret = LLVMBuildBitCast(builder, ret_as_arg, ret_ty, "");
+    ret = BuildABICast(builder, ret_as_arg, LLVMPointerType(ret_ty, 0));
   } else {
-    LLVMValueRef ret_alloca =
-        BuildAlloca(codegen, builder, abi_cache->return_arg.type, "");
+    ret = BuildABICast(builder, ret, ret_ty);
+
+    LLVMValueRef ret_alloca = BuildAlloca(codegen, builder, ret_ty, "");
     LLVMBuildStore(builder, ret, ret_alloca);
     ret = ret_alloca;
   }

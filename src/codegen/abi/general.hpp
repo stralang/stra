@@ -26,3 +26,7 @@ enum class ABI {
 };
 
 TargetABI ABIcreateTarget(ABI abi);
+
+// Helpers
+LLVMValueRef BuildABICast(LLVMBuilderRef builder, LLVMValueRef value,
+                          LLVMTypeRef dest_ty);
