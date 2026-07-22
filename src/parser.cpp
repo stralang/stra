@@ -304,6 +304,7 @@ FieldsAndBodyResult parseMembersAndBody(ASTParser *parser, Symbol *scope) {
       Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
       field_symbol->init(parser->allocator, false, scope);
       field_symbol->node = field;
+      field_symbol->name = &field->member.name;
 
       allow_member = parser->cur_token.kind == TokenKind::CommaDelimiter;
       if (allow_member && !parser->nextToken()) {
@@ -647,19 +648,11 @@ Node *parseField(ASTParser *parser, Node *name_prealloc, Symbol *scope) {
   out->field.definition = false;
   out->field.comptime = false;
 
-  // Check for duplicate field
-  // Symbol *duplicate_symbol =
-  //     scope->findSymbol(&out->field.name, &out->location);
-  // if (duplicate_symbol != nullptr) {
-  //   std::cerr << out->location << " Field with name `" << out->field.name
-  //             << "` already exists within scope\n";
-  //   return nullptr;
-  // }
-
   // Create Symbol
   Symbol *field_symbol = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
   field_symbol->init(parser->allocator, false, scope);
   field_symbol->node = out;
+  field_symbol->name = &out->field.name;
 
   // Parse Type
   expectToken(TokenKind::TypeSeperator);
@@ -716,6 +709,7 @@ Node *parseConditional(ASTParser *parser, Symbol *scope) {
 
       node->kind = NodeKind::In;
       node->in.name = node->text;
+      in_symbol->name = &node->in.name;
       node->in.range = parseExpr(
           parser, (Precedence)((int32_t)Precedence::Assign + 1), scope, false);
     } else {

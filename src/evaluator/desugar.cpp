@@ -56,6 +56,7 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
   Symbol *in_var_symbol = (Symbol *)evaluator->allocator->alloc(sizeof(Node));
   in_var_symbol->init(evaluator->allocator, false, desugar_scope);
   in_var_symbol->node = in_var;
+  in_var_symbol->name = &in_var->field.name;
 
   // Setup new condition
   auto mode = node->_for.conditional->in.range->range.mode;
@@ -106,7 +107,7 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
 
   node->_for.body->children.insert(defer_inc, 0);
 
-  // Fix for loop scope
+  // Fix for-loop scope
   for_scope->children.remove(0);
   desugar_node->children.push(node);
   desugar_scope->children.push(for_scope);

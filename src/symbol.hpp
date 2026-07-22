@@ -12,6 +12,7 @@ struct Symbol {
   bool location_aware;
   Symbol *parent;
   Node *node;
+  String *name;
 
   ArrayList<Symbol *> children;
 
@@ -31,12 +32,8 @@ struct Symbol {
       }
 
       // Get name
-      String *child_name;
-      if (child->node->kind == NodeKind::Field) {
-        child_name = &child->node->field.name;
-      } else if (child->node->kind == NodeKind::Member) {
-        child_name = &child->node->member.name;
-      } else {
+      String *child_name = child->name;
+      if (child_name == nullptr) {
         continue;
       }
 
@@ -97,16 +94,8 @@ struct Symbol {
       }
 
       // Get name
-      String *child_name;
-      if (child->node->kind == NodeKind::Field) {
-        child_name = &child->node->field.name;
-
-        if (depth != 0 && !child->node->field.definition) {
-          continue;
-        }
-      } else if (child->node->kind == NodeKind::Member) {
-        child_name = &child->node->member.name;
-      } else {
+      String *child_name = child->name;
+      if (child_name == nullptr) {
         continue;
       }
 
@@ -142,7 +131,7 @@ struct Symbol {
     }
 
     if (node->kind == NodeKind::Field && node->field.name.compare("main")) {
-      this->mangled_name = node->field.name;
+      this->mangled_name = *this->name;
       return this->mangled_name;
     }
 
@@ -152,20 +141,19 @@ struct Symbol {
     }
 
     this->mangled_name = s;
-    if (node->kind == NodeKind::Field) {
-      std::string len_str = std::to_string(node->field.name.len);
-      char *text = (char *)allocator->alloc(s.len + len_str.size() +
-                                            node->field.name.len);
+    if (this->name != nullptr) {
+      std::string len_str = std::to_string(this->name->len);
+      char *text =
+          (char *)allocator->alloc(s.len + len_str.size() + this->name->len);
       if (s.ptr != nullptr) {
         memcpy(text, s.ptr, s.len);
       }
 
       memcpy(text + s.len, len_str.data(), len_str.size());
-      memcpy(text + s.len + len_str.size(), node->field.name.ptr,
-             node->field.name.len);
+      memcpy(text + s.len + len_str.size(), this->name->ptr, this->name->len);
 
       s.ptr = (uint8_t *)text;
-      s.len = s.len + len_str.size() + node->field.name.len;
+      s.len = s.len + len_str.size() + this->name->len;
     }
 
     this->mangled_name = s;
@@ -177,6 +165,7 @@ struct Symbol {
     this->parent = parent;
     this->node = nullptr;
     this->children.init(allocator, 8);
+    this->name = nullptr;
     this->mangled_name = {.len = 0, .ptr = nullptr};
 
     parent->children.push(this);
