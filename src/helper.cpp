@@ -29,14 +29,16 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
   dst->value = {.type = nullptr, .has_data = false};
 
   switch (src->kind) {
-  case NodeKind::Namespace: {
-    Symbol *new_scope = (Symbol *)allocator->alloc(sizeof(Symbol));
-    new_scope->init(allocator, false, scope);
-    new_scope->node = dst;
-    scope = new_scope;
-  }
+  case NodeKind::Namespace:
   case NodeKind::Compound:
   case NodeKind::Attribute: {
+    if (scope->findSymbolByNode(src) != nullptr) {
+      Symbol *new_scope = (Symbol *)allocator->alloc(sizeof(Symbol));
+      new_scope->init(allocator, scope->location_aware, scope);
+      new_scope->node = dst;
+      scope = new_scope;
+    }
+
     dst->children.init(allocator, src->children.length);
     for (size_t i = 0; i < src->children.length; i++) {
       Node *child = astCopy(allocator, src->children.data.ptr[i], scope);
@@ -76,6 +78,8 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     dst->field.definition = src->field.definition;
     dst->field.undefined = src->field.undefined;
     dst->field.comptime = src->field.comptime;
+
+    symbol->name = &dst->field.name;
     break;
   }
   case NodeKind::Function: {
@@ -157,8 +161,19 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     break;
   }
   case NodeKind::Member: {
+    Symbol *member_symbol = scope->findSymbolByNode(src);
+    if (member_symbol != nullptr) {
+      member_symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+      member_symbol->init(allocator, false, scope);
+      member_symbol->node = dst;
+    }
+
     dst->member.name = src->member.name;
-    dst->member.value = astCopy(allocator, src->member.value, scope);
+    dst->member.value = astCopy(allocator, src->member.value, member_symbol);
+
+    if (member_symbol != nullptr) {
+      member_symbol->name = &dst->member.name;
+    }
     break;
   }
   case NodeKind::Import: {
@@ -253,8 +268,13 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     break;
   }
   case NodeKind::In: {
+    Symbol *in_symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    in_symbol->init(allocator, false, scope);
+    in_symbol->node = dst;
+
     dst->in.name = src->in.name;
     dst->in.range = src->in.range;
+    in_symbol->name = &dst->in.name;
     break;
   }
   case NodeKind::Switch: {
