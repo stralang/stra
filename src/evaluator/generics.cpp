@@ -1,7 +1,6 @@
 #include "../helper.hpp"
 #include "../print.hpp"
 #include "define.hpp"
-#include <iostream>
 
 void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
                     Node *fn_node, Symbol *fn_scope) {

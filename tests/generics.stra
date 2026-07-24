@@ -1,7 +1,7 @@
-test :: fn($a: i32) i32 {
+test :: fn($T: typeid, a: T) T {
   return a + 10;
 }
 
 main :: fn() i32 {
-  return !(test(100) == 110) as i32;
+  return !(test(i32, 100) == 110) as i32;
 }
