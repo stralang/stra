@@ -77,8 +77,13 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   // Evaluate return type
   if (node->function.return_type != nullptr) {
-    evaluate(evaluator, node->function.return_type, scope);
+    evaluate(evaluator, node->function.return_type, fn_scope);
     Value *val = &node->function.return_type->value;
+    if (val->data.type_value == nullptr) {
+      val->data.type_value =
+          evaluator->type_cache->get({.kind = TypeKind::Generic});
+    }
+
     expect(val->type != nullptr, node->function.return_type->location,
            "Failed to evaluate function return type");
     expect(val->type->kind == TypeKind::TypeId,
@@ -94,19 +99,21 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
   node->value.type = evaluator->type_cache->get(fn_t);
 
   // Evaluate Body
-  if (node->function.body != nullptr) {
-    evaluate(evaluator, node->function.body, fn_scope);
+  if (!node->function.polymorphic) {
+    if (node->function.body != nullptr) {
+      evaluate(evaluator, node->function.body, fn_scope);
 
-    if (fn_t.function.return_type->kind != TypeKind::Void) {
-      bool does_return =
-          checkForReturn(evaluator, node->function.body, fn_scope);
-      expect(does_return, node->function.body->end_location,
-             "Not all paths return in non-void function");
+      if (fn_t.function.return_type->kind != TypeKind::Void) {
+        bool does_return =
+            checkForReturn(evaluator, node->function.body, fn_scope);
+        expect(does_return, node->function.body->end_location,
+               "Not all paths return in non-void function");
+      }
+    } else if (!node->function.undefined) {
+      node->value.has_data = true;
+      node->value.data.type_value = node->value.type;
+      node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
     }
-  } else if (!node->function.undefined) {
-    node->value.has_data = true;
-    node->value.data.type_value = node->value.type;
-    node->value.type = evaluator->type_cache->get({.kind = TypeKind::TypeId});
   }
 
   // Builtin
@@ -157,6 +164,11 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
   Type *fn_type = callee_type;
   Node *method = scope->node;
 
+  Symbol *fn_scope = nullptr;
+  if (node->call.callee->value.has_data) {
+    fn_scope = node->call.callee->value.data.symbol;
+  }
+
   // Get receiver
   Node *receiver = nullptr;
   size_t initial_idx = 0;
@@ -193,9 +205,24 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
       return;
     }
 
-    Type *expected_type = fn_type->function.arguments.data.ptr[i + initial_idx];
-
     evaluate(evaluator, arg, scope);
+  }
+
+  // Specialize polymorphic
+  if (fn_scope != nullptr && fn_scope->node->function.polymorphic) {
+    specializeCall(evaluator, node, scope, fn_scope->node, fn_scope);
+    fn_type = node->call.callee->value.type;
+    fn_scope = node->call.callee->value.data.symbol;
+  }
+
+  // Cast and Check arguments
+  for (size_t i = 0; i < node->call.arguments.length; i++) {
+    Node *arg = node->call.arguments.data.ptr[i];
+    if (i > fn_type->function.arguments.length - initial_idx) {
+      break;
+    }
+
+    Type *expected_type = fn_type->function.arguments.data.ptr[i + initial_idx];
     autoCast(evaluator, arg, expected_type);
 
     expect(compareTypes(expected_type, arg->value.type), arg->location,
@@ -203,14 +230,9 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
                         << *expected_type << "`");
   }
 
+  // Set type
   node->value.type = fn_type->function.return_type;
   node->value.has_data = false;
-
-  // Scope
-  Symbol *fn_scope = nullptr;
-  if (node->call.callee->value.has_data) {
-    fn_scope = node->call.callee->value.data.symbol;
-  }
 
   // Builtin
   if (fn_scope != nullptr && fn_scope->parent->node->kind == NodeKind::Field) {
@@ -242,10 +264,5 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
         node->kind = NodeKind::Value;
       }
     }
-  }
-
-  // Generics
-  if (fn_scope != nullptr && fn_scope->node->function.polymorphic) {
-    specializeCall(evaluator, node, scope, fn_scope->node, fn_scope);
   }
 }
