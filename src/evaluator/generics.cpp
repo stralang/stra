@@ -1,6 +1,8 @@
 #include "../helper.hpp"
 #include "../print.hpp"
 #include "define.hpp"
+#include <cstring>
+#include <sstream>
 
 void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
                     Node *fn_node, Symbol *fn_scope) {
@@ -35,13 +37,36 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
 
   // Copy function
   Symbol *parent_scope = fn_scope->parent;
-  if (parent_scope->node->kind == NodeKind::Field) {
-    parent_scope = parent_scope->parent;
-  }
 
-  Node *new_fn_node = astCopy(evaluator->allocator, fn_node, parent_scope);
-  Symbol *new_fn_scope = parent_scope->findSymbolByNode(new_fn_node);
-  parent_scope->node->children.push(new_fn_node);
+  // Create Field
+  std::ostringstream ss;
+  ss << std::hex << hasher.state;
+  std::string hexcode = ss.str();
+
+  String original_name = fn_scope->parent->node->field.name;
+
+  Node *field_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
+  field_node->kind = NodeKind::Field;
+  field_node->field.definition = true;
+  field_node->field.name.len = original_name.len + hexcode.length() + 1;
+  field_node->field.name.ptr =
+      (uint8_t *)evaluator->allocator->alloc(field_node->field.name.len);
+  memcpy(field_node->field.name.ptr, original_name.ptr, original_name.len);
+  field_node->field.name.ptr[original_name.len] = '#';
+  memcpy(field_node->field.name.ptr + original_name.len + 1, hexcode.data(),
+         hexcode.length());
+
+  Symbol *field_symbol = (Symbol *)evaluator->allocator->alloc(sizeof(Symbol));
+  field_symbol->init(evaluator->allocator, false, parent_scope);
+  field_symbol->node = field_node;
+  field_symbol->name = &field_node->field.name;
+
+  parent_scope->node->children.push(field_node);
+
+  // Function
+  Node *new_fn_node = astCopy(evaluator->allocator, fn_node, field_symbol);
+  Symbol *new_fn_scope = field_symbol->children.data.ptr[0];
+  field_node->field.initial = new_fn_node;
   new_fn_node->function.polymorphic = false;
 
   for (size_t i = 0; i < call_node->call.arguments.length; i++) {
@@ -53,8 +78,8 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
     }
   }
 
-  // Evaluate function
-  evaluate(evaluator, new_fn_node, new_fn_scope);
+  // Evaluate function/field
+  evaluate(evaluator, field_node, field_symbol);
 
   // Remove Compile-time arguments
   Type new_fn_type = *new_fn_node->value.type;
