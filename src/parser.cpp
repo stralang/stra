@@ -412,6 +412,7 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     out->function.return_type = nullptr;
     out->function.body = nullptr;
     out->function.undefined = false;
+    out->function.comptime = false;
 
     // Create Scope
     Symbol *fn_scope = (Symbol *)parser->allocator->alloc(sizeof(Symbol));
@@ -556,13 +557,17 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, Symbol *scope,
     out->kind = NodeKind::Comptime;
     expectEOF(parser->nextToken());
     out->child = parseExpr(parser, Precedence::Special, scope, allow_init);
+
+    if (out->child->kind == NodeKind::Function) {
+      out = out->child;
+      out->function.comptime = true;
+    }
     break;
   }
   case TokenKind::Const: {
     out->kind = NodeKind::Const;
     expectEOF(parser->nextToken());
     out->child = parseExpr(parser, Precedence::MemberAccess, scope, allow_init);
-    break;
     break;
   }
   case TokenKind::ArrayBegin: {

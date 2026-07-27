@@ -405,7 +405,7 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
 
     // Generate Value
     if (node->value.type->kind == TypeKind::Function) {
-      if (builtin) {
+      if (builtin || node->field.initial->function.comptime) {
         return nullptr;
       }
 
@@ -463,6 +463,8 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
     LLVMValueRef *cache = codegen->node_to_value.get(node);
     if (cache != nullptr) {
       return *cache;
+    } else if (node->function.comptime) {
+      return nullptr;
     }
 
     LLVMTypeRef type = typeToLLVM(codegen, node->value.type);

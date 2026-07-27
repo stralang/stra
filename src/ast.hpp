@@ -26,6 +26,7 @@ struct NodeFunction {
   Node *return_type;
   Node *body;
   bool undefined;
+  bool comptime;
 };
 
 struct NodeStruct {

@@ -216,32 +216,35 @@ void evaluateCall(Evaluator *evaluator, Node *node, Symbol *scope) {
     Node *attributes = fn_scope->parent->node->field.attributes;
     Node *builtin =
         attributes != nullptr ? getAttribute(attributes, "builtin") : nullptr;
-    if (builtin == nullptr) {
-      return;
-    }
+    if (builtin != nullptr) {
+      // Get name
+      Node *field_node = fn_scope->parent->node;
+      String name = field_node->field.name;
+      if (builtin->member.value != nullptr) {
+        name = builtin->member.value->value.data.text;
+      } else {
+        Node *link_name_node =
+            getAttribute(field_node->field.attributes, "link_name");
+        if (link_name_node != nullptr &&
+            link_name_node->member.value != nullptr) {
+          name = link_name_node->member.value->value.data.text;
+        }
+      }
 
-    // Get name
-    Node *field_node = fn_scope->parent->node;
-    String name = field_node->field.name;
-    if (builtin->member.value != nullptr) {
-      name = builtin->member.value->value.data.text;
-    } else {
-      Node *link_name_node =
-          getAttribute(field_node->field.attributes, "link_name");
-      if (link_name_node != nullptr &&
-          link_name_node->member.value != nullptr) {
-        name = link_name_node->member.value->value.data.text;
+      // Execute builtin
+      Value val = executeBuiltinCall(evaluator, node, scope, name);
+      node->value = val;
+
+      if (val.type->kind == TypeKind::Void) {
+        node->kind = NodeKind::Dead;
+      } else {
+        node->kind = NodeKind::Value;
       }
     }
+  }
 
-    // Execute builtin
-    Value val = executeBuiltinCall(evaluator, node, scope, name);
-    node->value = val;
-
-    if (val.type->kind == TypeKind::Void) {
-      node->kind = NodeKind::Dead;
-    } else {
-      node->kind = NodeKind::Value;
-    }
+  // Comptime
+  if (fn_scope != nullptr && fn_scope->node->function.comptime) {
+    execute(evaluator, node, scope);
   }
 }
