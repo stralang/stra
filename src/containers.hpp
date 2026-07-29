@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <type_traits>
 
 struct Hasher {
   uint64_t state = 0xcbf29ce484222325;
@@ -235,7 +236,12 @@ template <typename K, typename V> struct HashMap {
 
   uint64_t hash(K k) {
     Hasher hasher;
-    hasher.hash(&k);
+    if constexpr (std::is_same_v<K, String>) {
+      String s = k;
+      hasher.hash_raw(s.ptr, s.len);
+    } else {
+      hasher.hash(&k);
+    }
     return hasher.state;
   }
 

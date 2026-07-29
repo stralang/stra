@@ -18,3 +18,8 @@ inline bool containsAttribute(Node *attributes, const char *name) {
 
 std::string replaceAll(std::string haystack, std::string needle,
                        std::string to);
+
+std::string makeAbsolute(std::string path, std::string importer,
+                         HashMap<String, String> *packages);
+std::string makeRelative(std::string path, std::string importer,
+                         HashMap<String, String> *packages);

@@ -195,6 +195,8 @@ void warning_handler(SrcLoc srcloc, String msg) {
 
 int main(int argc, const char **argv) {
   Allocator global_allocator;
+  HashMap<String, String> package_map;
+  package_map.init(&global_allocator, 32);
 
   // Parse Arguments
   Args args;
@@ -280,6 +282,28 @@ int main(int argc, const char **argv) {
           .len = strlen(argv[i]),
           .ptr = (uint8_t *)argv[i],
       };
+    } else if (strcmp(argv[i], "--package") == 0) {
+      i += 1;
+      if (argc <= i) {
+        std::cerr << "package flag missing name and path\n";
+        return 1;
+      }
+
+      std::string s = argv[i];
+      size_t idx = s.find('=');
+
+      std::string name_cpp = s.substr(0, idx);
+      fs::path path_cpp = s.substr(idx + 1);
+      std::string path_str = fs::canonical(fs::current_path() / path_cpp);
+
+      String name = {.len = name_cpp.length()};
+      String path = {.len = path_str.length()};
+      name.ptr = global_allocator.alloc(name.len);
+      path.ptr = global_allocator.alloc(path.len);
+      memcpy(name.ptr, name_cpp.data(), name.len);
+      memcpy(path.ptr, path_str.data(), path.len);
+
+      package_map.insert(name, path);
     } else {
       args.paths.push({
           .len = strlen(argv[i]),
@@ -309,6 +333,7 @@ int main(int argc, const char **argv) {
     std::cout << "      `minimal` Minimal optimizations [default]\n";
     std::cout << "  `--output` output path [default: 'a.out']\n";
     std::cout << "  `--target` Sets the target to compile for\n";
+    std::cout << "  `--package <name>=<path>` Adds a package\n";
     return 0;
   }
 
@@ -354,12 +379,14 @@ int main(int argc, const char **argv) {
     fs::path cpp_fullpath = cpp_fullpath_str;
 
     // Get relative path for mangling
-    fs::path cpp_relativepath = fs::relative(cpp_fullpath, relative_root);
+    fs::path cpp_relativepath =
+        makeRelative(cpp_fullpath, relative_root, &package_map);
     cpp_relativepath.replace_extension();
     std::string cpp_filename = cpp_relativepath;
     cpp_filename = replaceAll(cpp_filename, "/", "_");
     cpp_filename = replaceAll(cpp_filename, "\\", "_");
     cpp_filename = replaceAll(cpp_filename, ".", "_");
+    cpp_filename = replaceAll(cpp_filename, ":", "-");
 
     String filename = {
         cpp_filename.length(),
@@ -398,8 +425,8 @@ int main(int argc, const char **argv) {
       String import_path = import->import.path;
 
       std::string cpp_path((const char *)import_path.ptr, import_path.len);
-      fs::path fullpath = fs::canonical(cpp_fullpath.parent_path() / cpp_path);
-      std::string fullpath_str = fullpath.string();
+      std::string fullpath_str =
+          makeAbsolute(cpp_path, cpp_fullpath.parent_path(), &package_map);
 
       Hasher hasher;
       hasher.hash_raw((uint8_t *)fullpath_str.data(), fullpath_str.length());
