@@ -24,7 +24,7 @@ enum class Endian : uint8_t {
 
 struct TargetTriple {
   Arch arch = Arch::Unknown;
-  String vendor = String{.len = 7, .ptr = (uint8_t *)"unknown"};
+  String vendor = String{.ptr = (uint8_t *)"unknown", .len = 7};
   Os os = Os::Unknown;
   SubOs sub_os = SubOs::Default;
 };

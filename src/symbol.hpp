@@ -135,7 +135,7 @@ struct Symbol {
       return this->mangled_name;
     }
 
-    String s = {.len = 0, .ptr = nullptr};
+    String s = {.ptr = nullptr, .len = 0};
     if (this->parent != nullptr) {
       s = this->parent->mangleName(allocator);
     }
@@ -166,7 +166,7 @@ struct Symbol {
     this->node = nullptr;
     this->children.init(allocator, 8);
     this->name = nullptr;
-    this->mangled_name = {.len = 0, .ptr = nullptr};
+    this->mangled_name = {.ptr = nullptr, .len = 0};
 
     parent->children.push(this);
   }

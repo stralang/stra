@@ -16,7 +16,7 @@
     std::ostringstream os;                                                     \
     os << msg;                                                                 \
     std::string cpp_str = os.str();                                            \
-    String m = {.len = cpp_str.size(), .ptr = (uint8_t *)cpp_str.data()};      \
+    String m = {.ptr = (uint8_t *)cpp_str.data(), .len = cpp_str.size()};      \
     parser->error_func(srcloc, m);                                             \
     parser->error_count += 1;                                                  \
     return nullptr;                                                            \

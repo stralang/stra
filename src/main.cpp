@@ -136,11 +136,11 @@ struct Args {
   EmitMode emit_mode = EmitMode::Executable;
   Linker linker = Linker::Clang;
   Optimization optimize = Optimization::Minimal;
-  String target_triple = {.len = 0, .ptr = nullptr};
+  String target_triple = {.ptr = nullptr, .len = 0};
 
   bool run = false;
   ArrayList<String> paths;
-  String output_path = {.len = 5, .ptr = (uint8_t *)"a.out"};
+  String output_path = {.ptr = (uint8_t *)"a.out", .len = 5};
 };
 
 struct SourceFile {
@@ -268,8 +268,8 @@ int main(int argc, const char **argv) {
       }
 
       args.output_path = {
-          .len = strlen(argv[i]),
           .ptr = (uint8_t *)argv[i],
+          .len = strlen(argv[i]),
       };
     } else if (strcmp(argv[i], "--target") == 0) {
       i += 1;
@@ -279,8 +279,8 @@ int main(int argc, const char **argv) {
       }
 
       args.target_triple = {
-          .len = strlen(argv[i]),
           .ptr = (uint8_t *)argv[i],
+          .len = strlen(argv[i]),
       };
     } else if (strcmp(argv[i], "--package") == 0) {
       i += 1;
@@ -306,8 +306,8 @@ int main(int argc, const char **argv) {
       package_map.insert(name, path);
     } else {
       args.paths.push({
-          .len = strlen(argv[i]),
           .ptr = (uint8_t *)argv[i],
+          .len = strlen(argv[i]),
       });
     }
 
@@ -361,8 +361,8 @@ int main(int argc, const char **argv) {
 
     std::string cpp_fullpath_str = cpp_fullpath.string();
     String out = {
-        cpp_fullpath_str.length(),
         global_allocator.alloc(cpp_fullpath_str.length() * sizeof(char)),
+        cpp_fullpath_str.length(),
     };
     memcpy(out.ptr, cpp_fullpath_str.data(),
            cpp_fullpath_str.length() * sizeof(char));
@@ -389,8 +389,8 @@ int main(int argc, const char **argv) {
     cpp_filename = replaceAll(cpp_filename, ":", "-");
 
     String filename = {
-        cpp_filename.length(),
-        global_allocator.alloc(cpp_filename.length() * sizeof(char))};
+        global_allocator.alloc(cpp_filename.length() * sizeof(char)),
+        cpp_filename.length()};
     memcpy(filename.ptr, cpp_filename.data(),
            cpp_filename.length() * sizeof(char));
 
@@ -441,8 +441,8 @@ int main(int argc, const char **argv) {
 
       // Add new file
       String out = {
-          fullpath_str.length(),
           global_allocator.alloc(fullpath_str.length() * sizeof(char)),
+          fullpath_str.length(),
       };
       memcpy(out.ptr, fullpath_str.data(),
              fullpath_str.length() * sizeof(char));
@@ -531,15 +531,15 @@ int main(int argc, const char **argv) {
     std::string cpp_name = name_path.string();
 
     String out_name = {
-        .len = cpp_name.size(),
         .ptr = (uint8_t *)global_allocator.alloc(cpp_name.size()),
+        .len = cpp_name.size(),
     };
     memcpy(out_name.ptr, cpp_name.data(), cpp_name.size());
     outputs.push(out_name);
 
     // Get module name
-    String module_name = {cpp_filename_str.length(),
-                          (uint8_t *)cpp_filename_str.data()};
+    String module_name = {(uint8_t *)cpp_filename_str.data(),
+                          cpp_filename_str.length()};
 
     // Generate
     CodeGenModule codegen = {

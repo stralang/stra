@@ -317,8 +317,8 @@ ABIArg argize(LLVMContextRef ctx, LLVMTargetDataRef target_data, LLVMTypeRef ty,
   // Classify
   size_t class_count = (LLVMSizeOfTypeInBits(target_data, ty) + 63) / 64;
   Slice<RegClass> classes = {
-      .len = class_count,
       .ptr = (RegClass *)malloc(sizeof(RegClass) * class_count),
+      .len = class_count,
   };
   memset(classes.ptr, (uint8_t)RegClass::NO_CLASS, classes.len);
   classify(&classes, target_data, ty, 0);

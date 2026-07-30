@@ -1,7 +1,7 @@
 #include "environment.hpp"
 
 String readTTField(const char **raw) {
-  String out = {.len = 0, .ptr = (uint8_t *)*raw};
+  String out = {.ptr = (uint8_t *)*raw, .len = 0};
   while (**raw != '\0') {
     if (**raw == '-') {
       *raw += 1;

@@ -90,7 +90,7 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
     node->kind = NodeKind::Value;
     node->value.type = evaluator->type_cache->get(slice_t);
     node->value.has_data = true;
-    node->value.data.text = {.len = len, .ptr = real_text};
+    node->value.data.text = {.ptr = real_text, .len = len};
     break;
   }
   case NodeKind::Field: {

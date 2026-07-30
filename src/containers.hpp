@@ -26,8 +26,8 @@ struct Hasher {
 };
 
 template <typename T> struct Slice {
-  size_t len;
   T *ptr;
+  size_t len;
 
   Slice<uint8_t> &operator=(const char *s) {
     this->ptr = (uint8_t *)s;
@@ -56,7 +56,7 @@ template <typename T> struct Slice {
   };
 
   Slice<T> range(size_t start, size_t end) const {
-    return Slice<T>{.len = end - start + 1, .ptr = this->ptr + start};
+    return Slice<T>{.ptr = this->ptr + start, .len = end - start + 1};
   }
 
   bool compare(Slice<T> other) {

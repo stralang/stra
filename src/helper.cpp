@@ -46,7 +46,7 @@ std::string makeAbsolute(std::string path, std::string importer,
     // Package
     std::string package = path.substr(0, package_idx);
     String *opt_root = packages->get(
-        {.len = package.length(), .ptr = (uint8_t *)package.data()});
+        {.ptr = (uint8_t *)package.data(), .len = package.length()});
     if (opt_root == nullptr) {
       return nullptr;
     }
