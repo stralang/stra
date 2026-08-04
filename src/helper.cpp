@@ -68,6 +68,17 @@ Node *astCopy(Allocator *allocator, Node *src, Symbol *scope) {
     dst->value = src->value;
     break;
   }
+  case NodeKind::PolyType: {
+    dst->text = src->text;
+    dst->value = src->value;
+
+    // Add symbol to the field's parent
+    Symbol *poly_symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    poly_symbol->init(allocator, false, scope->parent);
+    poly_symbol->node = dst;
+    poly_symbol->name = &dst->text;
+    break;
+  }
   case NodeKind::Field: {
     Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
     symbol->init(allocator, false, scope);

@@ -430,6 +430,11 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
       parameter->field.comptime = is_comptime;
       out->function.parameters.push(parameter);
 
+      // Mark function as polymorphic for polytype fields
+      if (parameter->field.type->kind == NodeKind::PolyType) {
+        out->function.polymorphic = true;
+      }
+
       if (parser->cur_token.kind != TokenKind::CommaDelimiter) {
         break;
       }
@@ -629,10 +634,28 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
   expectEOF(parser->nextToken());
   if (parser->cur_token.kind != TokenKind::TypeSeperator &&
       parser->cur_token.kind != TokenKind::Eq) {
-    out->field.type =
-        parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), false);
-    expect(out->field.type != nullptr, out->location,
-           "Failed to parse field type");
+    if (parser->cur_token.kind == TokenKind::Comptime) {
+      // Polymorphic type
+      expectEOF(parser->nextToken());
+      expectToken(TokenKind::Name);
+      out->field.type = (Node *)parser->allocator->alloc(sizeof(Node));
+      out->field.type->kind = NodeKind::PolyType;
+      out->field.type->location = parser->cur_token.location;
+      out->field.type->text = parser->cur_token.text;
+
+      // Default type
+      out->field.type->value.type =
+          parser->type_cache->get({.kind = TypeKind::TypeId});
+      out->field.type->value.has_data = true;
+      out->field.type->value.data.type_value =
+          parser->type_cache->get({.kind = TypeKind::Generic});
+      expectEOF(parser->nextToken());
+    } else {
+      out->field.type = parseExpr(
+          parser, (Precedence)((int32_t)Precedence::Assign + 1), false);
+      expect(out->field.type != nullptr, out->location,
+             "Failed to parse field type");
+    }
   }
 
   // Parse Initial

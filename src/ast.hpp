@@ -165,6 +165,7 @@ enum class NodeKind {
   Name,
   RawString,
   Value,
+  PolyType,
   Field,
   Function,
   Struct,

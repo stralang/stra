@@ -30,6 +30,13 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
   case NodeKind::Value: {
     break;
   }
+  case NodeKind::PolyType: {
+    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    symbol->init(allocator, false, parent->parent);
+    symbol->node = node;
+    symbol->name = &node->text;
+    break;
+  }
   case NodeKind::Field: {
     Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
     symbol->init(allocator, false, parent);

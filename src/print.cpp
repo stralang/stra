@@ -318,6 +318,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Value: {
     return os << "Value";
   }
+  case NodeKind::PolyType: {
+    return os << "Poly Type";
+  }
   case NodeKind::Field: {
     return os << "Field";
   }
@@ -462,6 +465,10 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
       break;
     }
     }
+    break;
+  }
+  case NodeKind::PolyType: {
+    os << " `" << node->text << "`\n";
     break;
   }
   case NodeKind::Field: {

@@ -16,6 +16,8 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
     Node *param = fn_node->function.parameters.data[i];
     if (param->field.comptime) {
       hasher.hash(&arg->value.data);
+    } else if (param->field.type->kind == NodeKind::PolyType) {
+      hasher.hash(&arg->value.type->hashcode);
     }
   }
 
@@ -75,6 +77,8 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
     if (param->field.comptime) {
       param->value.has_data = true;
       param->value.data = arg->value.data;
+    } else if (param->field.type->kind == NodeKind::PolyType) {
+      param->field.type->value.data.type_value = arg->value.type;
     }
   }
 

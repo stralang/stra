@@ -1,0 +1,8 @@
+ test :: fn(a: $T) T {
+  return a + 10;
+}
+
+main :: fn() i32 {
+  value: i32 = 100;
+  return !(test(value) == 110) as i32;
+}
