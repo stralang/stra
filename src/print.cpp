@@ -309,6 +309,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Name: {
     return os << "Name";
   }
+  case NodeKind::RawString: {
+    return os << "Raw String";
+  }
   case NodeKind::Value: {
     return os << "Value";
   }
@@ -326,6 +329,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   }
   case NodeKind::Union: {
     return os << "Union";
+  }
+  case NodeKind::Namespace: {
+    return os << "Namespace";
   }
   case NodeKind::Member: {
     return os << "Member";
@@ -396,6 +402,12 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Attribute: {
     return os << "Attribute";
   }
+  case NodeKind::CommentGroup: {
+    return os << "Comment Group";
+  }
+  case NodeKind::Dead: {
+    return os;
+  }
   }
   return os;
 }
@@ -407,14 +419,17 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
 
   os << indent << prefix << node->kind;
   switch (node->kind) {
-  case NodeKind::Compound: {
+  case NodeKind::Compound:
+  case NodeKind::Namespace:
+  case NodeKind::CommentGroup: {
     os << ' ' << node->children.length << '\n';
     for (size_t i = 0; i < node->children.length; i++) {
       print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
     }
     break;
   }
-  case NodeKind::Name: {
+  case NodeKind::Name:
+  case NodeKind::RawString: {
     os << " \"" << node->text << "\"\n";
     break;
   }
@@ -702,6 +717,9 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     for (size_t i = 0; i < node->children.length; i++) {
       print_node_impl(os, node->children.data.ptr[i], depth + 1, "");
     }
+    break;
+  }
+  case NodeKind::Dead: {
     break;
   }
   }
