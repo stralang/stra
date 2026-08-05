@@ -160,6 +160,7 @@ struct Value {
 
 enum class NodeKind {
   Compound,
+  Block,
   Name,
   RawString,
   Value,

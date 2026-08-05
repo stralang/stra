@@ -331,21 +331,21 @@ LLVMValueRef gen(CodeGenModule *codegen, LLVMBuilderRef builder, Node *node,
                  Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
-    Symbol *compound_scope = scope->findSymbolByNode(node);
-    bool has_own_scope = compound_scope != nullptr;
-    if (!has_own_scope) {
-      compound_scope = scope;
+    for (size_t i = 0; i < node->children.length; i++) {
+      gen(codegen, builder, node->children.data.ptr[i], scope);
     }
-
+    break;
+  }
+  case NodeKind::Block: {
+    Symbol *block_scope = scope->findSymbolByNode(node);
     size_t old_defer_len = codegen->defer_stack_len;
 
     for (size_t i = 0; i < node->children.length; i++) {
-      gen(codegen, builder, node->children.data.ptr[i], compound_scope);
+      gen(codegen, builder, node->children.data.ptr[i], block_scope);
     }
 
-    if (has_own_scope) {
-      codegen->defer_stack_len = old_defer_len;
-    }
+    // TODO: "Block/Scope"-level defer
+    codegen->defer_stack_len = old_defer_len;
     break;
   }
   case NodeKind::Name: {

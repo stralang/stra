@@ -15,6 +15,16 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     }
     break;
   }
+  case NodeKind::Block: {
+    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    symbol->init(allocator, parent->location_aware, parent);
+    symbol->node = node;
+
+    for (size_t i = 0; i < node->children.length; i++) {
+      symbolize(allocator, node->children.data.ptr[i], symbol);
+    }
+    break;
+  }
   case NodeKind::Name:
   case NodeKind::RawString:
   case NodeKind::Value: {

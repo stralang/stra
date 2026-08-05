@@ -38,7 +38,7 @@ Symbol *desugarForIn(Evaluator *evaluator, Node *node, Symbol *for_scope,
   memset(desugar_node, 0, sizeof(Node));
   memset(desugar_scope, 0, sizeof(Symbol));
 
-  desugar_node->kind = NodeKind::Compound;
+  desugar_node->kind = NodeKind::Block;
   desugar_node->children.init(evaluator->allocator, 4);
   desugar_node->location = node->_for.conditional->location;
   desugar_scope->init(evaluator->allocator, true, parent_scope);

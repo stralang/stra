@@ -306,6 +306,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Compound: {
     return os << "Compound";
   }
+  case NodeKind::Block: {
+    return os << "Block";
+  }
   case NodeKind::Name: {
     return os << "Name";
   }
@@ -420,6 +423,7 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
   os << indent << prefix << node->kind;
   switch (node->kind) {
   case NodeKind::Compound:
+  case NodeKind::Block:
   case NodeKind::Namespace:
   case NodeKind::CommentGroup: {
     os << ' ' << node->children.length << '\n';

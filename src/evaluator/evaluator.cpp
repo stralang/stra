@@ -19,13 +19,18 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Symbol *compound_scope = scope->findSymbolByNode(node);
-    if (compound_scope == nullptr) {
-      compound_scope = scope;
+    for (size_t i = 0; i < node->children.length; i++) {
+      evaluate(evaluator, node->children.data.ptr[i], scope);
     }
 
+    node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});
+    node->value.has_data = false;
+    break;
+  }
+  case NodeKind::Block: {
+    Symbol *block_scope = scope->findSymbolByNode(node);
     for (size_t i = 0; i < node->children.length; i++) {
-      evaluate(evaluator, node->children.data.ptr[i], compound_scope);
+      evaluate(evaluator, node->children.data.ptr[i], block_scope);
     }
 
     node->value.type = evaluator->type_cache->get({.kind = TypeKind::Void});

@@ -3,6 +3,7 @@
 #include "containers.hpp"
 #include "operator.hpp"
 #include "print.hpp"
+#include "symbol.hpp"
 #include "token.hpp"
 #include <cassert>
 #include <cstring>
@@ -1011,6 +1012,7 @@ Node *parseStmt(ASTParser *parser) {
   }
   case TokenKind::BlockBegin: {
     out = parseStmtCompound(parser);
+    out->kind = NodeKind::Block;
     break;
   }
   case TokenKind::Attribute: {

@@ -20,13 +20,24 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
 
   switch (node->kind) {
   case NodeKind::Compound: {
-    Symbol *compound_scope = scope->findSymbolByNode(node);
-    if (compound_scope == nullptr) {
-      compound_scope = scope;
+    for (size_t i = 0; i < node->children.length; i++) {
+      Value *result = exec(state, node->children.data.ptr[i], scope);
+
+      if (state->_return) {
+        out = result;
+        break;
+      }
     }
 
+    if (out == nullptr) {
+      out = &node->value;
+    }
+    break;
+  }
+  case NodeKind::Block: {
+    Symbol *block_scope = scope->findSymbolByNode(node);
     for (size_t i = 0; i < node->children.length; i++) {
-      Value *result = exec(state, node->children.data.ptr[i], compound_scope);
+      Value *result = exec(state, node->children.data.ptr[i], block_scope);
 
       if (state->_return) {
         out = result;
