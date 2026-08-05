@@ -81,6 +81,10 @@ struct Symbol {
 
   // Find duplicate
   bool findDuplicateField(String *name, Node *original, size_t depth = 0) {
+    bool is_record = this->node->kind == NodeKind::Struct ||
+                     this->node->kind == NodeKind::Enum ||
+                     this->node->kind == NodeKind::Union;
+
     for (size_t i = 0; i < this->children.length; i++) {
       Symbol *child = this->children.data.ptr[i];
       if (child->node == original) {
@@ -91,6 +95,17 @@ struct Symbol {
       if (original->location.index < child->node->location.index) {
         // Prevent first field with name thinking it's a duplicate
         continue;
+      }
+
+      // Ignore "data" fields
+      if (depth > 0 && is_record) {
+        if (this->node->kind == NodeKind::Enum &&
+            child->node->kind == NodeKind::Member) {
+          continue;
+        } else if (child->node->kind == NodeKind::Field &&
+                   !child->node->field.definition) {
+          continue;
+        }
       }
 
       // Get name
@@ -110,14 +125,13 @@ struct Symbol {
       return false;
     }
 
-    if (depth == 0) {
+    if (depth == 0 && is_record) {
       // Ignore parent of record for "data" fields
-      if ((this->node->kind == NodeKind::Struct ||
-           this->node->kind == NodeKind::Union) &&
-          original->kind == NodeKind::Field && !original->field.definition) {
+      if (this->node->kind == NodeKind::Enum &&
+          original->kind == NodeKind::Member) {
         return false;
-      } else if (this->node->kind == NodeKind::Enum &&
-                 original->kind == NodeKind::Member) {
+      } else if (original->kind == NodeKind::Field &&
+                 !original->field.definition) {
         return false;
       }
     }
