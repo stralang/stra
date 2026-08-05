@@ -185,3 +185,5 @@ struct Symbol {
     parent->children.push(this);
   }
 };
+
+void symbolize(Allocator *allocator, Node *node, Symbol *parent);

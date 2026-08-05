@@ -2,16 +2,13 @@
 
 #include "ast.hpp"
 #include "containers.hpp"
-#include "symbol.hpp"
 #include "tokenizer.hpp"
 #include "types.hpp"
 #include <cstddef>
 
 struct ASTParser {
   Tokenizer tokenizer;
-  String filename;
   Node *ast;
-  Symbol *symbol;
   ArrayList<Node *> imports;
 
   Token prev_token;

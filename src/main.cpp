@@ -6,6 +6,7 @@
 #include "helper.hpp"
 #include "parser.hpp"
 #include "print.hpp"
+#include "symbol.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
 #include <cstddef>
@@ -146,6 +147,7 @@ struct Args {
 struct SourceFile {
   String fullpath;
   uint64_t hashcode;
+  String filename;
 
   Symbol *root;
   ASTParser parser;
@@ -388,10 +390,10 @@ int main(int argc, const char **argv) {
     cpp_filename = replaceAll(cpp_filename, ".", "_");
     cpp_filename = replaceAll(cpp_filename, ":", "-");
 
-    String filename = {
+    file->filename = {
         global_allocator.alloc(cpp_filename.length() * sizeof(char)),
         cpp_filename.length()};
-    memcpy(filename.ptr, cpp_filename.data(),
+    memcpy(file->filename.ptr, cpp_filename.data(),
            cpp_filename.length() * sizeof(char));
 
     // Tokenize
@@ -403,8 +405,6 @@ int main(int argc, const char **argv) {
     // Parse
     file->parser = ASTParser{
         .tokenizer = tokenizer,
-        .filename = filename,
-        .symbol = file->root,
         .error_func = &error_handler,
         .type_cache = &type_cache,
         .allocator = &global_allocator,
@@ -418,6 +418,23 @@ int main(int argc, const char **argv) {
     }
 
     total_parse_errors += file->parser.error_count;
+
+    // Symbolize
+    file->root->location_aware = false;
+    file->root->node = file->parser.ast;
+
+    // Setup symbol mangled name
+    {
+      std::string len_str = std::to_string(file->filename.len);
+      file->root->mangled_name.len = len_str.size() + file->filename.len;
+      file->root->mangled_name.ptr =
+          (uint8_t *)global_allocator.alloc(file->root->mangled_name.len);
+      memcpy(file->root->mangled_name.ptr, len_str.data(), len_str.size());
+      memcpy(file->root->mangled_name.ptr + len_str.size(), file->filename.ptr,
+             file->filename.len);
+    }
+
+    symbolize(&global_allocator, file->parser.ast, file->root);
 
     // Handle Imports
     for (size_t i = 0; i < file->parser.imports.length; i++) {
@@ -516,8 +533,8 @@ int main(int argc, const char **argv) {
     SourceFile *file = files.getPtrUnchecked(i);
 
     // Get File name
-    std::string cpp_filename_str((const char *)file->parser.filename.ptr,
-                                 file->parser.filename.len);
+    std::string cpp_filename_str((const char *)file->filename.ptr,
+                                 file->filename.len);
     fs::path name_path = cpp_filename_str;
     name_path = name_path.filename();
     if (emit_ir) {
