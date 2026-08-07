@@ -4,7 +4,7 @@ Object :: struct {
   c: i16,
 }
 
-@(builtin) sizeof :: fn(t: typeid) usize ---;
+@(builtin) sizeof :: comptime fn(t: typeid) usize ---;
 
 main :: fn() i32 {
   size: usize = sizeof(Object);

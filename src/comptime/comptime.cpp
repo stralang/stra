@@ -2,6 +2,7 @@
 #include "../ast.hpp"
 #include "../containers.hpp"
 #include "../evaluator/evaluator.hpp"
+#include "../helper.hpp"
 #include "../operator.hpp"
 #include "../print.hpp"
 #include <cstring>
@@ -140,8 +141,39 @@ Value *exec(InteropState *state, Node *node, Symbol *scope) {
       state->ret_stack.push({.ast = param_node});
     }
 
+    // Execute builtin call
+    bool executed_builtin = false;
+    if (fn_symbol != nullptr &&
+        fn_symbol->parent->node->kind == NodeKind::Field) {
+      Node *attributes = fn_symbol->parent->node->field.attributes;
+      Node *builtin =
+          attributes != nullptr ? getAttribute(attributes, "builtin") : nullptr;
+      if (builtin != nullptr) {
+        // Get name
+        Node *field_node = fn_symbol->parent->node;
+        String name = field_node->field.name;
+        if (builtin->member.value != nullptr) {
+          name = builtin->member.value->value.data.text;
+        } else {
+          Node *link_name_node =
+              getAttribute(field_node->field.attributes, "link_name");
+          if (link_name_node != nullptr &&
+              link_name_node->member.value != nullptr) {
+            name = link_name_node->member.value->value.data.text;
+          }
+        }
+
+        // Execute builtin
+        node->value = execBuiltinCall(state, node, scope, name);
+        out = &node->value;
+        executed_builtin = true;
+      }
+    }
+
     // Execute call
-    out = exec(state, fn_node->function.body, fn_symbol);
+    if (!executed_builtin) {
+      out = exec(state, fn_node->function.body, fn_symbol);
+    }
 
     // Handle Return
     if (out == nullptr) {

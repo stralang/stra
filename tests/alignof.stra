@@ -4,7 +4,7 @@ Object :: struct {
   c: i16,
 }
 
-@(builtin) alignof :: fn(t: typeid) usize ---;
+@(builtin) alignof :: comptime fn(t: typeid) usize ---;
 
 main :: fn() i32 {
   align: usize = alignof(Object);
