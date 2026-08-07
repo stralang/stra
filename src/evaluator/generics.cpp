@@ -45,7 +45,8 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
   ss << std::hex << hasher.state;
   std::string hexcode = ss.str();
 
-  String original_name = fn_scope->parent->node->field.name;
+  Node *parent_field = fn_scope->parent->node;
+  String original_name = parent_field->field.name;
 
   Node *field_node = (Node *)evaluator->allocator->alloc(sizeof(Node));
   field_node->kind = NodeKind::Field;
@@ -62,6 +63,9 @@ void specializeCall(Evaluator *evaluator, Node *call_node, Symbol *call_scope,
   field_symbol->init(evaluator->allocator, false, parent_scope);
   field_symbol->node = field_node;
   field_symbol->name = &field_node->field.name;
+
+  field_node->field.attributes = astCopy(
+      evaluator->allocator, parent_field->field.attributes, field_symbol);
 
   parent_scope->node->children.push(field_node);
 
