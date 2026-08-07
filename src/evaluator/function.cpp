@@ -76,7 +76,7 @@ void evaluateFunction(Evaluator *evaluator, Node *node, Symbol *scope) {
 
   // Evaluate return type
   if (node->function.return_type != nullptr) {
-    evaluate(evaluator, node->function.return_type, scope);
+    evaluate(evaluator, node->function.return_type, fn_scope);
     Value *val = &node->function.return_type->value;
     expect(val->type != nullptr, node->function.return_type->location,
            "Failed to evaluate function return type");
