@@ -1,8 +1,10 @@
 #pragma once
 
+#include "allocator.hpp"
 #include "containers.hpp"
+#include "literal.hpp"
 #include "types.hpp"
-#include "value.hpp"
+#include <cassert>
 #include <cstdint>
 
 // Forward declarations
@@ -11,15 +13,14 @@ struct MIRBlock;
 
 enum class MIRValueKind : uint8_t {
   Nop,
-  Type,
   Literal,
   Field,
   Load,
   Store,
   BinOp,
   UnaryOp,
+  Call,
   GEP,
-  Initializer,
   Return,
   Branch,
   CondBranch,
@@ -60,7 +61,7 @@ struct MIRValue {
   Type *type = nullptr; // Resulting type
 
   union {
-    Value literal;
+    MIRLiteral literal;
     struct {
       MIRValue *type;
       MIRValue *initial;
@@ -73,9 +74,6 @@ struct MIRValue {
       MIRValue *ptr;
     } store;
     struct {
-      ArrayList<MIRBlock *> blocks;
-    } function;
-    struct {
       MIROpcode opcode;
       MIRValue *lhs;
       MIRValue *rhs;
@@ -86,16 +84,12 @@ struct MIRValue {
     } unaryop;
     struct {
       MIRValue *callee;
-      ArrayList<MIRValue *> arguments;
+      Slice<MIRValue *> arguments;
     } call;
     struct {
       MIRValue *ptr;
       MIRValue *index;
     } gep;
-    struct {
-      MIRValue *type;
-      ArrayList<MIRValue *> values;
-    } initalizer;
     struct {
       MIRValue *value;
     } ret;
@@ -107,8 +101,9 @@ struct MIRValue {
     } condbr;
     struct {
       MIRValue *condition;
-      ArrayList<MIRValue *> cases;
-      ArrayList<MIRBlock *> blocks;
+      Slice<MIRValue *> onvals;
+      Slice<MIRBlock *> blocks;
+      size_t slots;
     } _switch;
     // TODO: Comptime
     struct {
@@ -118,10 +113,40 @@ struct MIRValue {
 };
 
 struct MIRBlock {
-  ArrayList<MIRValue *> instructions;
+  ArrayList<MIRValue> instructions;
+};
+
+struct MIRModule {
+  Allocator *allocator;
+  ArrayList<MIRValue> instructions;
 };
 
 struct MIRBuilder {
   MIRValue *function;
   MIRBlock *block;
+  MIRModule *module;
+
+  MIRValue *insert(MIRValue inst, bool global = false);
+
+  MIRValue *buildLiteral(MIRLiteral lit);
+
+  MIRValue *buildField(MIRValue *type, MIRValue *initial);
+  MIRValue *buildLoad(MIRValue *ptr);
+  MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
+
+  MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode);
+  MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode);
+
+  MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments);
+
+  MIRValue *buildGEP(MIRValue *ptr, MIRValue *index);
+
+  // If `value` is null then this returns `void`
+  MIRValue *buildReturn(MIRValue *value);
+
+  MIRValue *buildBr(MIRBlock *block);
+  MIRValue *buildCondBr(MIRValue *condition, MIRBlock *then, MIRBlock *_else);
+
+  MIRValue *buildSwitch(MIRValue *value, size_t cases);
+  void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
 };
