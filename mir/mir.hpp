@@ -1,11 +1,9 @@
 #pragma once
 
 #include "containers.hpp"
+#include "types.hpp"
+#include "value.hpp"
 #include <cstdint>
-
-// FIXME: Replace these with the actual types
-struct Type;
-struct Value {};
 
 // Forward declarations
 struct MIRBlock;

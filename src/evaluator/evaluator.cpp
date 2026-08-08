@@ -5,8 +5,8 @@
 #include "../operator.hpp"
 #include "../print.hpp"
 #include "../symbol.hpp"
-#include "../types.hpp"
 #include "define.hpp"
+#include "types.hpp"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

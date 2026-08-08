@@ -3,8 +3,8 @@
 #include "../ast.hpp"
 #include "../environment.hpp"
 #include "../symbol.hpp"
-#include "../types.hpp"
 #include "containers.hpp"
+#include "types.hpp"
 
 struct Evaluator {
   Node *ast;
