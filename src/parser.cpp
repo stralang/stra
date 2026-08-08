@@ -61,7 +61,7 @@ Node *parseInitializer(ASTParser *parser, Node *record) {
 
       expect(setter->kind == NodeKind::Name, parser->cur_token.location,
              "Expected: Name, Got: " << setter->kind);
-      setter->kind = NodeKind::Member;
+      setter->kind = NodeKind::Setter;
       setter->member.name = setter->text;
 
       expectEOF(parser->nextToken());

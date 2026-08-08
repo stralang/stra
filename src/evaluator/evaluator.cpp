@@ -585,6 +585,11 @@ void evaluate(Evaluator *evaluator, Node *node, Symbol *scope) {
 
     break;
   }
+  case NodeKind::Setter: {
+    evaluate(evaluator, node->member.value, scope);
+    node->value = node->member.value->value;
+    break;
+  }
   case NodeKind::Return: {
     Symbol *fn_scope = scope;
     while (fn_scope != nullptr && fn_scope->node->kind != NodeKind::Function) {

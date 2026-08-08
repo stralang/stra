@@ -181,6 +181,7 @@ enum class NodeKind {
   Call,
   Index,
   Initializer,
+  Setter,
   Return,
   If,
   For,

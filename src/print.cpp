@@ -369,6 +369,9 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Initializer: {
     return os << "Initializer";
   }
+  case NodeKind::Setter: {
+    return os << "Setter";
+  }
   case NodeKind::Return: {
     return os << "Return";
   }
@@ -627,6 +630,13 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << indent << "  Setters:\n";
     for (size_t i = 0; i < node->initializer.setters.length; i++) {
       print_node_impl(os, node->initializer.setters.data.ptr[i], depth + 2, "");
+    }
+    break;
+  }
+  case NodeKind::Setter: {
+    os << " \"" << node->member.name << "\"\n";
+    if (node->member.value != nullptr) {
+      print_node_impl(os, node->member.value, depth + 1, "Value: ");
     }
     break;
   }

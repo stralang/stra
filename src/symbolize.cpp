@@ -166,6 +166,10 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     }
     break;
   }
+  case NodeKind::Setter: {
+    symbolize(allocator, node->member.value, parent);
+    break;
+  }
   case NodeKind::Return: {
     symbolize(allocator, node->child, parent);
     break;
