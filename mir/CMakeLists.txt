@@ -9,3 +9,5 @@ set_target_properties(mir PROPERTIES
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
+
+target_link_libraries(mir PRIVATE common)

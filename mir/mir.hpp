@@ -1,9 +1,11 @@
+#pragma once
+
+#include "containers.hpp"
 #include <cstdint>
 
 // FIXME: Replace these with the actual types
 struct Type;
 struct Value {};
-template <typename T> struct ArrayList {};
 
 // Forward declarations
 struct MIRBlock;

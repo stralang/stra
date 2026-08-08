@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../ast.hpp"
-#include "../containers.hpp"
 #include "../environment.hpp"
 #include "../symbol.hpp"
 #include "../types.hpp"
+#include "containers.hpp"
 
 struct Evaluator {
   Node *ast;

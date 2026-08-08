@@ -36,6 +36,10 @@ add_executable(stra
   src/main.cpp
 )
 
+# Get Common
+add_subdirectory(./common)
+target_link_libraries(stra common)
+
 # Get MIR
 add_subdirectory(./mir)
 target_link_libraries(stra mir)
