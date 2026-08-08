@@ -36,6 +36,10 @@ add_executable(stra
   src/main.cpp
 )
 
+# Get MIR
+add_subdirectory(./mir)
+target_link_libraries(stra mir)
+
 # Get LLVM
 find_program(LLVM_CONFIG llvm-config)
 if(NOT LLVM_CONFIG)
