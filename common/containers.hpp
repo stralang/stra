@@ -126,6 +126,20 @@ template <typename T> struct ArrayList {
     return this->data.ptr[this->length];
   }
 
+  T get(size_t index) {
+    if (this->length <= index) {
+      std::cerr << "Index out of bounds. " << index << " >= " << this->length
+                << "\n";
+      std::abort();
+    }
+
+    return this->data.ptr[index];
+  }
+
+  T getUnchecked(size_t index) { return this->data.ptr[index]; }
+
+  T *getPtrUnchecked(size_t index) { return this->data.ptr + index; }
+
   T *back() {
     if (this->length == 0) {
       std::cerr << "Cannot index back of empty ArrayList\n";

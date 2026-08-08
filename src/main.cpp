@@ -4,6 +4,7 @@
 #include "environment.hpp"
 #include "evaluator/evaluator.hpp"
 #include "helper.hpp"
+#include "mir.hpp"
 #include "mirgen/mirgen.hpp"
 #include "parser.hpp"
 #include "print.hpp"
@@ -490,9 +491,17 @@ int main(int argc, const char **argv) {
   codegen_ctx.init(&environment, args.target_triple);
 
   // MIR
+  MIRContext ctx;
+  ctx.init(&global_allocator);
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    MIRGen gen = MIRGen{};
+    MIRGen gen = MIRGen{
+        .ast = file->parser.ast,
+        .symbol = file->root,
+        .allocator = &global_allocator,
+        .ctx = &ctx,
+    };
+    gen.generate();
   }
 
   // // Evaluate

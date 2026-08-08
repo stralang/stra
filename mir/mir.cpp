@@ -1,4 +1,30 @@
 #include "mir.hpp"
+#include "allocator.hpp"
+
+void MIRContext::init(Allocator *allocator) {
+  this->allocator = allocator;
+  this->values.init(allocator, 32);
+}
+
+void MIRContext::deinit() { this->values.deinit(); }
+
+void MIRModule::init(Allocator *allocator) {
+  this->allocator = allocator;
+  this->instructions.init(this->allocator, 32);
+}
+
+void MIRModule::deinit() { this->instructions.deinit(); }
+
+MIRValue *MIRContext::make(MIRValue value) {
+  this->values.push(value);
+  return this->values.back();
+}
+
+MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
+  MIRValue inst = {.kind = MIRValueKind::Literal};
+  inst.literal = lit;
+  return this->make(inst);
+}
 
 MIRValue *MIRBuilder::insert(MIRValue inst, bool global) {
   if (this->block != nullptr && !global) {
@@ -8,12 +34,6 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global) {
 
   this->module->instructions.push(inst);
   return this->module->instructions.back();
-}
-
-MIRValue *MIRBuilder::buildLiteral(Literal lit) {
-  MIRValue inst = {.kind = MIRValueKind::Literal};
-  inst.literal = lit;
-  return this->insert(inst);
 }
 
 MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial) {

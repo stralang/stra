@@ -10,6 +10,9 @@ add_executable(stra
   src/parser.cpp
   src/symbolize.cpp
 
+  src/mirgen/mirgen.cpp
+  src/mirgen/convert.cpp
+
   src/evaluator/evaluator.cpp
   src/evaluator/operator.cpp
   src/evaluator/function.cpp

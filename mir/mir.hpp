@@ -116,9 +116,27 @@ struct MIRBlock {
   ArrayList<MIRValue> instructions;
 };
 
-struct MIRModule {
+struct MIRContext {
+  ArrayList<MIRValue> values;
   Allocator *allocator;
+
+  void init(Allocator *allocator);
+  void deinit();
+
+  MIRValue *make(MIRValue value);
+  MIRValue *makeLiteral(MIRLiteral literal);
+};
+
+struct MIRModule {
   ArrayList<MIRValue> instructions;
+
+  Allocator *allocator;
+  MIRContext *ctx;
+
+  void init(Allocator *allocator);
+  void deinit();
+
+  void print();
 };
 
 struct MIRBuilder {
@@ -127,8 +145,6 @@ struct MIRBuilder {
   MIRModule *module;
 
   MIRValue *insert(MIRValue inst, bool global = false);
-
-  MIRValue *buildLiteral(MIRLiteral lit);
 
   MIRValue *buildField(MIRValue *type, MIRValue *initial);
   MIRValue *buildLoad(MIRValue *ptr);

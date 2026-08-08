@@ -15,6 +15,7 @@ struct MIRGen {
   MIRBlock block;
   MIRBuilder builder;
   MIRModule module;
+  MIRContext *ctx;
 
   void generate();
   void deinit();
