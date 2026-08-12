@@ -63,6 +63,8 @@ MIRValue *genBuiltin(MIRGen *mirgen, String name) {
     literal.lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
     literal.kind = MIRLiteralKind::Typed;
     literal._bool = false;
+  } else {
+    return nullptr;
   }
 
   MIRValue value = {.kind = MIRValueKind::Literal};
