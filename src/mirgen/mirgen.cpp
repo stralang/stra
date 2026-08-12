@@ -1,6 +1,7 @@
 #include "mirgen.hpp"
 #include "../print.hpp"
 #include "define.hpp"
+#include "literal.hpp"
 #include "mir.hpp"
 
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
@@ -57,11 +58,60 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
     if (node->field.initial != nullptr) {
       value = gen(mirgen, node->field.initial, field_symbol);
+    } else if (!node->field.undefined) {
+      // TODO: Get default value for type
     }
 
     MIRValue *field = mirgen->builder.buildField(type, value);
     mirgen->node_to_value.insert(node, field);
     return field;
+  }
+  case NodeKind::Function: {
+    Symbol *fn_symbol = scope->findSymbolByNode(node);
+
+    MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Function});
+
+    // Parameter Types
+    value->function.parameter_types.len = node->function.parameters.length;
+    value->function.parameter_types.ptr = (MIRValue **)mirgen->allocator->alloc(
+        sizeof(MIRValue *) * node->function.parameters.length);
+
+    for (size_t i = 0; i < node->function.parameters.length; i++) {
+      value->function.parameter_types.ptr[i] =
+          gen(mirgen, node->function.parameters.getUnchecked(i), fn_symbol);
+    }
+
+    // Return Type
+    if (node->function.return_type == nullptr) {
+      MIRValue void_ty = {.kind = MIRValueKind::Literal};
+      void_ty.literal.kind = MIRLiteralKind::TypeId;
+      void_ty.literal._typeid = nullptr;
+      void_ty.result_type = void_ty.literal._typeid;
+
+      value->function.return_type = mirgen->ctx->make(void_ty);
+    } else {
+      value->function.return_type =
+          gen(mirgen, node->function.return_type, fn_symbol);
+    }
+
+    // Body
+    if (node->function.body != nullptr) {
+      value->function.blocks.init(mirgen->allocator, 32);
+      value->function.blocks.push({});
+
+      MIRBlock *entry = value->function.blocks.back();
+      entry->function = &value->function;
+      entry->instructions.init(mirgen->allocator, 32);
+
+      MIRBlock *prev_block = mirgen->builder.block;
+      mirgen->builder.block = entry;
+
+      gen(mirgen, node->function.body, fn_symbol);
+
+      mirgen->builder.block = prev_block;
+    }
+
+    return value;
   }
   }
 

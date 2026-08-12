@@ -8,15 +8,18 @@
 #include <cstdint>
 
 // Forward declarations
+struct MIRValue;
 struct MIRBlock;
 // Forward declarations
 
-enum class MIRValueKind : uint8_t {
+enum class MIRValueKind : std::uint16_t {
   Nop,
-  Literal,
+
+  Instruction = 0x1000,
   Field,
   Load,
   Store,
+  Arg,
   BinOp,
   UnaryOp,
   Call,
@@ -25,6 +28,10 @@ enum class MIRValueKind : uint8_t {
   Branch,
   CondBranch,
   Switch,
+
+  Constant = 0x2000,
+  Literal,
+  Function,
 };
 
 enum class MIROpcode : uint8_t {
@@ -56,15 +63,20 @@ enum class MIROpcode : uint8_t {
   BitwiseNot,
 };
 
+struct MIRFunction {
+  Slice<MIRValue *> parameter_types;
+  MIRValue *return_type;
+  ArrayList<MIRBlock> blocks;
+};
+
 struct MIRValue {
   MIRValueKind kind = MIRValueKind::Nop;
-  Type *type = nullptr; // Resulting type
+  Type *result_type = nullptr;
 
   union {
-    MIRLiteral literal;
     struct {
       MIRValue *type;
-      MIRValue *initial;
+      MIRValue *initial; // a `null` initial is externally defined
     } field;
     struct {
       MIRValue *ptr;
@@ -73,6 +85,9 @@ struct MIRValue {
       MIRValue *value;
       MIRValue *ptr;
     } store;
+    struct {
+      MIRValue *type;
+    } arg;
     struct {
       MIROpcode opcode;
       MIRValue *lhs;
@@ -91,6 +106,7 @@ struct MIRValue {
       MIRValue *index;
     } gep;
     struct {
+      MIRValue *type;
       MIRValue *value;
     } ret;
     MIRBlock *br;
@@ -109,10 +125,14 @@ struct MIRValue {
     struct {
       // TODO: Assembly in MIR
     } assembly;
+
+    MIRLiteral literal;
+    MIRFunction function;
   };
 };
 
 struct MIRBlock {
+  MIRFunction *function;
   ArrayList<MIRValue> instructions;
 };
 
@@ -140,7 +160,6 @@ struct MIRModule {
 };
 
 struct MIRBuilder {
-  MIRValue *function;
   MIRBlock *block;
   MIRModule *module;
 

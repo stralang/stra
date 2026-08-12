@@ -3,6 +3,9 @@
 #include "literal.hpp"
 #include "mir.hpp"
 
+void printInst(MIRValue *inst);   // Forward Declaration
+void printBlock(MIRBlock *block); // Forward Declaration
+
 void printLiteral(MIRLiteral *literal) {
   switch (literal->kind) {
   case MIRLiteralKind::Null: {
@@ -35,7 +38,7 @@ void printLiteral(MIRLiteral *literal) {
     break;
   }
   case MIRLiteralKind::Function: {
-    std::cout << literal->function;
+    std::cout << literal->function_entry;
     break;
   }
   }
@@ -47,24 +50,27 @@ void printOpcode(MIROpcode opcode) {
 
 void printRef(MIRValue *value) {
   if (value == nullptr) {
-    std::cout << "?";
+    std::cout << "null";
   } else if (value->kind == MIRValueKind::Literal) {
     printLiteral(&value->literal);
+  } else if (value->kind == MIRValueKind::Function) {
+    printInst(value);
   } else {
     std::cout << "%" << value;
   }
 }
 
+void printValue(MIRValue *value) {}
+
 void printInst(MIRValue *inst) {
   switch (inst->kind) {
-  case MIRValueKind::Nop:
-  case MIRValueKind::Literal: {
+  case MIRValueKind::Nop: {
     break;
   }
   case MIRValueKind::Field: {
-    std::cout << "%" << inst << " = field ";
+    std::cout << "%" << inst << " = field `";
     printRef(inst->field.type);
-    std::cout << ", ";
+    std::cout << "`, ";
     printRef(inst->field.initial);
     break;
   }
@@ -142,9 +148,41 @@ void printInst(MIRValue *inst) {
     std::cout << "]";
     break;
   }
+
+  case MIRValueKind::Literal: {
+    printLiteral(&inst->literal);
+    break;
+  }
+  case MIRValueKind::Function: {
+    std::cout << "fn(";
+    for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      printRef(inst->function.parameter_types.ptr[i]);
+    }
+    std::cout << ") ";
+    printRef(inst->function.return_type);
+    if (inst->function.blocks.data.ptr != nullptr) {
+      std::cout << " {\n";
+      for (size_t i = 0; i < inst->function.blocks.length; i++) {
+        printBlock(inst->function.blocks.getPtrUnchecked(i));
+      }
+      std::cout << "}";
+    }
+    break;
+  }
   }
 
   std::cout << "\n";
+}
+
+void printBlock(MIRBlock *block) {
+  std::cout << "<block name>:\n"; // TODO: Block Name
+  for (size_t i = 0; i < block->instructions.length; i++) {
+    std::cout << "  ";
+    printInst(block->instructions.getPtrUnchecked(i));
+  }
 }
 
 void MIRModule::print() {

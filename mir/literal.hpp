@@ -1,4 +1,5 @@
 #pragma once
+
 #include "types.hpp"
 #include <cstdint>
 
@@ -27,14 +28,15 @@ struct SliceLiteral {
 
 struct MIRLiteral {
   MIRLiteralKind kind;
+  Type *lit_type;
   union {
     bool _bool;
     int64_t _int;
     double _float;
     MIRLiteral *pointer;
     SliceLiteral slice;
-    Type *type;
-    MIRBlock *function;
+    Type *_typeid;
+    MIRBlock *function_entry;
     Slice<MIRLiteral> values;
   };
 };
