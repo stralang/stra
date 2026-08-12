@@ -59,6 +59,12 @@ MIRValue *MIRBuilder::buildStore(MIRValue *value, MIRValue *ptr) {
   return this->insert(inst);
 }
 
+MIRValue *MIRBuilder::buildArg(MIRValue *type) {
+  MIRValue inst = {.kind = MIRValueKind::Arg};
+  inst.arg.type = type;
+  return this->insert(inst);
+}
+
 MIRValue *MIRBuilder::buildBinOp(MIRValue *lhs, MIRValue *rhs,
                                  MIROpcode opcode) {
   MIRValue inst = {.kind = MIRValueKind::BinOp};

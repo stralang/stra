@@ -6,17 +6,23 @@ MIRValue *valueToMIR(MIRGen *mirgen, Value *value) {
   MIRLiteral literal;
   switch (value->type->kind) {
   case TypeKind::Bool: {
-    literal.kind = MIRLiteralKind::Bool;
+    literal.lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
     literal._bool = value->data._bool;
     break;
   }
   case TypeKind::Integer: {
-    literal.kind = MIRLiteralKind::Integer;
+    Type ty = {.kind = TypeKind::Integer};
+    ty.integer = {.is_untyped = true};
+
+    literal.lit_type = mirgen->ctx->type_cache->get(ty);
     literal._int = value->data.integer;
     break;
   }
   case TypeKind::Float: {
-    literal.kind = MIRLiteralKind::Float;
+    Type ty = {.kind = TypeKind::Float};
+    ty._float = {.is_untyped = true};
+
+    literal.lit_type = mirgen->ctx->type_cache->get(ty);
     literal._float = value->data._float;
     break;
   }
@@ -27,7 +33,7 @@ MIRValue *valueToMIR(MIRGen *mirgen, Value *value) {
     break;
   }
   case TypeKind::Enum: {
-    literal.kind = MIRLiteralKind::Integer;
+    literal.lit_type = value->type;
     literal._int = value->data.integer;
     break;
   }

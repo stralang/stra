@@ -8,17 +8,7 @@ struct MIRBlock;   // Forward declaration
 
 enum class MIRLiteralKind {
   Null,
-  Bool,
-  Integer,
-  Float,
-  Pointer,
-  Slice,
-  SIMD,
-  TypeId,
-  Function,
-  Struct,
-  Enum,
-  Union
+  Typed,
 };
 
 struct SliceLiteral {
@@ -27,8 +17,8 @@ struct SliceLiteral {
 };
 
 struct MIRLiteral {
-  MIRLiteralKind kind;
   Type *lit_type;
+  MIRLiteralKind kind = MIRLiteralKind::Typed;
   union {
     bool _bool;
     int64_t _int;

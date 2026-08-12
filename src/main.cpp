@@ -493,6 +493,8 @@ int main(int argc, const char **argv) {
   // MIR
   MIRContext ctx;
   ctx.init(&global_allocator);
+  ctx.type_cache = &type_cache;
+
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
     MIRGen gen = MIRGen{

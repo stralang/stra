@@ -10,34 +10,40 @@ void printLiteral(MIRLiteral *literal) {
   switch (literal->kind) {
   case MIRLiteralKind::Null: {
     std::cout << "null";
+    return;
+  }
+  case MIRLiteralKind::Typed: {
     break;
   }
-  case MIRLiteralKind::Bool: {
+  }
+
+  switch (literal->lit_type->kind) {
+  case TypeKind::Bool: {
     std::cout << literal->_bool;
     break;
   }
-  case MIRLiteralKind::Integer: {
+  case TypeKind::Integer: {
     std::cout << literal->_int;
     break;
   }
-  case MIRLiteralKind::Float: {
+  case TypeKind::Float: {
     std::cout << literal->_float;
     break;
   }
-  case MIRLiteralKind::Pointer: {
+  case TypeKind::Pointer: {
     std::cout << literal->pointer;
     break;
   }
-  case MIRLiteralKind::Slice:
-  case MIRLiteralKind::SIMD: {
+  case TypeKind::Slice:
+  case TypeKind::SIMD: {
     std::cout << "[" << literal->slice.len << "]" << literal->slice.pointer;
     break;
   }
-  case MIRLiteralKind::TypeId: {
-    std::cout << "TypeId";
+  case TypeKind::TypeId: {
+    std::cout << literal->_typeid;
     break;
   }
-  case MIRLiteralKind::Function: {
+  case TypeKind::Function: {
     std::cout << literal->function_entry;
     break;
   }
@@ -84,6 +90,11 @@ void printInst(MIRValue *inst) {
     printRef(inst->store.value);
     std::cout << ", ";
     printRef(inst->store.ptr);
+    break;
+  }
+  case MIRValueKind::Arg: {
+    std::cout << "%" << inst << " = arg ";
+    printRef(inst->arg.type);
     break;
   }
   case MIRValueKind::BinOp: {

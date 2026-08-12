@@ -137,6 +137,7 @@ struct MIRBlock {
 };
 
 struct MIRContext {
+  TypeCache *type_cache;
   ArrayList<MIRValue> values;
   Allocator *allocator;
 
@@ -168,6 +169,8 @@ struct MIRBuilder {
   MIRValue *buildField(MIRValue *type, MIRValue *initial);
   MIRValue *buildLoad(MIRValue *ptr);
   MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
+
+  MIRValue *buildArg(MIRValue *type);
 
   MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode);
   MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode);
