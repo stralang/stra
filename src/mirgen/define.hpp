@@ -2,6 +2,7 @@
 
 #include "mirgen.hpp"
 
+MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope);
 
 MIRValue *genBuiltin(MIRGen *mirgen, String name);

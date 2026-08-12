@@ -5,6 +5,27 @@
 #include "mir.hpp"
 #include <iostream>
 
+MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
+  switch (node->kind) {
+  case NodeKind::Name: {
+    Symbol *symbol = scope->findSymbol(&node->text, &node->location);
+    MIRValue **value = mirgen->node_to_value.get(symbol->node);
+    if (value == nullptr) {
+      gen(mirgen, symbol->node, symbol->parent);
+      value = mirgen->node_to_value.get(symbol->node);
+    }
+
+    if (value == nullptr) {
+      std::cerr << node->location << " Couldn't find value `" << node->text
+                << "`. Aborting...\n";
+      std::abort();
+    }
+
+    return *value;
+  }
+  }
+}
+
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
