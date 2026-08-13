@@ -24,6 +24,8 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
     return *value;
   }
   }
+
+  return nullptr;
 }
 
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
@@ -152,6 +154,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     return value;
+  }
+  case NodeKind::Assignment: {
+    return genAssignment(mirgen, node, scope);
+  }
+  case NodeKind::UnaryOperator: {
+    return genUnary(mirgen, node, scope);
+  }
+  case NodeKind::Operator: {
+    return genBinary(mirgen, node, scope);
   }
   }
 

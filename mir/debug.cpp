@@ -51,7 +51,88 @@ void printLiteral(MIRLiteral *literal) {
 }
 
 void printOpcode(MIROpcode opcode) {
-  // TODO: print opcode
+  switch (opcode) {
+  case MIROpcode::Add: {
+    std::cout << "add";
+    break;
+  }
+  case MIROpcode::Sub: {
+    std::cout << "sub";
+    break;
+  }
+  case MIROpcode::Mul: {
+    std::cout << "mul";
+    break;
+  }
+  case MIROpcode::Div: {
+    std::cout << "div";
+    break;
+  }
+  case MIROpcode::Mod: {
+    std::cout << "mod";
+    break;
+  }
+  case MIROpcode::Or: {
+    std::cout << "or";
+    break;
+  }
+  case MIROpcode::Xor: {
+    std::cout << "xor";
+    break;
+  }
+  case MIROpcode::And: {
+    std::cout << "and";
+    break;
+  }
+  case MIROpcode::LeftShift: {
+    std::cout << "shl";
+    break;
+  }
+  case MIROpcode::RightShift: {
+    std::cout << "shr";
+    break;
+  }
+  case MIROpcode::EqualTo: {
+    std::cout << "eql";
+    break;
+  }
+  case MIROpcode::NotEqualTo: {
+    std::cout << "neq";
+    break;
+  }
+  case MIROpcode::LessThen: {
+    std::cout << "lt";
+    break;
+  }
+  case MIROpcode::GreaterThen: {
+    std::cout << "gt";
+    break;
+  }
+  case MIROpcode::LessThenOrEqualTo: {
+    std::cout << "leq";
+    break;
+  }
+  case MIROpcode::GreaterThenOrEqualTo: {
+    std::cout << "geq";
+    break;
+  }
+  case MIROpcode::As: {
+    std::cout << "as";
+    break;
+  }
+  case MIROpcode::Bitcast: {
+    std::cout << "bitcast";
+    break;
+  }
+  case MIROpcode::LogicalNot: {
+    std::cout << "lognot";
+    break;
+  }
+  case MIROpcode::BitwiseNot: {
+    std::cout << "bitnot";
+    break;
+  }
+  }
 }
 
 void printRef(MIRValue *value) {

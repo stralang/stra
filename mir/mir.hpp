@@ -40,6 +40,7 @@ enum class MIROpcode : uint8_t {
   Sub,
   Mul,
   Div,
+  Mod,
   Or,
   Xor,
   And,
@@ -59,6 +60,7 @@ enum class MIROpcode : uint8_t {
   Bitcast,
 
   // Unary
+  Minus,
   LogicalNot,
   BitwiseNot,
 };
