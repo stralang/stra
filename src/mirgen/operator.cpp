@@ -3,9 +3,8 @@
 #include "mirgen.hpp"
 
 MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
-  // TODO: Member Access
-  std::cerr << __FILE__ << ":" << __LINE__ << " TODO: Member Access";
-  return nullptr;
+  MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
+  return mirgen->builder.buildMemberAccess(record, node->_operator.rhs->text);
 }
 
 MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope) {

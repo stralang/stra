@@ -133,6 +133,15 @@ void printOpcode(MIROpcode opcode) {
   }
 }
 
+void printName(MIRValue *value) {
+  if (value->name.ptr != nullptr) {
+    std::cout << "%";
+    std::cout.write((const char *)value->name.ptr, value->name.len);
+  } else {
+    std::cout << "%" << value->id;
+  }
+}
+
 void printRef(MIRValue *value) {
   if (value == nullptr) {
     std::cout << "null";
@@ -141,7 +150,7 @@ void printRef(MIRValue *value) {
   } else if (value->kind == MIRValueKind::Function) {
     printInst(value);
   } else {
-    std::cout << "%" << value;
+    printName(value);
   }
 }
 
@@ -153,14 +162,16 @@ void printInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::Field: {
-    std::cout << "%" << inst << " = field `";
+    printName(inst);
+    std::cout << " = field `";
     printRef(inst->field.type);
     std::cout << "`, ";
     printRef(inst->field.initial);
     break;
   }
   case MIRValueKind::Load: {
-    std::cout << "%" << inst << " = load ";
+    printName(inst);
+    std::cout << " = load ";
     printRef(inst->load.ptr);
     break;
   }
@@ -172,12 +183,14 @@ void printInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::Arg: {
-    std::cout << "%" << inst << " = arg ";
+    printName(inst);
+    std::cout << " = arg ";
     printRef(inst->arg.type);
     break;
   }
   case MIRValueKind::BinOp: {
-    std::cout << "%" << inst << " = ";
+    printName(inst);
+    std::cout << " = ";
     printOpcode(inst->binop.opcode);
     std::cout << " ";
     printRef(inst->binop.lhs);
@@ -186,19 +199,31 @@ void printInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::UnaryOp: {
-    std::cout << "%" << inst << " = ";
+    printName(inst);
+    std::cout << " = ";
     printOpcode(inst->unaryop.opcode);
     std::cout << " ";
     printRef(inst->unaryop.value);
     break;
   }
+  case MIRValueKind::MemberAccess: {
+    printName(inst);
+    std::cout << " = memberaccess ";
+    printRef(inst->member_access.parent);
+    std::cout << " \"";
+    std::cout.write((const char *)inst->member_access.member.ptr,
+                    inst->member_access.member.len);
+    std::cout << "\"";
+    break;
+  }
   case MIRValueKind::GEP: {
-    std::cout << "%" << inst << " = gep %" << inst->gep.ptr << ", %"
-              << inst->gep.index;
+    printName(inst);
+    std::cout << " = gep %" << inst->gep.ptr << ", %" << inst->gep.index;
     break;
   }
   case MIRValueKind::Call: {
-    std::cout << "%" << inst << " = call %" << inst->call.callee << "(";
+    printName(inst);
+    std::cout << " = call %" << inst->call.callee << "(";
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
       if (i != 0) {
         std::cout << ", ";

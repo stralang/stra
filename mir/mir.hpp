@@ -24,6 +24,7 @@ enum class MIRValueKind : std::uint16_t {
   UnaryOp,
   Call,
   GEP,
+  MemberAccess,
   Return,
   Branch,
   CondBranch,
@@ -72,6 +73,8 @@ struct MIRFunction {
 };
 
 struct MIRValue {
+  size_t id;
+  String name;
   MIRValueKind kind = MIRValueKind::Nop;
   Type *result_type = nullptr;
 
@@ -108,6 +111,10 @@ struct MIRValue {
       MIRValue *ptr;
       MIRValue *index;
     } gep;
+    struct {
+      MIRValue *parent;
+      String member;
+    } member_access;
     struct {
       MIRValue *type;
       MIRValue *value;
@@ -152,6 +159,7 @@ struct MIRContext {
 };
 
 struct MIRModule {
+  size_t next_id = 0;
   ArrayList<MIRValue> instructions;
 
   Allocator *allocator;
@@ -167,21 +175,27 @@ struct MIRBuilder {
   MIRBlock *block;
   MIRModule *module;
 
-  MIRValue *insert(MIRValue inst, bool global = false);
+  MIRValue *insert(MIRValue inst, bool global = false,
+                   String name = {.ptr = nullptr});
 
-  MIRValue *buildField(MIRValue *type, MIRValue *initial);
-  MIRValue *buildLoad(MIRValue *ptr);
+  MIRValue *buildField(MIRValue *type, MIRValue *initial, String name);
+  MIRValue *buildLoad(MIRValue *ptr, String name = {.ptr = nullptr});
   MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
 
-  MIRValue *buildArg(MIRValue *type);
+  MIRValue *buildArg(MIRValue *type, String name);
 
-  MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode);
-  MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode);
+  MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode,
+                       String name = {.ptr = nullptr});
+  MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode,
+                         String name = {.ptr = nullptr});
 
   MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
-                      MIRValue *receiver);
+                      MIRValue *receiver, String name = {.ptr = nullptr});
 
-  MIRValue *buildGEP(MIRValue *ptr, MIRValue *index);
+  MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
+                     String name = {.ptr = nullptr});
+  MIRValue *buildMemberAccess(MIRValue *ptr, String member,
+                              String name = {.ptr = nullptr});
 
   // If `value` is null then this returns `void`
   MIRValue *buildReturn(MIRValue *value);

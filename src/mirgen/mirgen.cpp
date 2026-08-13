@@ -23,6 +23,12 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     return *value;
   }
+  case NodeKind::Operator: {
+    if (node->_operator.opcode == Operator::MemberAccess) {
+      return addrMemberAccess(mirgen, node, scope);
+    }
+    break;
+  }
   }
 
   return nullptr;
@@ -63,7 +69,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       std::abort();
     }
 
-    return mirgen->builder.buildLoad(*value);
+    return mirgen->builder.buildLoad(*value, {.ptr = nullptr});
   }
   case NodeKind::Value: {
     return valueToMIR(mirgen, &node->value);
@@ -91,7 +97,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       // TODO: Get default value for type
     }
 
-    MIRValue *field = mirgen->builder.buildField(type, value);
+    MIRValue *field = mirgen->builder.buildField(type, value, node->field.name);
     mirgen->node_to_value.insert(node, field);
     return field;
   }
@@ -141,8 +147,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
         Node *arg = node->function.parameters.getUnchecked(i);
-        MIRValue *mir_arg =
-            mirgen->builder.buildArg(value->function.parameter_types.ptr[i]);
+        MIRValue *mir_arg = mirgen->builder.buildArg(
+            value->function.parameter_types.ptr[i], arg->field.name);
         mirgen->node_to_value.insert(arg, mir_arg);
       }
 
@@ -184,7 +190,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
           gen(mirgen, node->call.arguments.getUnchecked(i), scope);
     }
 
-    return mirgen->builder.buildCall(callee, arguments, receiver);
+    return mirgen->builder.buildCall(callee, arguments, receiver,
+                                     {.ptr = nullptr});
   }
   case NodeKind::Return: {
     MIRValue *ret_value = nullptr;

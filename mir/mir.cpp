@@ -26,7 +26,11 @@ MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
   return this->make(inst);
 }
 
-MIRValue *MIRBuilder::insert(MIRValue inst, bool global) {
+MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
+  inst.id = this->module->next_id;
+  inst.name = name;
+  this->module->next_id += 1;
+
   if (this->block != nullptr && !global) {
     this->block->instructions.push(inst);
     return this->block->instructions.back();
@@ -36,7 +40,8 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global) {
   return this->module->instructions.back();
 }
 
-MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial) {
+MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial,
+                                 String name) {
   if (type == nullptr && initial == nullptr) {
     std::cerr << "Field must have type or initial provided.";
     return nullptr;
@@ -44,13 +49,13 @@ MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial) {
 
   MIRValue inst = {.kind = MIRValueKind::Field};
   inst.field = {type, initial};
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildLoad(MIRValue *ptr) {
+MIRValue *MIRBuilder::buildLoad(MIRValue *ptr, String name) {
   MIRValue inst = {.kind = MIRValueKind::Load};
   inst.load.ptr = ptr;
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
 MIRValue *MIRBuilder::buildStore(MIRValue *value, MIRValue *ptr) {
@@ -59,36 +64,45 @@ MIRValue *MIRBuilder::buildStore(MIRValue *value, MIRValue *ptr) {
   return this->insert(inst);
 }
 
-MIRValue *MIRBuilder::buildArg(MIRValue *type) {
+MIRValue *MIRBuilder::buildArg(MIRValue *type, String name) {
   MIRValue inst = {.kind = MIRValueKind::Arg};
   inst.arg.type = type;
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildBinOp(MIRValue *lhs, MIRValue *rhs,
-                                 MIROpcode opcode) {
+MIRValue *MIRBuilder::buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode,
+                                 String name) {
   MIRValue inst = {.kind = MIRValueKind::BinOp};
   inst.binop = {.opcode = opcode, .lhs = lhs, .rhs = rhs};
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildUnaryOp(MIRValue *value, MIROpcode opcode) {
+MIRValue *MIRBuilder::buildUnaryOp(MIRValue *value, MIROpcode opcode,
+                                   String name) {
   MIRValue inst = {.kind = MIRValueKind::UnaryOp};
   inst.unaryop = {.opcode = opcode, .value = value};
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
 MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
-                                MIRValue *receiver) {
+                                MIRValue *receiver, String name) {
   MIRValue inst = {.kind = MIRValueKind::Call};
   inst.call = {.callee = callee, .arguments = arguments, .receiver = receiver};
-  return this->insert(inst);
+  return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildGEP(MIRValue *ptr, MIRValue *index) {
+MIRValue *MIRBuilder::buildGEP(MIRValue *ptr, MIRValue *index, String name) {
   MIRValue inst = {.kind = MIRValueKind::GEP};
   inst.gep = {.ptr = ptr, .index = index};
-  return this->insert(inst);
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildMemberAccess(MIRValue *parent, String member,
+                                        String name) {
+  MIRValue inst = {.kind = MIRValueKind::MemberAccess};
+  inst.member_access.parent = parent;
+  inst.member_access.member = member;
+  return this->insert(inst, false, name);
 }
 
 // If `value` is null then this returns `void`
