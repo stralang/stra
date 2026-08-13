@@ -1,5 +1,3 @@
-#pragma once
-
 #include "literal.hpp"
 #include "mir.hpp"
 
@@ -214,6 +212,7 @@ void printInst(MIRValue *inst) {
   case MIRValueKind::Return: {
     std::cout << "ret";
     if (inst->ret.value != nullptr) {
+      std::cout << ' ';
       printRef(inst->ret.value);
     }
     break;

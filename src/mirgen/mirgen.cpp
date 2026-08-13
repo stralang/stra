@@ -164,6 +164,14 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   case NodeKind::Operator: {
     return genBinary(mirgen, node, scope);
   }
+  case NodeKind::Return: {
+    MIRValue *ret_value = nullptr;
+    if (node->child != nullptr) {
+      ret_value = gen(mirgen, node->child, scope);
+    }
+
+    return mirgen->builder.buildReturn(ret_value);
+  }
   }
 
   return nullptr;
