@@ -207,6 +207,11 @@ void printInst(MIRValue *inst) {
       printRef(inst->call.arguments.ptr[i]);
     }
     std::cout << ")";
+
+    if (inst->call.receiver != nullptr) {
+      std::cout << " Receiver: ";
+      printRef(inst->call.receiver);
+    }
     break;
   }
   case MIRValueKind::Return: {

@@ -164,6 +164,28 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   case NodeKind::Operator: {
     return genBinary(mirgen, node, scope);
   }
+  case NodeKind::Call: {
+    MIRValue *callee = gen(mirgen, node->call.callee, scope);
+    Slice<MIRValue *> arguments = {
+        .ptr = (MIRValue **)mirgen->allocator->alloc(
+            sizeof(MIRValue *) * node->call.arguments.length),
+        .len = node->call.arguments.length,
+    };
+
+    // Receiver
+    MIRValue *receiver = nullptr;
+    if (node->call.callee->_operator.opcode == Operator::MemberAccess) {
+      receiver = gen(mirgen, node->call.callee->_operator.lhs, scope);
+    }
+
+    // Arguments
+    for (size_t i = 0; i < arguments.len; i++) {
+      arguments.ptr[i] =
+          gen(mirgen, node->call.arguments.getUnchecked(i), scope);
+    }
+
+    return mirgen->builder.buildCall(callee, arguments, receiver);
+  }
   case NodeKind::Return: {
     MIRValue *ret_value = nullptr;
     if (node->child != nullptr) {

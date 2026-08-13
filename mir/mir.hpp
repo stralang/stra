@@ -102,6 +102,7 @@ struct MIRValue {
     struct {
       MIRValue *callee;
       Slice<MIRValue *> arguments;
+      MIRValue *receiver; // NOTE: this is only valid after type checking
     } call;
     struct {
       MIRValue *ptr;
@@ -177,7 +178,8 @@ struct MIRBuilder {
   MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode);
   MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode);
 
-  MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments);
+  MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
+                      MIRValue *receiver);
 
   MIRValue *buildGEP(MIRValue *ptr, MIRValue *index);
 

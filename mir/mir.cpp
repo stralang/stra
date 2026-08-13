@@ -78,9 +78,10 @@ MIRValue *MIRBuilder::buildUnaryOp(MIRValue *value, MIROpcode opcode) {
   return this->insert(inst);
 }
 
-MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments) {
+MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
+                                MIRValue *receiver) {
   MIRValue inst = {.kind = MIRValueKind::Call};
-  inst.call = {.callee = callee, .arguments = arguments};
+  inst.call = {.callee = callee, .arguments = arguments, .receiver = receiver};
   return this->insert(inst);
 }
 
