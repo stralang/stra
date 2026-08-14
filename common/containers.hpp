@@ -71,6 +71,8 @@ template <typename T> struct Slice {
 };
 
 using String = Slice<uint8_t>;
+String str(const char *s);
+String str(std::string s);
 
 template <typename T> struct ArrayList {
   Slice<T> data;

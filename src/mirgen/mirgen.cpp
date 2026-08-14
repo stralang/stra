@@ -135,14 +135,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Body
     if (node->function.body != nullptr) {
       value->function.blocks.init(mirgen->allocator, 32);
-      value->function.blocks.push({});
-
-      MIRBlock *entry = value->function.blocks.back();
-      entry->function = &value->function;
-      entry->instructions.init(mirgen->allocator, 32);
+      MIRBlock *entry_block = mirgen->builder.appendBlock(value, str("entry"));
 
       MIRBlock *prev_block = mirgen->builder.block;
-      mirgen->builder.block = entry;
+      mirgen->builder.block = entry_block;
 
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
@@ -200,6 +196,58 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     return mirgen->builder.buildReturn(ret_value);
+  }
+  case NodeKind::If: {
+    Symbol *if_scope = scope->findSymbolByNode(node);
+    MIRValue *parent_function = mirgen->builder.block->function;
+
+    // Blocks
+    MIRBlock *then_block =
+        mirgen->builder.appendBlock(parent_function, str("if_then"));
+    MIRBlock *else_block = nullptr;
+    if (node->_if._else != nullptr) {
+      else_block = mirgen->builder.appendBlock(parent_function, str("if_else"));
+    }
+
+    MIRBlock *merge_block =
+        mirgen->builder.appendBlock(parent_function, str("if_merge"));
+
+    // Conditional
+    MIRValue *condition = gen(mirgen, node->_if.conditional, scope);
+
+    if (else_block != nullptr) {
+      mirgen->builder.buildCondBr(condition, then_block, else_block);
+    } else {
+      mirgen->builder.buildCondBr(condition, then_block, merge_block);
+    }
+
+    // Body
+    mirgen->builder.block = then_block;
+    gen(mirgen, node->_if.body, if_scope);
+
+    if (!mirgen->builder.block->hasTerminator()) {
+      mirgen->builder.buildBr(merge_block);
+    }
+
+    // Else
+    if (else_block != nullptr) {
+      mirgen->builder.block = else_block;
+
+      Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
+      if (else_scope == nullptr) {
+        else_scope = scope;
+      }
+      gen(mirgen, node->_if._else, else_scope);
+
+      if (!mirgen->builder.block->hasTerminator()) {
+        mirgen->builder.buildBr(merge_block);
+      }
+    }
+
+    // Merge
+    mirgen->builder.block = merge_block;
+
+    break;
   }
   }
 

@@ -70,6 +70,8 @@ struct MIRFunction {
   Slice<MIRValue *> parameter_types;
   MIRValue *return_type;
   ArrayList<MIRBlock> blocks;
+
+  MIRBlock *appendBlock(String name);
 };
 
 struct MIRValue {
@@ -142,8 +144,12 @@ struct MIRValue {
 };
 
 struct MIRBlock {
-  MIRFunction *function;
+  size_t id;
+  String name;
+  MIRValue *function;
   ArrayList<MIRValue> instructions;
+
+  bool hasTerminator();
 };
 
 struct MIRContext {
@@ -172,6 +178,8 @@ struct MIRModule {
 struct MIRBuilder {
   MIRBlock *block;
   MIRModule *module;
+
+  MIRBlock *appendBlock(MIRValue *function, String name);
 
   MIRValue *insert(MIRValue inst, bool global = false,
                    String name = {.ptr = nullptr});

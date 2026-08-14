@@ -1050,6 +1050,14 @@ void MIRPrintOpcode(MIROpcode opcode) {
   }
 }
 
+void MIRPrintBlockName(MIRBlock *block) {
+  if (block->name.ptr != nullptr) {
+    std::cout << block->name;
+  } else {
+    std::cout << block->id;
+  }
+}
+
 void MIRPrintName(MIRValue *value) {
   if (value->name.ptr != nullptr) {
     std::cout << "%";
@@ -1165,13 +1173,17 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::Branch: {
-    std::cout << "br @" << inst->br;
+    std::cout << "br @";
+    MIRPrintBlockName(inst->br);
     break;
   }
   case MIRValueKind::CondBranch: {
     std::cout << "condbr ";
     MIRPrintRef(inst->condbr.condition);
-    std::cout << ", @" << inst->condbr.then << ", @" << inst->condbr._else;
+    std::cout << ", @";
+    MIRPrintBlockName(inst->condbr.then);
+    std::cout << ", @";
+    MIRPrintBlockName(inst->condbr._else);
     break;
   }
   case MIRValueKind::Switch: {
@@ -1216,7 +1228,8 @@ void MIRPrintInst(MIRValue *inst) {
 }
 
 void MIRPrintBlock(MIRBlock *block) {
-  std::cout << "<block name>:\n"; // TODO: Block Name
+  MIRPrintBlockName(block);
+  std::cout << ":\n";
   for (size_t i = 0; i < block->instructions.length; i++) {
     std::cout << "  ";
     MIRPrintInst(block->instructions.getPtrUnchecked(i));

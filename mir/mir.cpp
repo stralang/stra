@@ -26,6 +26,30 @@ MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
   return this->make(inst);
 }
 
+bool MIRBlock::hasTerminator() {
+  for (size_t i = this->instructions.length - 1; i > 0; i--) {
+    MIRValue *inst = this->instructions.getPtrUnchecked(i);
+    if (inst->kind == MIRValueKind::Return) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
+  MIRBlock block = {
+      .id = this->module->next_id,
+      .name = name,
+      .function = function,
+  };
+  this->module->next_id += 1;
+  block.instructions.init(this->module->allocator, 32);
+
+  function->function.blocks.push(block);
+  return function->function.blocks.back();
+}
+
 MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
   inst.id = this->module->next_id;
   inst.name = name;
