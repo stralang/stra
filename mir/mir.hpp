@@ -167,8 +167,6 @@ struct MIRModule {
 
   void init(Allocator *allocator);
   void deinit();
-
-  void print();
 };
 
 struct MIRBuilder {

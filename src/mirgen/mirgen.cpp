@@ -213,7 +213,7 @@ void MIRGen::generate() {
 
   gen(this, this->ast, this->symbol);
 
-  this->module.print();
+  printMIRModule(&this->module);
 }
 
 void MIRGen::deinit() {
