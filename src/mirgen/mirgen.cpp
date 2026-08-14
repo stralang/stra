@@ -246,7 +246,38 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     // Merge
     mirgen->builder.block = merge_block;
+    break;
+  }
+  case NodeKind::For: {
+    Symbol *for_scope = scope->findSymbolByNode(node);
+    MIRValue *parent_function = mirgen->builder.block->function;
 
+    // Blocks
+    MIRBlock *condition_block =
+        mirgen->builder.appendBlock(parent_function, str("for_condition"));
+    MIRBlock *do_block =
+        mirgen->builder.appendBlock(parent_function, str("for_do"));
+    MIRBlock *merge_block =
+        mirgen->builder.appendBlock(parent_function, str("for_merge"));
+
+    mirgen->builder.buildBr(condition_block);
+
+    // Conditional
+    mirgen->builder.block = condition_block;
+    MIRValue *condition = gen(mirgen, node->_for.conditional, for_scope);
+
+    mirgen->builder.buildCondBr(condition, do_block, merge_block);
+
+    // Do
+    mirgen->builder.block = do_block;
+    gen(mirgen, node->_for.body, for_scope);
+
+    if (!mirgen->builder.block->hasTerminator()) {
+      mirgen->builder.buildBr(condition_block);
+    }
+
+    // Merge
+    mirgen->builder.block = merge_block;
     break;
   }
   }
