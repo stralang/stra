@@ -1052,19 +1052,17 @@ void MIRPrintOpcode(MIROpcode opcode) {
 
 void MIRPrintBlockName(MIRBlock *block) {
   if (block->name.ptr != nullptr) {
-    std::cout << block->name;
-  } else {
-    std::cout << block->id;
+    std::cout << block->name << "#";
   }
+  std::cout << block->id;
 }
 
 void MIRPrintName(MIRValue *value) {
+  std::cout << "%";
   if (value->name.ptr != nullptr) {
-    std::cout << "%";
-    std::cout.write((const char *)value->name.ptr, value->name.len);
-  } else {
-    std::cout << "%" << value->id;
+    std::cout << value->name << "#";
   }
+  std::cout << value->id;
 }
 
 void MIRPrintRef(MIRValue *value) {
@@ -1192,10 +1190,13 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << "[\n";
 
     for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
+      std::cout << "    ";
       MIRPrintRef(inst->_switch.onvals.ptr[i]);
+      std::cout << ", @";
+      MIRPrintBlockName(inst->_switch.blocks.ptr[i]);
       std::cout << "\n";
     }
-    std::cout << "]";
+    std::cout << "  ]";
     break;
   }
 

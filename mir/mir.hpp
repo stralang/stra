@@ -129,6 +129,7 @@ struct MIRValue {
     } condbr;
     struct {
       MIRValue *condition;
+      MIRBlock *default_block;
       Slice<MIRValue *> onvals;
       Slice<MIRBlock *> blocks;
       size_t slots;
@@ -209,6 +210,6 @@ struct MIRBuilder {
   MIRValue *buildBr(MIRBlock *block);
   MIRValue *buildCondBr(MIRValue *condition, MIRBlock *then, MIRBlock *_else);
 
-  MIRValue *buildSwitch(MIRValue *value, size_t cases);
+  MIRValue *buildSwitch(MIRValue *value, MIRBlock *default_block, size_t cases);
   void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
 };

@@ -280,6 +280,40 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     mirgen->builder.block = merge_block;
     break;
   }
+  case NodeKind::Switch: {
+    MIRValue *parent_function = mirgen->builder.block->function;
+    MIRBlock *merge_block =
+        mirgen->builder.appendBlock(parent_function, str("switch_merge"));
+
+    // Cases
+    MIRValue *value = gen(mirgen, node->_switch.conditional, scope);
+    MIRValue *_switch = mirgen->builder.buildSwitch(value, merge_block,
+                                                    node->_switch.cases.length);
+
+    // Cases
+    for (size_t i = 0; i < node->_switch.cases.length; i++) {
+      Node *_case = node->_switch.cases.data.ptr[i];
+      Symbol *case_scope = scope->findSymbolByNode(_case);
+
+      // Body
+      MIRBlock *case_block =
+          mirgen->builder.appendBlock(parent_function, str("switch_case"));
+      mirgen->builder.block = case_block;
+      gen(mirgen, _case->_case.body, case_scope);
+
+      if (!mirgen->builder.block->hasTerminator()) {
+        mirgen->builder.buildBr(merge_block);
+      }
+
+      // Add
+      MIRValue *constant = gen(mirgen, _case->_case.constant, scope);
+      mirgen->builder.addCase(_switch, constant, case_block);
+    }
+
+    // Merge
+    mirgen->builder.block = merge_block;
+    break;
+  }
   }
 
   return nullptr;

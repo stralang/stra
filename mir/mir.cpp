@@ -149,9 +149,11 @@ MIRValue *MIRBuilder::buildCondBr(MIRValue *condition, MIRBlock *then,
   return this->insert(inst);
 }
 
-MIRValue *MIRBuilder::buildSwitch(MIRValue *value, size_t cases) {
+MIRValue *MIRBuilder::buildSwitch(MIRValue *value, MIRBlock *default_block,
+                                  size_t cases) {
   MIRValue inst = {.kind = MIRValueKind::Switch};
   inst._switch.condition = value;
+  inst._switch.default_block = default_block;
 
   uint8_t *onval_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
   uint8_t *blocks_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
