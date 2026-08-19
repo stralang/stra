@@ -157,6 +157,18 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     return value;
   }
+  case NodeKind::Struct: {
+    return genStruct(mirgen, node, scope);
+  }
+  case NodeKind::Enum: {
+    return genEnum(mirgen, node, scope);
+  }
+  case NodeKind::Union: {
+    return genUnion(mirgen, node, scope);
+  }
+  case NodeKind::Namespace: {
+    return genNamespace(mirgen, node, scope);
+  }
   case NodeKind::Assignment: {
     return genAssignment(mirgen, node, scope);
   }

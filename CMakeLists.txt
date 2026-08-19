@@ -14,6 +14,7 @@ add_executable(stra
   src/mirgen/convert.cpp
   src/mirgen/builtin.cpp
   src/mirgen/operator.cpp
+  src/mirgen/record.cpp
 
   src/evaluator/evaluator.cpp
   src/evaluator/operator.cpp

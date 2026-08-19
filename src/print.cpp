@@ -1070,7 +1070,11 @@ void MIRPrintRef(MIRValue *value) {
     std::cout << "null";
   } else if (value->kind == MIRValueKind::Literal) {
     MIRPrintLiteral(&value->literal);
-  } else if (value->kind == MIRValueKind::Function) {
+  } else if (value->kind == MIRValueKind::Function ||
+             value->kind == MIRValueKind::Struct ||
+             value->kind == MIRValueKind::Enum ||
+             value->kind == MIRValueKind::Union ||
+             value->kind == MIRValueKind::Namespace) {
     MIRPrintInst(value);
   } else {
     MIRPrintName(value);
@@ -1221,6 +1225,17 @@ void MIRPrintInst(MIRValue *inst) {
       }
       std::cout << "}";
     }
+    break;
+  }
+  case MIRValueKind::Struct: {
+    std::cout << "struct {";
+    for (size_t i = 0; i < inst->_struct.fields.len; i++) {
+      MIRPrintInst(inst->_struct.fields.ptr[i]);
+    }
+    for (size_t i = 0; i < inst->_struct.definitions.len; i++) {
+      MIRPrintInst(inst->_struct.definitions.ptr[i]);
+    }
+    std::cout << "}";
     break;
   }
   }

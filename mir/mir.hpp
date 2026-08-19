@@ -33,6 +33,10 @@ enum class MIRValueKind : std::uint16_t {
   Constant = 0x2000,
   Literal,
   Function,
+  Struct,
+  Enum,
+  Union,
+  Namespace,
 };
 
 enum class MIROpcode : uint8_t {
@@ -72,6 +76,22 @@ struct MIRFunction {
   ArrayList<MIRBlock> blocks;
 
   MIRBlock *appendBlock(String name);
+};
+
+struct MIRStruct {
+  Slice<MIRValue *> fields;
+  Slice<MIRValue *> definitions;
+};
+
+struct MIREnum {
+  MIRValue *repr_type;
+  Slice<MIRValue *> members;
+  Slice<MIRValue *> definitions;
+};
+using MIRUnion = MIREnum;
+
+struct MIRNamespace {
+  Slice<MIRValue *> definitions;
 };
 
 struct MIRValue {
@@ -141,6 +161,10 @@ struct MIRValue {
 
     MIRLiteral literal;
     MIRFunction function;
+    MIRStruct _struct;
+    MIREnum _enum;
+    MIRUnion _union;
+    MIRNamespace _namespace;
   };
 };
 
