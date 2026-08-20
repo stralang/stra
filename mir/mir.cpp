@@ -3,21 +3,22 @@
 
 void MIRContext::init(Allocator *allocator) {
   this->allocator = allocator;
-  this->values.init(allocator, 32);
+  this->arena.init(allocator, 1024 * 1024 * 8);
 }
 
-void MIRContext::deinit() { this->values.deinit(); }
+void MIRContext::deinit() { this->arena.deinit(); }
 
 void MIRModule::init(Allocator *allocator) {
-  this->allocator = allocator;
-  this->instructions.init(this->allocator, 32);
+  this->arena.init(allocator, 1024 * 1024 * 8);
+  this->instructions.init(this->arena.allocator, 32);
 }
 
 void MIRModule::deinit() { this->instructions.deinit(); }
 
 MIRValue *MIRContext::make(MIRValue value) {
-  this->values.push(value);
-  return this->values.back();
+  MIRValue *ptr = (MIRValue *)this->arena.alloc(sizeof(MIRValue));
+  *ptr = value;
+  return ptr;
 }
 
 MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
@@ -28,7 +29,7 @@ MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
 
 bool MIRBlock::hasTerminator() {
   for (size_t i = this->instructions.length - 1; i > 0; i--) {
-    MIRValue *inst = this->instructions.getPtrUnchecked(i);
+    MIRValue *inst = this->instructions.getUnchecked(i);
     if (inst->kind == MIRValueKind::Return) {
       return true;
     }
@@ -44,7 +45,7 @@ MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
       .function = function,
   };
   this->module->next_id += 1;
-  block.instructions.init(this->module->allocator, 32);
+  block.instructions.init(this->module->arena.allocator, 32);
 
   function->function.blocks.push(block);
   return function->function.blocks.back();
@@ -55,13 +56,15 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
   inst.name = name;
   this->module->next_id += 1;
 
-  if (this->block != nullptr && !global) {
-    this->block->instructions.push(inst);
-    return this->block->instructions.back();
-  }
+  MIRValue *ptr_inst = (MIRValue *)this->module->arena.alloc(sizeof(MIRValue));
+  *ptr_inst = inst;
 
-  this->module->instructions.push(inst);
-  return this->module->instructions.back();
+  if (this->block != nullptr && !global) {
+    this->block->instructions.push(ptr_inst);
+  } else {
+    this->module->instructions.push(ptr_inst);
+  }
+  return ptr_inst;
 }
 
 MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial,
@@ -155,8 +158,8 @@ MIRValue *MIRBuilder::buildSwitch(MIRValue *value, MIRBlock *default_block,
   inst._switch.condition = value;
   inst._switch.default_block = default_block;
 
-  uint8_t *onval_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
-  uint8_t *blocks_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
+  uint8_t *onval_ptr = this->module->arena.alloc(sizeof(void *) * cases);
+  uint8_t *blocks_ptr = this->module->arena.alloc(sizeof(void *) * cases);
   inst._switch.onvals = {.ptr = (MIRValue **)onval_ptr, .len = cases};
   inst._switch.blocks = {.ptr = (MIRBlock **)blocks_ptr, .len = cases};
   inst._switch.slots = 0;

@@ -1248,12 +1248,12 @@ void MIRPrintBlock(MIRBlock *block) {
   std::cout << ":\n";
   for (size_t i = 0; i < block->instructions.length; i++) {
     std::cout << "  ";
-    MIRPrintInst(block->instructions.getPtrUnchecked(i));
+    MIRPrintInst(block->instructions.getUnchecked(i));
   }
 }
 
 void printMIRModule(MIRModule *mod) {
   for (size_t i = 0; i < mod->instructions.length; i++) {
-    MIRPrintInst(mod->instructions.getPtrUnchecked(i));
+    MIRPrintInst(mod->instructions.getUnchecked(i));
   }
 }

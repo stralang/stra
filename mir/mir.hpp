@@ -172,14 +172,14 @@ struct MIRBlock {
   size_t id;
   String name;
   MIRValue *function;
-  ArrayList<MIRValue> instructions;
+  ArrayList<MIRValue *> instructions;
 
   bool hasTerminator();
 };
 
 struct MIRContext {
   TypeCache *type_cache;
-  ArrayList<MIRValue> values;
+  DynamicArena arena;
   Allocator *allocator;
 
   void init(Allocator *allocator);
@@ -191,9 +191,9 @@ struct MIRContext {
 
 struct MIRModule {
   size_t next_id = 0;
-  ArrayList<MIRValue> instructions;
+  ArrayList<MIRValue *> instructions;
 
-  Allocator *allocator;
+  DynamicArena arena; // Memory that stores `MIRValue`
   MIRContext *ctx;
 
   void init(Allocator *allocator);
