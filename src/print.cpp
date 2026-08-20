@@ -1221,7 +1221,7 @@ void MIRPrintInst(MIRValue *inst) {
     if (inst->function.blocks.data.ptr != nullptr) {
       std::cout << " {\n";
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        MIRPrintBlock(inst->function.blocks.getPtrUnchecked(i));
+        MIRPrintBlock(inst->function.blocks.getUnchecked(i));
       }
       std::cout << "}";
     }

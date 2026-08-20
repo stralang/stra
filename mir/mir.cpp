@@ -39,16 +39,15 @@ bool MIRBlock::hasTerminator() {
 }
 
 MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
-  MIRBlock block = {
-      .id = this->module->next_id,
-      .name = name,
-      .function = function,
-  };
+  MIRBlock *block = (MIRBlock *)this->module->arena.alloc(sizeof(MIRBlock));
+  block->id = this->module->next_id;
+  block->name = name;
+  block->function = function;
   this->module->next_id += 1;
-  block.instructions.init(this->module->arena.allocator, 32);
 
+  block->instructions.init(this->module->arena.allocator, 32);
   function->function.blocks.push(block);
-  return function->function.blocks.back();
+  return block;
 }
 
 MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {

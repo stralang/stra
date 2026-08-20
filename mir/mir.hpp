@@ -73,7 +73,7 @@ enum class MIROpcode : uint8_t {
 struct MIRFunction {
   Slice<MIRValue *> parameter_types;
   MIRValue *return_type;
-  ArrayList<MIRBlock> blocks;
+  ArrayList<MIRBlock *> blocks;
 
   MIRBlock *appendBlock(String name);
 };
