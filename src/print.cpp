@@ -920,6 +920,7 @@ std::ostream &operator<<(std::ostream &os, const Type &type) {
 // MIR
 void MIRPrintInst(MIRValue *inst);   // Forward Declaration
 void MIRPrintBlock(MIRBlock *block); // Forward Declaration
+void MIRPrintScope(MIRScope *scope); // Forward Declaration
 
 void MIRPrintLiteral(MIRLiteral *literal) {
   switch (literal->kind) {
@@ -1218,8 +1219,9 @@ void MIRPrintInst(MIRValue *inst) {
     }
     std::cout << ") ";
     MIRPrintRef(inst->function.return_type);
-    if (inst->function.blocks.data.ptr != nullptr) {
+    if (inst->function.definitions != nullptr) {
       std::cout << " {\n";
+      MIRPrintScope(inst->function.definitions);
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
         MIRPrintBlock(inst->function.blocks.getUnchecked(i));
       }
@@ -1228,13 +1230,9 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::Struct: {
-    std::cout << "struct {";
-    for (size_t i = 0; i < inst->_struct.fields.len; i++) {
-      MIRPrintInst(inst->_struct.fields.ptr[i]);
-    }
-    for (size_t i = 0; i < inst->_struct.definitions.len; i++) {
-      MIRPrintInst(inst->_struct.definitions.ptr[i]);
-    }
+    std::cout << "struct {\n";
+    MIRPrintScope(inst->_struct.fields);
+    MIRPrintScope(inst->_struct.definitions);
     std::cout << "}";
     break;
   }
@@ -1252,8 +1250,10 @@ void MIRPrintBlock(MIRBlock *block) {
   }
 }
 
-void printMIRModule(MIRModule *mod) {
-  for (size_t i = 0; i < mod->instructions.length; i++) {
-    MIRPrintInst(mod->instructions.getUnchecked(i));
+void MIRPrintScope(MIRScope *scope) {
+  for (size_t i = 0; i < scope->list.length; i++) {
+    MIRPrintInst(scope->list.getUnchecked(i));
   }
 }
+
+void printMIRModule(MIRModule *mod) { MIRPrintScope(mod->definitions); }

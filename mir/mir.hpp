@@ -10,6 +10,7 @@
 // Forward declarations
 struct MIRValue;
 struct MIRBlock;
+struct MIRScope;
 // Forward declarations
 
 enum class MIRValueKind : std::uint16_t {
@@ -73,25 +74,27 @@ enum class MIROpcode : uint8_t {
 struct MIRFunction {
   Slice<MIRValue *> parameter_types;
   MIRValue *return_type;
-  ArrayList<MIRBlock *> blocks;
+  MIRScope *definitions;
+  ArrayList<MIRBlock *>
+      blocks; // if `definitions` is non-null this must be non-null
 
   MIRBlock *appendBlock(String name);
 };
 
 struct MIRStruct {
-  Slice<MIRValue *> fields;
-  Slice<MIRValue *> definitions;
+  MIRScope *fields;
+  MIRScope *definitions;
 };
 
 struct MIREnum {
   MIRValue *repr_type;
-  Slice<MIRValue *> members;
-  Slice<MIRValue *> definitions;
+  MIRScope *members;
+  MIRScope *definitions;
 };
 using MIRUnion = MIREnum;
 
 struct MIRNamespace {
-  Slice<MIRValue *> definitions;
+  MIRScope *definitions;
 };
 
 struct MIRValue {
@@ -177,6 +180,11 @@ struct MIRBlock {
   bool hasTerminator();
 };
 
+struct MIRScope {
+  MIRValue *owner = nullptr;
+  ArrayList<MIRValue *> list;
+};
+
 struct MIRContext {
   TypeCache *type_cache;
   DynamicArena arena;
@@ -191,7 +199,7 @@ struct MIRContext {
 
 struct MIRModule {
   size_t next_id = 0;
-  ArrayList<MIRValue *> instructions;
+  MIRScope *definitions;
 
   DynamicArena arena; // Memory that stores `MIRValue`
   MIRContext *ctx;
@@ -202,11 +210,12 @@ struct MIRModule {
 
 struct MIRBuilder {
   MIRBlock *block;
+  MIRScope *scope;
   MIRModule *module;
 
   MIRBlock *appendBlock(MIRValue *function, String name);
 
-  MIRValue *insert(MIRValue inst, bool global = false,
+  MIRValue *insert(MIRValue inst, bool definition = false,
                    String name = {.ptr = nullptr});
 
   MIRValue *buildField(MIRValue *type, MIRValue *initial, String name);

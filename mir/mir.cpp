@@ -10,10 +10,15 @@ void MIRContext::deinit() { this->arena.deinit(); }
 
 void MIRModule::init(Allocator *allocator) {
   this->arena.init(allocator, 1024 * 1024 * 8);
-  this->instructions.init(this->arena.allocator, 32);
+  this->definitions = (MIRScope *)this->arena.alloc(sizeof(MIRScope));
+  this->definitions->list.init(allocator, 32);
+  this->definitions->owner = nullptr;
 }
 
-void MIRModule::deinit() { this->instructions.deinit(); }
+void MIRModule::deinit() {
+  this->arena.deinit();
+  this->definitions->list.deinit();
+}
 
 MIRValue *MIRContext::make(MIRValue value) {
   MIRValue *ptr = (MIRValue *)this->arena.alloc(sizeof(MIRValue));
@@ -50,18 +55,17 @@ MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
   return block;
 }
 
-MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
+MIRValue *MIRBuilder::insert(MIRValue inst, bool definition, String name) {
   inst.id = this->module->next_id;
   inst.name = name;
   this->module->next_id += 1;
 
   MIRValue *ptr_inst = (MIRValue *)this->module->arena.alloc(sizeof(MIRValue));
   *ptr_inst = inst;
-
-  if (this->block != nullptr && !global) {
+  if (this->block != nullptr && !definition) {
     this->block->instructions.push(ptr_inst);
   } else {
-    this->module->instructions.push(ptr_inst);
+    this->scope->list.push(ptr_inst);
   }
   return ptr_inst;
 }
@@ -75,7 +79,7 @@ MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial,
 
   MIRValue inst = {.kind = MIRValueKind::Field};
   inst.field = {type, initial};
-  return this->insert(inst, false, name);
+  return this->insert(inst, true, name);
 }
 
 MIRValue *MIRBuilder::buildLoad(MIRValue *ptr, String name) {

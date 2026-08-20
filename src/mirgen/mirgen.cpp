@@ -59,8 +59,13 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
+      MIRScope *prev_scope = mirgen->builder.scope;
+      mirgen->builder.scope = *mirgen->symbol_to_scope.get(symbol->parent);
+
       gen(mirgen, symbol->node, symbol->parent);
       value = mirgen->node_to_value.get(symbol->node);
+
+      mirgen->builder.scope = prev_scope;
     }
 
     if (value == nullptr) {
@@ -134,11 +139,19 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     // Body
     if (node->function.body != nullptr) {
+      MIRScope *definitions =
+          (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
+      definitions->owner = value;
+      definitions->list.init(mirgen->builder.module->arena.allocator, 32);
+      value->function.definitions = definitions;
+
       value->function.blocks.init(mirgen->allocator, 32);
       MIRBlock *entry_block = mirgen->builder.appendBlock(value, str("entry"));
 
       MIRBlock *prev_block = mirgen->builder.block;
+      MIRScope *prev_scope = mirgen->builder.scope;
       mirgen->builder.block = entry_block;
+      mirgen->builder.scope = definitions;
 
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
@@ -153,6 +166,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
       // End
       mirgen->builder.block = prev_block;
+      mirgen->builder.scope = prev_scope;
     }
 
     return value;
@@ -333,9 +347,13 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
 void MIRGen::generate() {
   this->node_to_value.init(this->allocator, 32);
+  this->symbol_to_scope.init(this->allocator, 32);
   this->module.init(this->allocator);
   this->builder.module = &this->module;
+  this->builder.scope = this->module.definitions;
+  this->builder.block = nullptr;
 
+  this->symbol_to_scope.insert(this->symbol, this->module.definitions);
   gen(this, this->ast, this->symbol);
 
   printMIRModule(&this->module);
@@ -343,5 +361,5 @@ void MIRGen::generate() {
 
 void MIRGen::deinit() {
   this->node_to_value.deinit();
-  this->module.instructions.deinit();
+  this->module.deinit();
 }

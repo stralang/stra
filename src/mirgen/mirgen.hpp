@@ -11,6 +11,7 @@ struct MIRGen {
   Allocator *allocator;
 
   HashMap<Node *, MIRValue *> node_to_value;
+  HashMap<Symbol *, MIRScope *> symbol_to_scope;
 
   MIRBlock block;
   MIRBuilder builder;
