@@ -203,7 +203,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Receiver
     MIRValue *receiver = nullptr;
     if (node->call.callee->_operator.opcode == Operator::MemberAccess) {
-      receiver = gen(mirgen, node->call.callee->_operator.lhs, scope);
+      receiver = addr(mirgen, node->call.callee->_operator.lhs, scope);
     }
 
     // Arguments
