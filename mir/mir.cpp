@@ -72,11 +72,6 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool definition, String name) {
 
 MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial,
                                  String name) {
-  if (type == nullptr && initial == nullptr) {
-    std::cerr << "Field must have type or initial provided.";
-    return nullptr;
-  }
-
   MIRValue inst = {.kind = MIRValueKind::Field};
   inst.field = {type, initial};
   return this->insert(inst, true, name);

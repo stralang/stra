@@ -91,19 +91,20 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // TODO: Get Name
 
     // Generate field
-    MIRValue *type = nullptr;
-    MIRValue *value = nullptr;
+
+    MIRValue *field =
+        mirgen->builder.buildField(nullptr, nullptr, node->field.name);
+    mirgen->node_to_value.insert(node, field);
+
     if (node->field.type != nullptr) {
-      type = gen(mirgen, node->field.type, field_symbol);
+      field->field.type = gen(mirgen, node->field.type, field_symbol);
     }
     if (node->field.initial != nullptr) {
-      value = gen(mirgen, node->field.initial, field_symbol);
+      field->field.initial = gen(mirgen, node->field.initial, field_symbol);
     } else if (!node->field.undefined) {
       // TODO: Get default value for type
     }
 
-    MIRValue *field = mirgen->builder.buildField(type, value, node->field.name);
-    mirgen->node_to_value.insert(node, field);
     return field;
   }
   case NodeKind::Function: {
