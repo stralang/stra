@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.30)
 
 project(mir VERSION 0.1.0 LANGUAGES CXX)
-add_library(mir STATIC mir.cpp)
+add_library(mir STATIC
+  mir.cpp
+
+  analysis/analysis.cpp
+
+  comptime/comptime.cpp
+)
 
 target_include_directories(mir PUBLIC ./)
 

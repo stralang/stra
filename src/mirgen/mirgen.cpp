@@ -366,6 +366,7 @@ void MIRGen::generate() {
   this->node_to_value.init(this->allocator, 32);
   this->symbol_to_scope.init(this->allocator, 32);
   this->module.init(this->allocator);
+  this->module.ctx = this->ctx;
   this->builder.module = &this->module;
   this->builder.scope = this->module.definitions;
   this->builder.block = nullptr;

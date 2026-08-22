@@ -1,4 +1,5 @@
 #include "allocator.hpp"
+#include "analysis/analysis.hpp"
 #include "codegen/codegen.hpp"
 #include "containers.hpp"
 #include "environment.hpp"
@@ -153,6 +154,7 @@ struct SourceFile {
 
   Symbol *root;
   ASTParser parser;
+  MIRGen mir;
 };
 struct SourceFiles {
   ArrayList<SourceFile> list;
@@ -487,8 +489,8 @@ int main(int argc, const char **argv) {
   environment.linker_scripts.init(&global_allocator, 4);
   environment.linker_flags.init(&global_allocator, 16);
 
-  CodeGenContext codegen_ctx;
-  codegen_ctx.init(&environment, args.target_triple);
+  // CodeGenContext codegen_ctx;
+  // codegen_ctx.init(&environment, args.target_triple);
 
   // MIR
   MIRContext ctx;
@@ -497,13 +499,21 @@ int main(int argc, const char **argv) {
 
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    MIRGen gen = MIRGen{
+    file->mir = MIRGen{
         .ast = file->parser.ast,
         .symbol = file->root,
         .allocator = &global_allocator,
         .ctx = &ctx,
     };
-    gen.generate();
+    file->mir.generate();
+  }
+
+  // Analysis
+  MIRAnalyser analyser;
+  analyser.init(&global_allocator);
+  for (size_t i = 0; i < files.len(); i++) {
+    SourceFile *file = files.getPtrUnchecked(i);
+    analyser.analyse(&file->mir.module);
   }
 
   // // Evaluate

@@ -865,9 +865,9 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
   }
   case TypeKind::Function: {
     os << " `(";
-    for (size_t i = 0; i < type->function.arguments.length; i++) {
-      print_type_impl(os, type->function.arguments.data.ptr[i], depth + 1);
-      if (i != type->function.arguments.length - 1) {
+    for (size_t i = 0; i < type->function.arguments.len; i++) {
+      print_type_impl(os, type->function.arguments.ptr[i], depth + 1);
+      if (i != type->function.arguments.len - 1) {
         os << ", ";
       }
     }

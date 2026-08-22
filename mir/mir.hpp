@@ -79,6 +79,7 @@ struct MIRFunction {
   MIRValue *return_type;
   MIRScope *globals;
   ArrayList<MIRBlock *> blocks;
+  bool undefined;
 
   MIRBlock *appendBlock(String name);
 };
