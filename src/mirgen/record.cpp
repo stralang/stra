@@ -4,7 +4,9 @@ void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
              MIRScope *out) {
   out->list.init(mirgen->module.arena.allocator, list->length);
 
+  MIRBlock *prev_block = mirgen->builder.block;
   MIRScope *prev_scope = mirgen->builder.scope;
+  mirgen->builder.block = nullptr;
   mirgen->builder.scope = out;
 
   for (size_t i = 0; i < list->length; i++) {
@@ -12,6 +14,7 @@ void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
   }
 
   mirgen->builder.scope = prev_scope;
+  mirgen->builder.block = prev_block;
 }
 
 MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {

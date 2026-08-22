@@ -60,11 +60,14 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
       MIRScope *prev_scope = mirgen->builder.scope;
+      MIRBlock *prev_block = mirgen->builder.block;
       mirgen->builder.scope = *mirgen->symbol_to_scope.get(symbol->parent);
+      mirgen->builder.block = nullptr;
 
       gen(mirgen, symbol->node, symbol->parent);
       value = mirgen->node_to_value.get(symbol->node);
 
+      mirgen->builder.block = prev_block;
       mirgen->builder.scope = prev_scope;
     }
 
@@ -91,20 +94,33 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // TODO: Get Name
 
     // Generate field
+    MIRValue *field = nullptr;
+    if (scope->location_aware) {
+      MIRValue *type = nullptr;
+      if (node->field.type != nullptr) {
+        type = gen(mirgen, node->field.type, field_symbol);
+      }
 
-    MIRValue *field =
-        mirgen->builder.buildField(nullptr, nullptr, node->field.name);
+      field = mirgen->builder.buildAlloca(type, node->field.name);
+      if (node->field.initial != nullptr) {
+        field = gen(mirgen, node->field.initial, field_symbol);
+      }
+    } else {
+      field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
+                                                  node->field.name);
+      if (node->field.type != nullptr) {
+        field->global_variable.type =
+            gen(mirgen, node->field.type, field_symbol);
+      }
+      if (node->field.initial != nullptr) {
+        field->global_variable.constant =
+            gen(mirgen, node->field.initial, field_symbol);
+      } else if (!node->field.undefined) {
+        // TODO: Get default value for type
+      }
+    }
+
     mirgen->node_to_value.insert(node, field);
-
-    if (node->field.type != nullptr) {
-      field->field.type = gen(mirgen, node->field.type, field_symbol);
-    }
-    if (node->field.initial != nullptr) {
-      field->field.initial = gen(mirgen, node->field.initial, field_symbol);
-    } else if (!node->field.undefined) {
-      // TODO: Get default value for type
-    }
-
     return field;
   }
   case NodeKind::Function: {
@@ -140,11 +156,11 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     // Body
     if (node->function.body != nullptr) {
-      MIRScope *definitions =
+      MIRScope *globals =
           (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-      definitions->owner = value;
-      definitions->list.init(mirgen->builder.module->arena.allocator, 32);
-      value->function.definitions = definitions;
+      globals->owner = value;
+      globals->list.init(mirgen->builder.module->arena.allocator, 32);
+      value->function.globals = globals;
 
       value->function.blocks.init(mirgen->allocator, 32);
       MIRBlock *entry_block = mirgen->builder.appendBlock(value, str("entry"));
@@ -152,7 +168,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       MIRBlock *prev_block = mirgen->builder.block;
       MIRScope *prev_scope = mirgen->builder.scope;
       mirgen->builder.block = entry_block;
-      mirgen->builder.scope = definitions;
+      mirgen->builder.scope = globals;
 
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {

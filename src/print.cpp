@@ -1087,12 +1087,12 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::Nop: {
     break;
   }
-  case MIRValueKind::Field: {
+  case MIRValueKind::Alloca: {
     MIRPrintName(inst);
-    std::cout << " = field `";
-    MIRPrintRef(inst->field.type);
+    std::cout << " = alloca `";
+    MIRPrintRef(inst->alloca.type);
     std::cout << "`, ";
-    MIRPrintRef(inst->field.initial);
+    MIRPrintRef(inst->alloca.initial);
     break;
   }
   case MIRValueKind::Load: {
@@ -1205,6 +1205,15 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
 
+  case MIRValueKind::GlobalVariable: {
+    MIRPrintName(inst);
+    std::cout << " = global `";
+    MIRPrintRef(inst->alloca.type);
+    std::cout << "`, ";
+    MIRPrintRef(inst->alloca.initial);
+    break;
+  }
+
   case MIRValueKind::Literal: {
     MIRPrintLiteral(&inst->literal);
     break;
@@ -1219,9 +1228,9 @@ void MIRPrintInst(MIRValue *inst) {
     }
     std::cout << ") ";
     MIRPrintRef(inst->function.return_type);
-    if (inst->function.definitions != nullptr) {
+    if (inst->function.blocks.data.ptr != nullptr) {
       std::cout << " {\n";
-      MIRPrintScope(inst->function.definitions);
+      MIRPrintScope(inst->function.globals);
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
         MIRPrintBlock(inst->function.blocks.getUnchecked(i));
       }

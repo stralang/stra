@@ -17,7 +17,7 @@ enum class MIRValueKind : std::uint16_t {
   Nop,
 
   Instruction = 0x1000,
-  Field,
+  Alloca,
   Load,
   Store,
   Arg,
@@ -31,7 +31,10 @@ enum class MIRValueKind : std::uint16_t {
   CondBranch,
   Switch,
 
-  Constant = 0x2000,
+  Global = 0x2000,
+  GlobalVariable,
+
+  Constant = 0x3000,
   Literal,
   Function,
   Struct,
@@ -74,9 +77,8 @@ enum class MIROpcode : uint8_t {
 struct MIRFunction {
   Slice<MIRValue *> parameter_types;
   MIRValue *return_type;
-  MIRScope *definitions;
-  ArrayList<MIRBlock *>
-      blocks; // if `definitions` is non-null this must be non-null
+  MIRScope *globals;
+  ArrayList<MIRBlock *> blocks;
 
   MIRBlock *appendBlock(String name);
 };
@@ -106,8 +108,8 @@ struct MIRValue {
   union {
     struct {
       MIRValue *type;
-      MIRValue *initial; // a `null` initial is externally defined
-    } field;
+      MIRValue *initial;
+    } alloca;
     struct {
       MIRValue *ptr;
     } load;
@@ -162,6 +164,11 @@ struct MIRValue {
       // TODO: Assembly in MIR
     } assembly;
 
+    struct {
+      MIRValue *type;
+      MIRValue *constant; // set to `null` for externally defined
+    } global_variable;
+
     MIRLiteral literal;
     MIRFunction function;
     MIRStruct _struct;
@@ -215,10 +222,10 @@ struct MIRBuilder {
 
   MIRBlock *appendBlock(MIRValue *function, String name);
 
-  MIRValue *insert(MIRValue inst, bool definition = false,
+  MIRValue *insert(MIRValue inst, bool global = false,
                    String name = {.ptr = nullptr});
 
-  MIRValue *buildField(MIRValue *type, MIRValue *initial, String name);
+  MIRValue *buildAlloca(MIRValue *type, String name);
   MIRValue *buildLoad(MIRValue *ptr, String name = {.ptr = nullptr});
   MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
 
@@ -245,4 +252,7 @@ struct MIRBuilder {
 
   MIRValue *buildSwitch(MIRValue *value, MIRBlock *default_block, size_t cases);
   void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
+
+  MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
+                                String name);
 };

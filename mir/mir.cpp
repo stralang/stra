@@ -1,5 +1,7 @@
 #include "mir.hpp"
 #include "allocator.hpp"
+#include <cstdlib>
+#include <iostream>
 
 void MIRContext::init(Allocator *allocator) {
   this->allocator = allocator;
@@ -55,26 +57,28 @@ MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
   return block;
 }
 
-MIRValue *MIRBuilder::insert(MIRValue inst, bool definition, String name) {
+MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
   inst.id = this->module->next_id;
   inst.name = name;
   this->module->next_id += 1;
 
   MIRValue *ptr_inst = (MIRValue *)this->module->arena.alloc(sizeof(MIRValue));
   *ptr_inst = inst;
-  if (this->block != nullptr && !definition) {
+  if (this->block != nullptr) {
     this->block->instructions.push(ptr_inst);
-  } else {
+  } else if (this->scope != nullptr) {
     this->scope->list.push(ptr_inst);
+  } else {
+    std::cerr << "Block or Scope must be provided to insert instruction.\n";
+    std::abort();
   }
   return ptr_inst;
 }
 
-MIRValue *MIRBuilder::buildField(MIRValue *type, MIRValue *initial,
-                                 String name) {
-  MIRValue inst = {.kind = MIRValueKind::Field};
-  inst.field = {type, initial};
-  return this->insert(inst, true, name);
+MIRValue *MIRBuilder::buildAlloca(MIRValue *type, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Alloca};
+  inst.alloca = {type, nullptr};
+  return this->insert(inst, false, name);
 }
 
 MIRValue *MIRBuilder::buildLoad(MIRValue *ptr, String name) {
@@ -175,4 +179,11 @@ void MIRBuilder::addCase(MIRValue *switch_inst, MIRValue *onval,
   switch_inst->_switch.onvals[switch_inst->_switch.slots] = onval;
   switch_inst->_switch.blocks[switch_inst->_switch.slots] = then;
   switch_inst->_switch.slots += 1;
+}
+
+MIRValue *MIRBuilder::buildGlobalVariable(MIRValue *type, MIRValue *constant,
+                                          String name) {
+  MIRValue inst = {.kind = MIRValueKind::GlobalVariable};
+  inst.global_variable = {type, constant};
+  return this->insert(inst, true, name);
 }
