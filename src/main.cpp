@@ -509,11 +509,24 @@ int main(int argc, const char **argv) {
   }
 
   // Analysis
-  MIRAnalyser analyser;
+  MIRAnalyser analyser = {
+      .error_func = &error_handler,
+      .warning_func = &warning_handler,
+  };
   analyser.init(&global_allocator);
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
     analyser.analyse(&file->mir.module);
+  }
+
+  if (analyser.warning_count > 0) {
+    std::cout << "\e[0;33m" << analyser.warning_count << "warnings.\e[0m\n";
+  }
+
+  if (analyser.error_count > 0) {
+    std::cerr << "\e[0;31m" << analyser.error_count
+              << " errors, exiting.\e[0m\n";
+    return 1;
   }
 
   // // Evaluate

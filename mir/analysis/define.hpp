@@ -9,6 +9,8 @@
     os << msg;                                                                 \
     std::string cpp_str = os.str();                                            \
     String m = {(uint8_t *)cpp_str.data(), cpp_str.size()};                    \
-  } // TODO: Report error
+    analyser->error_func(srcloc, m);                                           \
+    analyser->error_count += 1;                                                \
+  }
 
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);

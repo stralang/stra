@@ -208,7 +208,7 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIROpcode::Minus: {
     if (child_primitive->kind != TypeKind::Integer &&
         child_primitive->kind != TypeKind::Float) {
-      expect(false, inst->unaryop.child->source_location,
+      expect(false, inst->unaryop.value->source_location,
              "Child must be of Integer, Float, or SIMD. Got `"
                  << child_primitive << "`");
     }
@@ -225,14 +225,14 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
   case MIROpcode::LogicalNot: {
     expect(child_primitive->kind == TypeKind::Bool,
-           inst->unaryop.child->source_location,
+           inst->unaryop.value->source_location,
            "Child must be Bool. Got `" << child_primitive << "`");
     inst->result_type = child_primitive;
     break;
   }
   case MIROpcode::BitwiseNot: {
     expect(child_primitive->kind == TypeKind::Integer,
-           inst->unaryop.child->source_location,
+           inst->unaryop.value->source_location,
            "Child must be Integer. Got `" << child_primitive << "`");
     inst->result_type = child_primitive;
     break;
