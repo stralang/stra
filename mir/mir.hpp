@@ -3,6 +3,7 @@
 #include "allocator.hpp"
 #include "containers.hpp"
 #include "literal.hpp"
+#include "srcloc.hpp"
 #include "types.hpp"
 #include <cassert>
 #include <cstdint>
@@ -103,6 +104,7 @@ struct MIRNamespace {
 struct MIRValue {
   size_t id;
   String name;
+  SrcLoc source_location;
   MIRValueKind kind = MIRValueKind::Nop;
   Type *result_type = nullptr;
 

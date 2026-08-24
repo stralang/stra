@@ -4,7 +4,10 @@
 
 MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
   MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
-  return mirgen->builder.buildMemberAccess(record, node->_operator.rhs->text);
+  MIRValue *out =
+      mirgen->builder.buildMemberAccess(record, node->_operator.rhs->text);
+  out->source_location = node->location;
+  return out;
 }
 
 MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope) {
@@ -16,29 +19,43 @@ MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
 
   MIRValue *lhs_ptr = addr(mirgen, node->_operator.lhs, scope);
-  return mirgen->builder.buildStore(rhs_value, lhs_ptr);
+  MIRValue *out = mirgen->builder.buildStore(rhs_value, lhs_ptr);
+  out->source_location = node->location;
+  return out;
 }
 
 MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
   if (node->unary_operator.opcode == UnaryOperator::Reference) {
-    return addr(mirgen, node->unary_operator.child, scope);
+    MIRValue *out = addr(mirgen, node->unary_operator.child, scope);
+    out->source_location = node->location;
+    return out;
   }
 
   MIRValue *child_value = gen(mirgen, node->unary_operator.child, scope);
+  MIRValue *out = nullptr;
 
   switch (node->unary_operator.opcode) {
   case UnaryOperator::Minus: {
-    return mirgen->builder.buildUnaryOp(child_value, MIROpcode::Minus);
+    out = mirgen->builder.buildUnaryOp(child_value, MIROpcode::Minus);
+    break;
   }
   case UnaryOperator::Logical_Not: {
-    return mirgen->builder.buildUnaryOp(child_value, MIROpcode::LogicalNot);
+    out = mirgen->builder.buildUnaryOp(child_value, MIROpcode::LogicalNot);
+    break;
   }
   case UnaryOperator::Bitwise_Not: {
-    return mirgen->builder.buildUnaryOp(child_value, MIROpcode::BitwiseNot);
+    out = mirgen->builder.buildUnaryOp(child_value, MIROpcode::BitwiseNot);
+    break;
   }
   case UnaryOperator::Dereference: {
-    return child_value;
+    out = child_value;
+    break;
   }
+  }
+
+  if (out != nullptr) {
+    out->source_location = node->location;
+    return out;
   }
 
   std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled unary operator `"
@@ -54,75 +71,100 @@ MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   MIRValue *lhs_value = gen(mirgen, node->_operator.lhs, scope);
   MIRValue *rhs_value = gen(mirgen, node->_operator.rhs, scope);
+  MIRValue *out = nullptr;
 
   switch (node->_operator.opcode) {
   case Operator::Add: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Add);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Add);
+    break;
   }
   case Operator::Sub: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Sub);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Sub);
+    break;
   }
   case Operator::Mul: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Mul);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Mul);
+    break;
   }
   case Operator::Div: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Div);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Div);
+    break;
   }
   case Operator::Mod: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Mod);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Mod);
+    break;
   }
   case Operator::Bitwise_Or: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Or);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Or);
+    break;
   }
   case Operator::Bitwise_Xor: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Xor);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Xor);
+    break;
   }
   case Operator::Bitwise_And: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::And);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::And);
+    break;
   }
   case Operator::Bitwise_LeftShift: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::LeftShift);
+    out =
+        mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::LeftShift);
+    break;
   }
   case Operator::Bitwise_RightShift: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::RightShift);
+    out =
+        mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::RightShift);
+    break;
   }
   case Operator::Logical_Or: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Or);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Or);
+    break;
   }
   case Operator::Logical_And: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::And);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::And);
+    break;
   }
   case Operator::EqualTo: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::EqualTo);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::EqualTo);
+    break;
   }
   case Operator::NotEqualTo: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::NotEqualTo);
+    out =
+        mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::NotEqualTo);
+    break;
   }
   case Operator::LessThen: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::LessThen);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::LessThen);
+    break;
   }
   case Operator::GreaterThen: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::GreaterThen);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value,
+                                     MIROpcode::GreaterThen);
+    break;
   }
   case Operator::LessThenOrEqualTo: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::LessThenOrEqualTo);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value,
+                                     MIROpcode::LessThenOrEqualTo);
+    break;
   }
   case Operator::GreaterThenOrEqualTo: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value,
-                                      MIROpcode::GreaterThenOrEqualTo);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value,
+                                     MIROpcode::GreaterThenOrEqualTo);
+    break;
   }
   case Operator::As: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::As);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::As);
+    break;
   }
   case Operator::Bitcast: {
-    return mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Bitcast);
+    out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Bitcast);
+    break;
   }
+  }
+
+  if (out != nullptr) {
+    out->source_location = node->location;
+    return out;
   }
 
   std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled binary operator `"

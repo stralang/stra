@@ -2,15 +2,8 @@
 
 #include "containers.hpp"
 #include "operator.hpp"
+#include "srcloc.hpp"
 #include <cstdint>
-
-struct SrcLoc {
-  String file;
-  uint64_t file_hashcode;
-  size_t index;
-  size_t line;
-  size_t column;
-};
 
 enum class TokenKind : uint32_t {
   Eof,

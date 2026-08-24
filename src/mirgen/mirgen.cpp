@@ -77,7 +77,9 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       std::abort();
     }
 
-    return mirgen->builder.buildLoad(*value, {.ptr = nullptr});
+    MIRValue *out = mirgen->builder.buildLoad(*value, {.ptr = nullptr});
+    out->source_location = node->location;
+    return out;
   }
   case NodeKind::Value: {
     return valueToMIR(mirgen, &node->value);
@@ -121,6 +123,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       }
     }
 
+    field->source_location = node->location;
     mirgen->node_to_value.insert(node, field);
     return field;
   }
@@ -128,6 +131,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     Symbol *fn_symbol = scope->findSymbolByNode(node);
 
     MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Function});
+    value->source_location = node->location;
 
     // Parameter Types
     value->function.parameter_types.len = node->function.parameters.length;
@@ -176,6 +180,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
         Node *arg = node->function.parameters.getUnchecked(i);
         MIRValue *mir_arg = mirgen->builder.buildArg(
             value->function.parameter_types.ptr[i], arg->field.name);
+        mir_arg->source_location = arg->location;
         mirgen->node_to_value.insert(arg, mir_arg);
       }
 
@@ -230,8 +235,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
           gen(mirgen, node->call.arguments.getUnchecked(i), scope);
     }
 
-    return mirgen->builder.buildCall(callee, arguments, receiver,
-                                     {.ptr = nullptr});
+    MIRValue *out = mirgen->builder.buildCall(callee, arguments, receiver,
+                                              {.ptr = nullptr});
+    out->source_location = node->location;
+    return out;
   }
   case NodeKind::Return: {
     MIRValue *ret_value = nullptr;
@@ -239,7 +246,9 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       ret_value = gen(mirgen, node->child, scope);
     }
 
-    return mirgen->builder.buildReturn(ret_value);
+    MIRValue *out = mirgen->builder.buildReturn(ret_value);
+    out->source_location = node->location;
+    return out;
   }
   case NodeKind::If: {
     Symbol *if_scope = scope->findSymbolByNode(node);
@@ -333,6 +342,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     MIRValue *value = gen(mirgen, node->_switch.conditional, scope);
     MIRValue *_switch = mirgen->builder.buildSwitch(value, merge_block,
                                                     node->_switch.cases.length);
+    _switch->source_location = node->location;
 
     // Cases
     for (size_t i = 0; i < node->_switch.cases.length; i++) {
