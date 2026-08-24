@@ -65,6 +65,7 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
   MIRValue *ptr_inst = (MIRValue *)this->module->arena.alloc(sizeof(MIRValue));
   *ptr_inst = inst;
   if (this->block != nullptr) {
+    ptr_inst->parent = this->block;
     this->block->instructions.push(ptr_inst);
   } else if (this->scope != nullptr) {
     this->scope->list.push(ptr_inst);

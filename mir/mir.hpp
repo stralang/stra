@@ -105,7 +105,9 @@ struct MIRValue {
   size_t id;
   String name;
   SrcLoc source_location;
+
   MIRValueKind kind = MIRValueKind::Nop;
+  MIRBlock *parent = nullptr;
   Type *result_type = nullptr;
 
   union {
