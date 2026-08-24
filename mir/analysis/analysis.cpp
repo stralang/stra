@@ -8,79 +8,37 @@ void analyseBlock(MIRAnalyser *analyser, MIRModule *module, MIRBlock *block);
 void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope);
 // --- Forward Declarations ---
 
-bool compareTypes(Type *lhs, Type *rhs) {
-  if (lhs->kind != rhs->kind) {
-    return false;
-  }
-
-  switch (lhs->kind) {
-  case TypeKind::Void: {
-    return true;
-  }
-  case TypeKind::Bool: {
-    return true;
-  }
-  case TypeKind::Integer: {
-    bool term1 = lhs->integer.is_untyped || lhs->integer.is_signed ||
-                 !rhs->integer.is_signed;
-    bool term2 = rhs->integer.is_untyped || rhs->integer.is_signed ||
-                 !lhs->integer.is_signed;
-
-    bool bits_match = lhs->integer.bits == rhs->integer.bits;
-    bool untyped_or_bits =
-        lhs->integer.is_untyped || rhs->integer.is_untyped || bits_match;
-
-    return term1 && term2 && untyped_or_bits;
-  }
-  case TypeKind::Float: {
-    return lhs->_float.is_untyped || rhs->_float.is_untyped ||
-           lhs->_float.bits == rhs->_float.bits;
-  }
-  case TypeKind::Pointer: {
-    return compareTypes(lhs->child, rhs->child);
-  }
-  case TypeKind::Slice:
-  case TypeKind::SIMD: {
-    return lhs->slice.length == rhs->slice.length &&
-           compareTypes(lhs->slice.type, rhs->slice.type);
-  }
-  case TypeKind::TypeId: {
-    return true;
-  }
-  case TypeKind::Function: {
-    if (lhs->function.arguments.len != rhs->function.arguments.len) {
-      return false;
-    }
-
-    for (size_t i = 0; i < lhs->function.arguments.len; i++) {
-      if (!compareTypes(lhs->function.arguments.ptr[i],
-                        rhs->function.arguments.ptr[i])) {
-        return false;
-      }
-    }
-
-    return compareTypes(lhs->function.return_type, rhs->function.return_type);
-  }
-  case TypeKind::Struct: {
-    return lhs->_struct.scope == rhs->_struct.scope;
-  }
-  case TypeKind::Enum: {
-    return compareTypes(lhs->_enum.repr_type, rhs->_enum.repr_type);
-  }
-  case TypeKind::Union: {
-    return lhs->_union.scope == rhs->_union.scope;
-  }
-  }
-
-  return false;
-}
-
 void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
-  analyse(analyser, module, inst->binop.lhs);
-  analyse(analyser, module, inst->binop.rhs);
+  MIRValue *lhs = inst->binop.lhs;
+  MIRValue *rhs = inst->binop.rhs;
+  analyse(analyser, module, lhs);
+  analyse(analyser, module, rhs);
 
-  Type *lhs_primitive = inst->binop.lhs->result_type;
-  Type *rhs_primitive = inst->binop.rhs->result_type;
+  // Convert from untyped
+  if (lhs->result_type->kind == rhs->result_type->kind) {
+    bool lhs_untyped = false;
+    bool rhs_untyped = false;
+    if (lhs->result_type->kind == TypeKind::Integer) {
+      lhs_untyped = lhs->result_type->integer.is_untyped;
+    } else if (lhs->result_type->kind == TypeKind::Float) {
+      lhs_untyped = lhs->result_type->_float.is_untyped;
+    }
+    if (rhs->result_type->kind == TypeKind::Integer) {
+      rhs_untyped = rhs->result_type->integer.is_untyped;
+    } else if (rhs->result_type->kind == TypeKind::Float) {
+      rhs_untyped = rhs->result_type->_float.is_untyped;
+    }
+
+    if (lhs_untyped && !rhs_untyped) {
+      fixUntyped(analyser, lhs, rhs->result_type);
+    } else if (!lhs_untyped && rhs_untyped) {
+      fixUntyped(analyser, rhs, lhs->result_type);
+    }
+  }
+
+  // Get primitive type
+  Type *lhs_primitive = lhs->result_type;
+  Type *rhs_primitive = rhs->result_type;
 
   switch (inst->binop.opcode) {
   case MIROpcode::Add:
@@ -91,12 +49,12 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     if (lhs_primitive->kind != TypeKind::Integer &&
         lhs_primitive->kind != TypeKind::Float &&
         lhs_primitive->kind != TypeKind::Pointer) {
-      expect(false, inst->binop.lhs->source_location,
+      expect(false, lhs->source_location,
              "LHS must be of Integer, Float, Pointer, or SIMD.");
     }
 
-    expect(compareTypes(lhs_primitive, rhs_primitive),
-           inst->binop.rhs->source_location, "LHS cannot operate with RHS");
+    expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
+           "LHS cannot operate with RHS");
 
     inst->result_type = lhs_primitive;
     break;
@@ -106,11 +64,9 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIROpcode::And:
   case MIROpcode::LeftShift:
   case MIROpcode::RightShift: {
-    expect(lhs_primitive->kind == TypeKind::Integer,
-           inst->binop.lhs->source_location,
+    expect(lhs_primitive->kind == TypeKind::Integer, lhs->source_location,
            "LHS must be an Integer. Got `" << lhs_primitive << "`");
-    expect(compareTypes(lhs_primitive, rhs_primitive),
-           inst->binop.rhs->source_location,
+    expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -119,8 +75,7 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
   case MIROpcode::EqualTo:
   case MIROpcode::NotEqualTo: {
-    expect(compareTypes(lhs_primitive, rhs_primitive),
-           inst->binop.rhs->source_location,
+    expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -133,13 +88,12 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIROpcode::GreaterThenOrEqualTo: {
     if (lhs_primitive->kind != TypeKind::Integer &&
         lhs_primitive->kind != TypeKind::Float) {
-      expect(false, inst->binop.lhs->source_location,
+      expect(false, lhs->source_location,
              "LHS must be of Integer, Float, or SIMD. Got `" << lhs_primitive
                                                              << "`");
     }
 
-    expect(compareTypes(lhs_primitive, rhs_primitive),
-           inst->binop.rhs->source_location,
+    expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
     inst->result_type = module->ctx->type_cache->get({.kind = TypeKind::Bool});
@@ -147,13 +101,12 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
   case MIROpcode::As:
   case MIROpcode::Bitcast: {
-    expect(lhs_primitive->kind != TypeKind::TypeId,
-           inst->binop.lhs->source_location, "LHS must not be a type");
-    expect(rhs_primitive->kind == TypeKind::TypeId,
-           inst->binop.rhs->source_location, "RHS must be a type");
+    expect(lhs_primitive->kind != TypeKind::TypeId, lhs->source_location,
+           "LHS must not be a type");
+    expect(rhs_primitive->kind == TypeKind::TypeId, rhs->source_location,
+           "RHS must be a type");
 
-    MIRLiteral rhs_literal =
-        analyser->comptime_state.execute(module, inst->binop.rhs);
+    MIRLiteral rhs_literal = analyser->comptime_state.execute(module, rhs);
     inst->result_type = rhs_literal._typeid;
 
     // `As` cast restrictions
@@ -272,7 +225,14 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
             .is_constant = false,
         });
       } else {
-        // TODO: Auto Cast and Compare
+        autoCast(analyser, inst->alloca.initial,
+                 inst->alloca.type->result_type);
+        expect(compareTypes(inst->alloca.type->result_type,
+                            inst->alloca.initial->result_type),
+               inst->alloca.initial->source_location,
+               "Field initial doesn't match type. Field Type: `"
+                   << inst->result_type << "` Initial Type: `"
+                   << inst->alloca.initial->result_type << "`\n");
       }
     }
     break;
@@ -287,6 +247,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIRValueKind::Store: {
     analyse(analyser, module, inst->store.ptr);
     analyse(analyser, module, inst->store.value);
+    autoCast(analyser, inst->store.value, inst->store.ptr->result_type->child);
     expect(inst->store.ptr->result_type->child ==
                inst->store.value->result_type,
            inst->source_location, "Cannot assign non-matching types");
@@ -344,7 +305,14 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
             .is_constant = false,
         });
       } else {
-        // TODO: Auto Cast and Compare
+        autoCast(analyser, inst->global_variable.constant,
+                 inst->global_variable.type->result_type);
+        expect(compareTypes(inst->global_variable.type->result_type,
+                            inst->global_variable.constant->result_type),
+               inst->global_variable.constant->source_location,
+               "Field initial doesn't match type. Field Type: `"
+                   << inst->result_type << "` Initial Type: `"
+                   << inst->global_variable.constant->result_type << "`\n");
       }
     }
     break;

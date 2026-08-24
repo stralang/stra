@@ -14,3 +14,7 @@
   }
 
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+
+bool compareTypes(Type *lhs, Type *rhs);
+void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real);
+void autoCast(MIRAnalyser *analyser, MIRValue *src, Type *dst);
