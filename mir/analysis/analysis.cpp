@@ -274,6 +274,87 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     analyseUnary(analyser, module, inst);
     break;
   }
+  case MIRValueKind::Call: {
+    MIRValue *callee = inst->call.callee;
+    analyse(analyser, module, callee);
+
+    // Auto dereference
+    if (callee->result_type->kind == TypeKind::Pointer) {
+      // TODO: auto dereference callee
+    }
+
+    // Get function
+    expect(callee->result_type->kind == TypeKind::Function,
+           callee->source_location,
+           "Callee must be a function. Got " << callee->result_type << "`");
+
+    Type *fn_type = callee->result_type;
+
+    // Get receiver
+    size_t initial_idx = 0;
+    if (inst->call.receiver != nullptr) {
+      analyse(analyser, module, inst->call.receiver);
+
+      if (inst->call.receiver->result_type->kind != TypeKind::TypeId) {
+        expect(fn_type->function.arguments.len >= 1,
+               inst->call.receiver->source_location,
+               "Receiver expects method with atleast 1 argument");
+
+        Type *expected_type = fn_type->function.arguments.ptr[0];
+        Type *receiver_type = inst->call.receiver->result_type;
+        expect(compareTypes(expected_type, receiver_type),
+               inst->call.receiver->source_location,
+               "Receiver `" << receiver_type << "` doesn't match `"
+                            << expected_type << "`");
+
+        initial_idx = 1;
+      } else {
+        inst->call.receiver = nullptr;
+      }
+    }
+
+    // Analyse arguments
+    for (size_t i = 0; i < inst->call.arguments.len; i++) {
+      MIRValue *arg = inst->call.arguments.ptr[i];
+      if (i > fn_type->function.arguments.len - initial_idx) {
+        expect(false, arg->source_location, "Too many arguments");
+        break;
+      }
+
+      Type *expected_type = fn_type->function.arguments.ptr[i + initial_idx];
+      analyse(analyser, module, arg);
+      autoCast(analyser, arg, expected_type);
+
+      expect(compareTypes(expected_type, arg->result_type),
+             arg->source_location,
+             "Argument `" << arg->result_type << "` doesn't match expected `"
+                          << expected_type << "`");
+    }
+
+    inst->result_type = fn_type->function.return_type;
+    break;
+  }
+  case MIRValueKind::Return: {
+    MIRValue *function = inst->parent->function;
+    Type *expected_type = function->result_type->function.return_type;
+
+    if (inst->ret.value == nullptr) {
+      expect(expected_type->kind == TypeKind::Void, inst->source_location,
+             "Function expects return value");
+    } else {
+      analyse(analyser, module, inst->ret.value);
+      autoCast(analyser, inst->ret.value, expected_type);
+
+      expect(compareTypes(expected_type, inst->ret.value->result_type),
+             inst->ret.value->source_location,
+             "Unexpected return type. Got `" << inst->ret.value->result_type
+                                             << "` Expected `" << expected_type
+                                             << "`");
+    }
+
+    inst->result_type = nullptr;
+    break;
+  }
 
   case MIRValueKind::GlobalVariable: {
     // Analyse Type
