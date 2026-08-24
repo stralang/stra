@@ -103,7 +103,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
       field = mirgen->builder.buildAlloca(type, node->field.name);
       if (node->field.initial != nullptr) {
-        field = gen(mirgen, node->field.initial, field_symbol);
+        MIRValue *initial = gen(mirgen, node->field.initial, field_symbol);
+        mirgen->builder.buildStore(initial, field);
       }
     } else {
       field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
