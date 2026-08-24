@@ -355,6 +355,33 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     inst->result_type = nullptr;
     break;
   }
+  case MIRValueKind::Branch: {
+    inst->result_type = nullptr;
+    break;
+  }
+  case MIRValueKind::CondBranch: {
+    analyse(analyser, module, inst->condbr.condition);
+    expect(inst->condbr.condition->result_type->kind == TypeKind::Bool,
+           inst->source_location, "Conditional must be Bool")
+        inst->result_type = nullptr;
+    break;
+  }
+  case MIRValueKind::Switch: {
+    analyse(analyser, module, inst->_switch.condition);
+
+    for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
+      MIRValue *on_val = inst->_switch.onvals.ptr[i];
+      analyse(analyser, module, on_val);
+
+      MIRLiteral onval_literal =
+          analyser->comptime_state.execute(module, on_val);
+      on_val->kind = MIRValueKind::Literal;
+      on_val->literal = onval_literal;
+    }
+
+    inst->result_type = nullptr;
+    break;
+  }
 
   case MIRValueKind::GlobalVariable: {
     // Analyse Type
