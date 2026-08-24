@@ -182,9 +182,12 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       expect(type->kind == TypeKind::TypeId, TODO_SRCLOC,
              "Field type must be a typeid"); // TODO:
 
+      MIRLiteral type_literal =
+          analyser->comptime_state.execute(module, inst->alloca.type);
+
       inst->result_type = module->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
-          .child = type,
+          .child = type_literal._typeid,
           .is_constant = false,
       });
     }
@@ -225,7 +228,14 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
   case MIRValueKind::Arg: {
     analyse(analyser, module, inst->arg.type);
-    inst->result_type = inst->arg.type->result_type;
+
+    MIRLiteral arg_literal =
+        analyser->comptime_state.execute(module, inst->arg.type);
+    inst->result_type = module->ctx->type_cache->get({
+        .kind = TypeKind::Pointer,
+        .child = arg_literal._typeid,
+        .is_constant = true,
+    });
     break;
   }
   case MIRValueKind::BinOp: {
@@ -308,6 +318,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       inst->result_type =
           module->ctx->type_cache->get({.kind = TypeKind::TypeId});
     }
+    break;
+  }
+  case MIRValueKind::Literal: {
+    inst->result_type = inst->literal.lit_type;
     break;
   }
   }

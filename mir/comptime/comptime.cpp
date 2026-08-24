@@ -4,7 +4,18 @@
 #include <cstdlib>
 #include <iostream>
 
-MIRLiteral MIRComptime::execute(MIRModule *module, MIRValue *inst) {
-  std::cerr << "TODO: Implement compile-time execution\n";
+MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
+  switch (inst->kind) {
+  case MIRValueKind::Literal: {
+    return inst->literal;
+  }
+  }
+
+  std::cerr << "TODO: Implement compile-time execution of `"
+            << (uint16_t)inst->kind << "`\n";
   std::abort();
+}
+
+MIRLiteral MIRComptime::execute(MIRModule *module, MIRValue *inst) {
+  return ::execute(this, module, inst);
 }
