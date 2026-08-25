@@ -7,7 +7,7 @@
 #include <cstdint>
 
 struct Type;
-struct Symbol;
+struct MIRValue;
 
 struct IntegerType {
   bool is_untyped;
@@ -33,23 +33,23 @@ struct FunctionType {
 };
 
 struct StructType {
-  ArrayList<Type *> fields;
-  Symbol *scope;
+  Slice<Type *> fields;
+  MIRValue *inst;
 };
 
 struct EnumType {
   Type *repr_type;
-  Symbol *scope;
+  MIRValue *inst;
 };
 
 struct UnionType {
   Type *repr_type;
-  ArrayList<Type *> variants;
-  Symbol *scope;
+  Slice<Type *> variants;
+  MIRValue *inst;
 };
 
 struct Namespace {
-  Symbol *scope;
+  MIRValue *inst;
 };
 
 enum class TypeKind {
@@ -122,11 +122,9 @@ struct Type {
     case TypeKind::Struct: {
       size_t total_size = 0;
       size_t max_align = 0;
-      for (size_t i = 0; i < this->_struct.fields.length; i++) {
-        size_t elem_size =
-            this->_struct.fields.data.ptr[i]->sizeBits(native_size);
-        size_t elem_align =
-            this->_struct.fields.data.ptr[i]->alignBits(native_size);
+      for (size_t i = 0; i < this->_struct.fields.len; i++) {
+        size_t elem_size = this->_struct.fields.ptr[i]->sizeBits(native_size);
+        size_t elem_align = this->_struct.fields.ptr[i]->alignBits(native_size);
         size_t padding = -total_size % elem_align;
 
         total_size += padding + elem_size;
@@ -140,9 +138,9 @@ struct Type {
     }
     case TypeKind::Union: {
       size_t max_size = 0;
-      for (size_t i = 0; i < this->_union.variants.length; i++) {
+      for (size_t i = 0; i < this->_union.variants.len; i++) {
         max_size = std::max(
-            max_size, this->_union.variants.data.ptr[i]->sizeBits(native_size));
+            max_size, this->_union.variants.ptr[i]->sizeBits(native_size));
       }
       return max_size + this->_union.repr_type->sizeBits(native_size);
     }
@@ -188,10 +186,9 @@ struct Type {
     }
     case TypeKind::Struct: {
       size_t max_align = 0;
-      for (size_t i = 0; i < this->_struct.fields.length; i++) {
-        max_align =
-            std::max(max_align,
-                     this->_struct.fields.data.ptr[i]->alignBits(native_size));
+      for (size_t i = 0; i < this->_struct.fields.len; i++) {
+        max_align = std::max(
+            max_align, this->_struct.fields.ptr[i]->alignBits(native_size));
       }
       return max_align;
     }
@@ -200,10 +197,9 @@ struct Type {
     }
     case TypeKind::Union: {
       size_t max_align = this->_union.repr_type->alignBits(native_size);
-      for (size_t i = 0; i < this->_union.variants.length; i++) {
-        max_align =
-            std::max(max_align,
-                     this->_union.variants.data.ptr[i]->alignBits(native_size));
+      for (size_t i = 0; i < this->_union.variants.len; i++) {
+        max_align = std::max(
+            max_align, this->_union.variants.ptr[i]->alignBits(native_size));
       }
       return max_align;
     }
@@ -285,19 +281,19 @@ struct TypeCache {
       break;
     }
     case TypeKind::Struct: {
-      hasher.hash(&t->_struct.scope);
+      hasher.hash(&t->_struct.inst);
       break;
     }
     case TypeKind::Enum: {
-      hasher.hash(&t->_enum.scope);
+      hasher.hash(&t->_enum.inst);
       break;
     }
     case TypeKind::Union: {
-      hasher.hash(&t->_union.scope);
+      hasher.hash(&t->_union.inst);
       break;
     }
     case TypeKind::Namespace: {
-      hasher.hash(&t->_namespace.scope);
+      hasher.hash(&t->_namespace.inst);
       break;
     }
     }

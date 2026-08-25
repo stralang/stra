@@ -878,9 +878,9 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
   }
   case TypeKind::Struct: {
     os << " `{";
-    for (size_t i = 0; i < type->_struct.fields.length; i++) {
-      print_type_impl(os, type->_struct.fields.data.ptr[i], depth + 1);
-      if (i != type->_struct.fields.length - 1) {
+    for (size_t i = 0; i < type->_struct.fields.len; i++) {
+      print_type_impl(os, type->_struct.fields.ptr[i], depth + 1);
+      if (i != type->_struct.fields.len - 1) {
         os << ", ";
       }
     }
@@ -897,9 +897,9 @@ void print_type_impl(std::ostream &os, const Type *type, size_t depth) {
     os << " `";
     print_type_impl(os, type->_union.repr_type, depth + 1);
     os << " {";
-    for (size_t i = 0; i < type->_union.variants.length; i++) {
-      print_type_impl(os, type->_union.variants.data.ptr[i], depth + 1);
-      if (i != type->_union.variants.length - 1) {
+    for (size_t i = 0; i < type->_union.variants.len; i++) {
+      print_type_impl(os, type->_union.variants.ptr[i], depth + 1);
+      if (i != type->_union.variants.len - 1) {
         os << ", ";
       }
     }
@@ -1240,8 +1240,53 @@ void MIRPrintInst(MIRValue *inst) {
   }
   case MIRValueKind::Struct: {
     std::cout << "struct {\n";
-    MIRPrintScope(inst->_struct.fields);
+    for (size_t i = 0; i < inst->_struct.fields.len; i++) {
+      MIRStruct::Field *field = inst->_struct.fields.ptr + i;
+      std::cout << field->name << ": `";
+      MIRPrintRef(field->type);
+      std::cout << "`\n";
+    }
+
+    std::cout << "\n";
     MIRPrintScope(inst->_struct.definitions);
+    std::cout << "}";
+    break;
+  }
+  case MIRValueKind::Enum: {
+    std::cout << "enum `";
+    MIRPrintRef(inst->_enum.repr_type);
+    std::cout << "` {\n";
+    for (size_t i = 0; i < inst->_enum.members.len; i++) {
+      MIREnum::Member *member = inst->_enum.members.ptr + i;
+      std::cout << member->name << ": `";
+      MIRPrintRef(member->constant);
+      std::cout << "`\n";
+    }
+
+    std::cout << "\n";
+    MIRPrintScope(inst->_enum.definitions);
+    std::cout << "}";
+    break;
+  }
+  case MIRValueKind::Union: {
+    std::cout << "union `";
+    MIRPrintRef(inst->_union.repr_type);
+    std::cout << "` {\n";
+    for (size_t i = 0; i < inst->_union.variants.len; i++) {
+      MIRStruct::Field *field = inst->_union.variants.ptr + i;
+      std::cout << field->name << ": `";
+      MIRPrintRef(field->type);
+      std::cout << "`\n";
+    }
+
+    std::cout << "\n";
+    MIRPrintScope(inst->_union.definitions);
+    std::cout << "}";
+    break;
+  }
+  case MIRValueKind::Namespace: {
+    std::cout << "namespace {\n";
+    MIRPrintScope(inst->_namespace.definitions);
     std::cout << "}";
     break;
   }

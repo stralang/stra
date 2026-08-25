@@ -104,6 +104,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       }
 
       field = mirgen->builder.buildAlloca(type, node->field.name);
+      mirgen->node_to_value.insert(node, field);
+
       if (node->field.initial != nullptr) {
         MIRValue *initial = gen(mirgen, node->field.initial, field_symbol);
         mirgen->builder.buildStore(initial, field);
@@ -111,6 +113,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     } else {
       field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
                                                   node->field.name);
+      mirgen->node_to_value.insert(node, field);
+
       if (node->field.type != nullptr) {
         field->global_variable.type =
             gen(mirgen, node->field.type, field_symbol);
@@ -124,7 +128,6 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     field->source_location = node->location;
-    mirgen->node_to_value.insert(node, field);
     return field;
   }
   case NodeKind::Function: {

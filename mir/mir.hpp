@@ -86,16 +86,30 @@ struct MIRFunction {
 };
 
 struct MIRStruct {
-  MIRScope *fields;
+  struct Field {
+    String name;
+    MIRValue *type;
+  };
+
+  Slice<Field> fields;
   MIRScope *definitions;
 };
 
 struct MIREnum {
+  struct Member {
+    String name;
+    MIRValue *constant;
+  };
+
   MIRValue *repr_type;
-  MIRScope *members;
+  Slice<Member> members;
   MIRScope *definitions;
 };
-using MIRUnion = MIREnum;
+struct MIRUnion {
+  MIRValue *repr_type;
+  Slice<MIRStruct::Field> variants;
+  MIRScope *definitions;
+};
 
 struct MIRNamespace {
   MIRScope *definitions;

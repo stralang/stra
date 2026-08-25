@@ -56,13 +56,13 @@ bool compareTypes(Type *lhs, Type *rhs) {
     return compareTypes(lhs->function.return_type, rhs->function.return_type);
   }
   case TypeKind::Struct: {
-    return lhs->_struct.scope == rhs->_struct.scope;
+    return lhs->_struct.inst == rhs->_struct.inst;
   }
   case TypeKind::Enum: {
     return compareTypes(lhs->_enum.repr_type, rhs->_enum.repr_type);
   }
   case TypeKind::Union: {
-    return lhs->_union.scope == rhs->_union.scope;
+    return lhs->_union.inst == rhs->_union.inst;
   }
   }
 

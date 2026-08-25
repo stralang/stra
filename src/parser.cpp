@@ -193,6 +193,7 @@ Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
     out = (Node *)parser->allocator->alloc(sizeof(Node));
     out->kind = NodeKind::Operator;
     out->token = parser->cur_token;
+    out->location = parser->cur_token.location;
     out->_operator.opcode = opcode;
     out->_operator.lhs = tmp_atom;
 
