@@ -517,6 +517,7 @@ int main(int argc, const char **argv) {
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
     analyser.analyse(&file->mir.module);
+    printMIRModule(&file->mir.module);
   }
 
   if (analyser.warning_count > 0) {

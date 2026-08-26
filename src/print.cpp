@@ -960,7 +960,7 @@ void MIRPrintLiteral(MIRLiteral *literal) {
     break;
   }
   case TypeKind::Function: {
-    std::cout << literal->function_entry;
+    MIRPrintInst(literal->function);
     break;
   }
   }
@@ -1091,8 +1091,7 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintName(inst);
     std::cout << " = alloca `";
     MIRPrintRef(inst->alloca.type);
-    std::cout << "`, ";
-    MIRPrintRef(inst->alloca.initial);
+    std::cout << "`";
     break;
   }
   case MIRValueKind::Load: {
@@ -1110,8 +1109,9 @@ void MIRPrintInst(MIRValue *inst) {
   }
   case MIRValueKind::Arg: {
     MIRPrintName(inst);
-    std::cout << " = arg ";
+    std::cout << " = arg `";
     MIRPrintRef(inst->arg.type);
+    std::cout << "`";
     break;
   }
   case MIRValueKind::BinOp: {
@@ -1208,9 +1208,9 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);
     std::cout << " = global `";
-    MIRPrintRef(inst->alloca.type);
+    MIRPrintRef(inst->global_variable.type);
     std::cout << "`, ";
-    MIRPrintRef(inst->alloca.initial);
+    MIRPrintRef(inst->global_variable.constant);
     break;
   }
 

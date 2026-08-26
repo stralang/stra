@@ -78,7 +78,7 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
 
 MIRValue *MIRBuilder::buildAlloca(MIRValue *type, String name) {
   MIRValue inst = {.kind = MIRValueKind::Alloca};
-  inst.alloca = {type, nullptr};
+  inst.alloca = {type};
   return this->insert(inst, false, name);
 }
 

@@ -127,7 +127,6 @@ struct MIRValue {
   union {
     struct {
       MIRValue *type;
-      MIRValue *initial;
     } alloca;
     struct {
       MIRValue *ptr;

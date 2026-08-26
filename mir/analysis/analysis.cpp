@@ -196,45 +196,16 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::Alloca: {
-    // Analyse Type
-    if (inst->alloca.type != nullptr) {
-      analyse(analyser, module, inst->alloca.type);
-      Type *type = inst->alloca.type->result_type;
-      expect(type->kind == TypeKind::TypeId, inst->alloca.type->source_location,
-             "Field type must be a typeid");
+    MIRLiteral type_literal =
+        analyser->comptime_state.execute(module, inst->alloca.type);
+    expect(type_literal.lit_type->kind == TypeKind::TypeId,
+           inst->alloca.type->source_location, "Field type must be a typeid");
 
-      MIRLiteral type_literal =
-          analyser->comptime_state.execute(module, inst->alloca.type);
-
-      inst->result_type = module->ctx->type_cache->get({
-          .kind = TypeKind::Pointer,
-          .child = type_literal._typeid,
-          .is_constant = false,
-      });
-    }
-
-    // Analyse Initial
-    if (inst->alloca.initial != nullptr) {
-      analyse(analyser, module, inst->alloca.initial);
-      Type *type = inst->alloca.initial->result_type;
-
-      if (inst->alloca.type == nullptr) {
-        inst->result_type = module->ctx->type_cache->get({
-            .kind = TypeKind::Pointer,
-            .child = type,
-            .is_constant = false,
-        });
-      } else {
-        autoCast(analyser, inst->alloca.initial,
-                 inst->alloca.type->result_type);
-        expect(compareTypes(inst->alloca.type->result_type,
-                            inst->alloca.initial->result_type),
-               inst->alloca.initial->source_location,
-               "Field initial doesn't match type. Field Type: `"
-                   << inst->result_type << "` Initial Type: `"
-                   << inst->alloca.initial->result_type << "`\n");
-      }
-    }
+    inst->result_type = module->ctx->type_cache->get({
+        .kind = TypeKind::Pointer,
+        .child = type_literal._typeid,
+        .is_constant = false,
+    });
     break;
   }
   case MIRValueKind::Load: {
@@ -255,10 +226,9 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Arg: {
-    analyse(analyser, module, inst->arg.type);
-
     MIRLiteral arg_literal =
         analyser->comptime_state.execute(module, inst->arg.type);
+
     inst->result_type = module->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
         .child = arg_literal._typeid,
@@ -386,23 +356,24 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIRValueKind::GlobalVariable: {
     // Analyse Type
     if (inst->global_variable.type != nullptr) {
-      analyse(analyser, module, inst->global_variable.type);
-      Type *type = inst->global_variable.type->result_type;
-      expect(type->kind == TypeKind::TypeId,
+      MIRLiteral type_literal =
+          analyser->comptime_state.execute(module, inst->global_variable.type);
+      expect(type_literal._typeid->kind == TypeKind::TypeId,
              inst->global_variable.type->source_location,
              "Field type must be a typeid");
 
       inst->result_type = module->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
-          .child = type,
+          .child = type_literal._typeid,
           .is_constant = false,
       });
     }
 
     // Analyse Constant
     if (inst->global_variable.constant != nullptr) {
-      analyse(analyser, module, inst->global_variable.constant);
-      Type *type = inst->global_variable.constant->result_type;
+      MIRLiteral const_literal = analyser->comptime_state.execute(
+          module, inst->global_variable.constant);
+      Type *type = const_literal.lit_type;
       expect(type != nullptr, inst->global_variable.constant->source_location,
              "Couldn't determine type of constant");
 
@@ -414,14 +385,30 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         });
       } else {
         autoCast(analyser, inst->global_variable.constant,
-                 inst->global_variable.type->result_type);
-        expect(compareTypes(inst->global_variable.type->result_type,
+                 inst->result_type->child);
+        expect(compareTypes(inst->result_type->child,
                             inst->global_variable.constant->result_type),
                inst->global_variable.constant->source_location,
                "Field initial doesn't match type. Field Type: `"
                    << inst->result_type << "` Initial Type: `"
                    << inst->global_variable.constant->result_type << "`\n");
       }
+
+      // Special analysis
+      if (type->kind == TypeKind::Function) {
+        const_literal.function->result_type = const_literal.lit_type;
+        analyse(analyser, module, const_literal.function);
+      }
+
+      // FIXME: Store in compile-time state
+      MIRValue *new_const = (MIRValue *)analyser->arena.alloc(sizeof(MIRValue));
+      new_const->source_location =
+          inst->global_variable.constant->source_location;
+      new_const->kind = MIRValueKind::Literal;
+      new_const->literal = const_literal;
+      new_const->result_type = const_literal.lit_type;
+
+      inst->global_variable.constant = new_const;
     }
     break;
   }
@@ -430,42 +417,19 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Function: {
-    // Analyse Type
-    Type fn_type = {.kind = TypeKind::Function, .is_constant = true};
-    fn_type.function.arguments = {
-        .ptr = (Type **)analyser->arena.alloc(
-            sizeof(MIRValue) * inst->function.parameter_types.len),
-        .len = inst->function.parameter_types.len,
-    };
-
-    // Analyse Parameters
-    for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
-      MIRValue *param = inst->function.parameter_types.ptr[i];
-      analyse(analyser, module, param);
-
-      MIRLiteral param_literal =
-          analyser->comptime_state.execute(module, param);
-      fn_type.function.arguments.ptr[i] = param_literal._typeid;
-    }
-
-    // Analyse Return Type
-    analyse(analyser, module, inst->function.return_type);
-    MIRLiteral return_literal =
-        analyser->comptime_state.execute(module, inst->function.return_type);
-    fn_type.function.return_type = return_literal._typeid;
-
-    inst->result_type = module->ctx->type_cache->get(fn_type);
-
     // Analyse Body
     if (inst->function.globals != nullptr) {
       analyseScope(analyser, module, inst->function.globals);
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
         analyseBlock(analyser, module, inst->function.blocks.getUnchecked(i));
       }
-    } else if (!inst->function.undefined) {
-      inst->result_type =
-          module->ctx->type_cache->get({.kind = TypeKind::TypeId});
     }
+    break;
+  }
+  default: {
+    std::cerr << "TODO: Implement analysis of `" << std::hex
+              << (uint16_t)inst->kind << "`\n";
+    std::abort();
     break;
   }
   }
@@ -490,6 +454,7 @@ void MIRAnalyser::analyse(MIRModule *module) {
 void MIRAnalyser::init(Allocator *allocator) {
   this->allocator = allocator;
   this->arena.init(allocator, 1024 * 1024 * 8);
+  this->comptime_state.arena = &this->arena;
 }
 
 void MIRAnalyser::deinit() { this->arena.deinit(); }

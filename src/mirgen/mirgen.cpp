@@ -98,16 +98,21 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Generate field
     MIRValue *field = nullptr;
     if (scope->location_aware) {
+      MIRValue *initial = nullptr;
       MIRValue *type = nullptr;
+      if (node->field.initial != nullptr) {
+        initial = gen(mirgen, node->field.initial, field_symbol);
+      }
       if (node->field.type != nullptr) {
         type = gen(mirgen, node->field.type, field_symbol);
+      } else {
+        // TODO: Build typeof instruction
       }
 
       field = mirgen->builder.buildAlloca(type, node->field.name);
       mirgen->node_to_value.insert(node, field);
 
-      if (node->field.initial != nullptr) {
-        MIRValue *initial = gen(mirgen, node->field.initial, field_symbol);
+      if (initial != nullptr) {
         mirgen->builder.buildStore(initial, field);
       }
     } else {
@@ -387,8 +392,6 @@ void MIRGen::generate() {
 
   this->symbol_to_scope.insert(this->symbol, this->module.definitions);
   gen(this, this->ast, this->symbol);
-
-  printMIRModule(&this->module);
 }
 
 void MIRGen::deinit() {

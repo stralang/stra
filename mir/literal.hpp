@@ -4,7 +4,7 @@
 #include <cstdint>
 
 struct MIRLiteral; // Forward declaration
-struct MIRBlock;   // Forward declaration
+struct MIRValue;   // Forward declaration
 
 enum class MIRLiteralKind {
   Null,
@@ -26,7 +26,7 @@ struct MIRLiteral {
     MIRLiteral *pointer;
     SliceLiteral slice;
     Type *_typeid;
-    MIRBlock *function_entry;
+    MIRValue *function;
     Slice<MIRLiteral> values;
   };
 };
