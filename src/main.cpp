@@ -29,9 +29,10 @@ enum class EmitMode {
   Executable,
   Object,
   Assembly,
-  IR,
-  EvaluatedAST,
+  LLVM,
   AST,
+  MIR,
+  AnalysedMIR,
 };
 
 enum class Linker {
@@ -232,12 +233,14 @@ int main(int argc, const char **argv) {
         args.emit_mode = EmitMode::Object;
       } else if (strcmp(argv[i], "asm") == 0) {
         args.emit_mode = EmitMode::Assembly;
-      } else if (strcmp(argv[i], "ir") == 0) {
-        args.emit_mode = EmitMode::IR;
-      } else if (strcmp(argv[i], "evaluated") == 0) {
-        args.emit_mode = EmitMode::EvaluatedAST;
+      } else if (strcmp(argv[i], "llvm") == 0) {
+        args.emit_mode = EmitMode::LLVM;
       } else if (strcmp(argv[i], "ast") == 0) {
         args.emit_mode = EmitMode::AST;
+      } else if (strcmp(argv[i], "analysed") == 0) {
+        args.emit_mode = EmitMode::AnalysedMIR;
+      } else if (strcmp(argv[i], "mir") == 0) {
+        args.emit_mode = EmitMode::MIR;
       }
     } else if (strcmp(argv[i], "--linker") == 0) {
       i += 1;
@@ -327,10 +330,11 @@ int main(int argc, const char **argv) {
     std::cout << "  `--emit`\n";
     std::cout << "      `executable` Emit executable [default]\n";
     std::cout << "      `object`     Emit object files\n";
-    std::cout << "      `asm`         Emit assembly files\n";
-    std::cout << "      `ir`         Emit llvm ir files\n";
-    std::cout << "      `ast`        Prints parsed ASTs\n";
-    std::cout << "      `evaluated`  Prints evaluated ASTs\n";
+    std::cout << "      `asm`        Emit assembly files\n";
+    std::cout << "      `ir`         Emit LLVM IR files\n";
+    std::cout << "      `ast`        Prints AST\n";
+    std::cout << "      `mir`        Prints Mid-Level IRs\n";
+    std::cout << "      `analysed`   Prints analysed Mid-Level IRs\n";
     std::cout << "  `--linker`\n";
     std::cout << "      `clang` Uses clang for linking [default]\n";
     std::cout << "      `ld` Uses ld for linking\n";
@@ -508,6 +512,16 @@ int main(int argc, const char **argv) {
     file->mir.generate();
   }
 
+  // Emit MIR
+  if (args.emit_mode == EmitMode::MIR) {
+    for (size_t i = 0; i < files.len(); i++) {
+      SourceFile *file = files.getPtrUnchecked(i);
+      std::cout << "---- " << file->fullpath << " ----\n";
+      printMIRModule(&file->mir.module);
+    }
+    return 0;
+  }
+
   // Analysis
   MIRAnalyser analyser = {
       .error_func = &error_handler,
@@ -517,7 +531,6 @@ int main(int argc, const char **argv) {
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
     analyser.analyse(&file->mir.module);
-    printMIRModule(&file->mir.module);
   }
 
   if (analyser.warning_count > 0) {
@@ -530,46 +543,21 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  // // Evaluate
-  // SourceFile *root_file = files.getPtrUnchecked(0);
-  // Evaluator evaluator = {
-  //     .ast = root_file->root->node,
-  //     .symbol = root_file->root,
-  //     .type_cache = &type_cache,
-  //     .environment = &environment,
-  //     .error_func = &error_handler,
-  //     .warning_func = &warning_handler,
-  //     .allocator = &global_allocator,
-  // };
-  // evaluator.eval();
-  //
-  // if (evaluator.warning_count > 0) {
-  //   std::cout << "\e[0;33m" << evaluator.warning_count << "
-  //   warnings.\e[0m\n";
-  // }
-  //
-  // if (evaluator.error_count > 0) {
-  //   std::cerr << "\e[0;31m" << evaluator.error_count
-  //             << " errors, exiting.\e[0m\n";
-  //   return 1;
-  // }
-  //
-  // // Emit Evaluted AST
-  // if (args.emit_mode == EmitMode::EvaluatedAST) {
-  //   for (size_t i = 0; i < files.len(); i++) {
-  //     SourceFile *file = files.getPtrUnchecked(i);
-  //     std::cout << "---- " << file->fullpath << " ----\n";
-  //     std::cout << *file->root->node << "\n";
-  //   }
-  //
-  //   return 0;
-  // }
-  //
+  // Emit Analysed MIR
+  if (args.emit_mode == EmitMode::AnalysedMIR) {
+    for (size_t i = 0; i < files.len(); i++) {
+      SourceFile *file = files.getPtrUnchecked(i);
+      std::cout << "---- " << file->fullpath << " ----\n";
+      printMIRModule(&file->mir.module);
+    }
+    return 0;
+  }
+
   // Code Gen
   ArrayList<String> outputs;
   outputs.init(&global_allocator, 8);
 
-  bool emit_ir = args.emit_mode == EmitMode::IR;
+  bool emit_ir = args.emit_mode == EmitMode::LLVM;
   bool emit_asm = args.emit_mode == EmitMode::Assembly;
 
   for (size_t i = 0; i < files.len(); i++) {
