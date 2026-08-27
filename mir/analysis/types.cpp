@@ -108,6 +108,10 @@ void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real) {
     fixUntyped(analyser, inst->unaryop.value, real);
     break;
   }
+  case MIRValueKind::Literal: {
+    inst->literal.lit_type = real;
+    break;
+  }
   }
 }
 
