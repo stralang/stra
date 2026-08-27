@@ -6,6 +6,13 @@
 
 MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
+  case MIRValueKind::TypeOf: {
+    return MIRLiteral{
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = inst->_typeof->result_type,
+    };
+  }
   case MIRValueKind::Literal: {
     return inst->literal;
   }

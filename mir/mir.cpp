@@ -182,6 +182,12 @@ void MIRBuilder::addCase(MIRValue *switch_inst, MIRValue *onval,
   switch_inst->_switch.slots += 1;
 }
 
+MIRValue *MIRBuilder::buildTypeOf(MIRValue *value, String name) {
+  MIRValue inst = {.kind = MIRValueKind::TypeOf};
+  inst._typeof = value;
+  return this->insert(inst, true, name);
+}
+
 MIRValue *MIRBuilder::buildGlobalVariable(MIRValue *type, MIRValue *constant,
                                           String name) {
   MIRValue inst = {.kind = MIRValueKind::GlobalVariable};

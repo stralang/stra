@@ -106,7 +106,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       if (node->field.type != nullptr) {
         type = gen(mirgen, node->field.type, field_symbol);
       } else {
-        // TODO: Build typeof instruction
+        type = mirgen->builder.buildTypeOf(initial, str(""));
       }
 
       field = mirgen->builder.buildAlloca(type, node->field.name);

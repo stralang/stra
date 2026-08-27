@@ -353,6 +353,13 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
 
+  case MIRValueKind::TypeOf: {
+    inst->literal = analyser->comptime_state.execute(module, inst);
+    inst->kind = MIRValueKind::Literal;
+    inst->result_type = inst->literal.lit_type;
+    break;
+  }
+
   case MIRValueKind::GlobalVariable: {
     // Analyse Type
     if (inst->global_variable.type != nullptr) {

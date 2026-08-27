@@ -32,6 +32,8 @@ enum class MIRValueKind : std::uint16_t {
   CondBranch,
   Switch,
 
+  TypeOf,
+
   Global = 0x2000,
   GlobalVariable,
   Function,
@@ -182,6 +184,8 @@ struct MIRValue {
       // TODO: Assembly in MIR
     } assembly;
 
+    MIRValue *_typeof;
+
     struct {
       MIRValue *type;
       MIRValue *constant; // set to `null` for default
@@ -271,6 +275,8 @@ struct MIRBuilder {
 
   MIRValue *buildSwitch(MIRValue *value, MIRBlock *default_block, size_t cases);
   void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
+
+  MIRValue *buildTypeOf(MIRValue *value, String name);
 
   MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
                                 String name);

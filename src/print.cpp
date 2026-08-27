@@ -1204,6 +1204,13 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
 
+  case MIRValueKind::TypeOf: {
+    MIRPrintName(inst);
+    std::cout << " = typeof ";
+    MIRPrintRef(inst->_typeof);
+    break;
+  }
+
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);
     std::cout << " = global `";
