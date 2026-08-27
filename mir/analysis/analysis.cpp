@@ -358,7 +358,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     if (inst->global_variable.type != nullptr) {
       MIRLiteral type_literal =
           analyser->comptime_state.execute(module, inst->global_variable.type);
-      expect(type_literal._typeid->kind == TypeKind::TypeId,
+      expect(type_literal.lit_type->kind == TypeKind::TypeId,
              inst->global_variable.type->source_location,
              "Field type must be a typeid");
 
@@ -377,6 +377,17 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       expect(type != nullptr, inst->global_variable.constant->source_location,
              "Couldn't determine type of constant");
 
+      // Replace with literal
+      MIRValue *new_const = (MIRValue *)analyser->arena.alloc(sizeof(MIRValue));
+      new_const->source_location =
+          inst->global_variable.constant->source_location;
+      new_const->kind = MIRValueKind::Literal;
+      new_const->literal = const_literal;
+      new_const->result_type = const_literal.lit_type;
+
+      inst->global_variable.constant = new_const;
+
+      // Check
       if (inst->global_variable.type == nullptr) {
         inst->result_type = module->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
@@ -393,22 +404,6 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
                    << inst->result_type << "` Initial Type: `"
                    << inst->global_variable.constant->result_type << "`\n");
       }
-
-      // Special analysis
-      if (type->kind == TypeKind::Function) {
-        const_literal.function->result_type = const_literal.lit_type;
-        analyse(analyser, module, const_literal.function);
-      }
-
-      // FIXME: Store in compile-time state
-      MIRValue *new_const = (MIRValue *)analyser->arena.alloc(sizeof(MIRValue));
-      new_const->source_location =
-          inst->global_variable.constant->source_location;
-      new_const->kind = MIRValueKind::Literal;
-      new_const->literal = const_literal;
-      new_const->result_type = const_literal.lit_type;
-
-      inst->global_variable.constant = new_const;
     }
     break;
   }

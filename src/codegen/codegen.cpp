@@ -147,7 +147,12 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
 
   case MIRValueKind::GlobalVariable: {
     LLVMValueRef global = *codegen->inst_to_llvm.get(inst);
-    // TODO: Set initializer
+
+    if (inst->global_variable.constant != nullptr) {
+      LLVMValueRef val =
+          literalToLLVM(codegen, &inst->global_variable.constant->literal);
+      LLVMSetInitializer(global, val);
+    }
     break;
   }
   case MIRValueKind::Function: {
