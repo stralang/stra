@@ -49,74 +49,86 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
   return nullptr;
 }
 
-// LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
-//                        Node *node, Symbol *scope) {
-//   Type *src_type = node->_operator.lhs->value.type;
-//   Type *dst_type = node->_operator.rhs->value.data.type_value;
-//   LLVMTypeRef dst_llvm_type = typeToLLVM(codegen, dst_type);
-//
-//   // Reuse casts
-//   if (src_type->kind == TypeKind::Slice && dst_type->kind == TypeKind::Slice)
-//   {
-//     LLVMValueRef ptr = addrCastAs(codegen, builder, node, scope);
-//     return LLVMBuildLoad2(builder, dst_llvm_type, ptr, "");
-//   }
-//
-//   // Value casts
-//   if (src_type->kind == TypeKind::SIMD) {
-//     src_type = src_type->child;
-//   }
-//
-//   LLVMValueRef lhs_value = gen(codegen, builder, node->_operator.lhs, scope);
-//   if (src_type->kind == TypeKind::Bool || src_type->kind ==
-//   TypeKind::Integer) {
-//     // Integer Cast
-//     if (dst_type->kind == TypeKind::Float && src_type->integer.is_signed) {
-//       return LLVMBuildSIToFP(builder, lhs_value, dst_llvm_type, "");
-//     } else if (dst_type->kind == TypeKind::Float &&
-//                !src_type->integer.is_signed) {
-//       return LLVMBuildUIToFP(builder, lhs_value, dst_llvm_type, "");
-//     } else if (dst_type->kind == TypeKind::Pointer) {
-//       return LLVMBuildIntToPtr(builder, lhs_value,
-//                                typeToLLVM(codegen, dst_type), "");
-//     }
-//
-//     return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
-//                              src_type->integer.is_signed, "");
-//   } else if (src_type->kind == TypeKind::Float) {
-//     // Float Cast
-//     if (dst_type->kind == TypeKind::Integer && dst_type->integer.is_signed) {
-//       return LLVMBuildFPToSI(builder, lhs_value, dst_llvm_type, "");
-//     } else if (dst_type->kind == TypeKind::Integer &&
-//                !dst_type->integer.is_signed) {
-//       return LLVMBuildFPToUI(builder, lhs_value, dst_llvm_type, "");
-//     }
-//
-//     return LLVMBuildFPCast(builder, lhs_value, dst_llvm_type, "");
-//   } else if (src_type->kind == TypeKind::Pointer) {
-//     // Pointer Cast
-//     if (dst_type->kind == TypeKind::Integer) {
-//       return LLVMBuildPtrToInt(
-//           builder, lhs_value,
-//           LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size), "");
-//     }
-//
-//     return LLVMBuildPointerCast(builder, lhs_value, dst_llvm_type, "");
-//   } else if (src_type->kind == TypeKind::Enum) {
-//     return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
-//                              src_type->_enum.repr_type->integer.is_signed,
-//                              "");
-//   }
-//
-//   std::cerr << "Unhandled `as` cast in codegen\n";
-//   std::cerr << "Src `" << *src_type << "`\nDst `" << *dst_type << "`\n";
-//   std::abort();
-// }
-
 LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
                        MIRValue *inst) {
-  // TODO: re-implement as cast
-  return nullptr;
+  Type *src_type = inst->binop.lhs->result_type;
+  Type *dst_type = inst->result_type;
+  LLVMTypeRef dst_llvm_type = typeToLLVM(codegen, dst_type);
+
+  // Reuse casts
+  if (src_type->kind == TypeKind::Slice && dst_type->kind == TypeKind::Slice) {
+    if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
+      return getReference(codegen, inst->binop.lhs);
+    }
+
+    if (src_type->slice.length > 0 && dst_type->slice.length == 0) {
+      LLVMValueRef lhs_ptr = getReference(codegen, inst->binop.lhs);
+
+      // Create Slice
+      LLVMValueRef constants[2];
+      constants[0] = LLVMConstNull(LLVMTypeOf(lhs_ptr));
+      constants[1] = LLVMConstInt(
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          src_type->slice.length, false);
+
+      LLVMValueRef new_slice =
+          LLVMConstStructInContext(codegen->ctx, constants, 2, false);
+      new_slice = LLVMBuildInsertValue(builder, new_slice, lhs_ptr, 0, "");
+
+      LLVMValueRef out_slice =
+          BuildAlloca(codegen, builder, LLVMTypeOf(new_slice), "");
+      LLVMBuildStore(builder, new_slice, out_slice);
+      return out_slice;
+    }
+  }
+
+  // Value casts
+  if (src_type->kind == TypeKind::SIMD) {
+    src_type = src_type->child;
+  }
+
+  LLVMValueRef lhs_value = getReference(codegen, inst->binop.lhs);
+  if (src_type->kind == TypeKind::Bool || src_type->kind == TypeKind::Integer) {
+    // Integer Cast
+    if (dst_type->kind == TypeKind::Float && src_type->integer.is_signed) {
+      return LLVMBuildSIToFP(builder, lhs_value, dst_llvm_type, "");
+    } else if (dst_type->kind == TypeKind::Float &&
+               !src_type->integer.is_signed) {
+      return LLVMBuildUIToFP(builder, lhs_value, dst_llvm_type, "");
+    } else if (dst_type->kind == TypeKind::Pointer) {
+      return LLVMBuildIntToPtr(builder, lhs_value,
+                               typeToLLVM(codegen, dst_type), "");
+    }
+
+    return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
+                             src_type->integer.is_signed, "");
+  } else if (src_type->kind == TypeKind::Float) {
+    // Float Cast
+    if (dst_type->kind == TypeKind::Integer && dst_type->integer.is_signed) {
+      return LLVMBuildFPToSI(builder, lhs_value, dst_llvm_type, "");
+    } else if (dst_type->kind == TypeKind::Integer &&
+               !dst_type->integer.is_signed) {
+      return LLVMBuildFPToUI(builder, lhs_value, dst_llvm_type, "");
+    }
+
+    return LLVMBuildFPCast(builder, lhs_value, dst_llvm_type, "");
+  } else if (src_type->kind == TypeKind::Pointer) {
+    // Pointer Cast
+    if (dst_type->kind == TypeKind::Integer) {
+      return LLVMBuildPtrToInt(
+          builder, lhs_value,
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size), "");
+    }
+
+    return LLVMBuildPointerCast(builder, lhs_value, dst_llvm_type, "");
+  } else if (src_type->kind == TypeKind::Enum) {
+    return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
+                             src_type->_enum.repr_type->integer.is_signed, "");
+  }
+
+  std::cerr << "Unhandled `as` cast in codegen\n";
+  std::cerr << "Src `" << *src_type << "`\nDst `" << *dst_type << "`\n";
+  std::abort();
 }
 
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,

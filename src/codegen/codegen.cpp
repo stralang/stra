@@ -124,7 +124,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   case MIRValueKind::CondBranch: {
     LLVMValueRef condition = getReference(codegen, inst->condbr.condition);
     LLVMBasicBlockRef then = *codegen->block_to_llvm.get(inst->condbr.then);
-    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(inst->condbr.then);
+    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(inst->condbr._else);
     LLVMBuildCondBr(builder, condition, then, _else);
     break;
   }
