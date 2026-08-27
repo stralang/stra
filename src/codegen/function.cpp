@@ -10,6 +10,10 @@
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
                      MIRValue *inst) {
+  if (inst->function.undefined) {
+    return;
+  }
+
   LLVMValueRef func = *codegen->inst_to_llvm.get(inst);
   codegen->parent_function = func;
   codegen->parent_function_type = *codegen->type_to_llvm.get(inst->result_type);
@@ -52,100 +56,6 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
   LLVMPositionBuilderAtEnd(builder, codegen->define_block);
   LLVMBuildBr(builder, *codegen->block_to_llvm.get(
                            inst->function.blocks.getUnchecked(0)));
-
-  //   if (!node->function.undefined &&
-  //       node->location.file_hashcode == codegen->source_path_hashcode) {
-  //     LLVMBasicBlockRef prev_define = codegen->define_block;
-  //     codegen->define_block =
-  //         LLVMAppendBasicBlockInContext(codegen->ctx, func, "defines");
-  //     LLVMBasicBlockRef entry =
-  //         LLVMAppendBasicBlockInContext(codegen->ctx, func, "entry");
-  //
-  //     LLVMBasicBlockRef prev_builder_insert_block =
-  //     LLVMGetInsertBlock(builder); LLVMPositionBuilderAtEnd(builder, entry);
-  //
-  //     // Prepare Arguments
-  //     size_t param_idx = 0;
-  //
-  //     FnABICache *abi_cache = codegen->fn_abi_cache.get(fn_type);
-  //
-  //     // Return as argument
-  //     bool is_ret_arg = false;
-  //     LLVMValueRef return_ptr = nullptr;
-  //     LLVMTypeRef return_ty = abi_cache->return_arg.type;
-  //
-  //     if (abi_cache->return_arg.kind == ABIArgKind::Indirect) {
-  //       is_ret_arg = true;
-  //       return_ptr = LLVMGetParam(func, 0);
-  //       if (abi_cache->return_arg.attribute != nullptr) {
-  //         LLVMAddAttributeAtIndex(func, param_idx,
-  //                                 abi_cache->return_arg.attribute);
-  //       }
-  //
-  //       param_idx += 1;
-  //     }
-  //
-  //     // Prepare Parameters
-  //     for (size_t i = 0; i < node->function.parameters.length; i++) {
-  //       ABIArg abi_arg = abi_cache->args.ptr[i];
-  //       if (abi_arg.kind == ABIArgKind::Ignore) {
-  //         continue;
-  //       }
-  //
-  //       Node *key = node->function.parameters.data.ptr[i];
-  //       char *name = (char *)codegen->allocator->alloc(key->field.name.len +
-  //       1); memcpy(name, key->field.name.ptr, key->field.name.len);
-  //       name[key->field.name.len] = 0;
-  //
-  //       LLVMTypeRef param_ty = typeToLLVM(codegen, key->value.type);
-  //       LLVMValueRef alloca = BuildAlloca(codegen, builder, param_ty, name);
-  //       codegen->node_to_value.insert(key, alloca);
-  //
-  //       // Get
-  //       LLVMValueRef val = LLVMGetParam(func, param_idx);
-  //       if (abi_arg.kind == ABIArgKind::Direct) {
-  //         val = BuildABICast(builder, val, param_ty);
-  //       } else if (abi_arg.kind == ABIArgKind::Indirect) {
-  //         val = BuildABICast(builder, val, LLVMPointerType(param_ty, 0));
-  //         val = LLVMBuildLoad2(builder, param_ty, val, "");
-  //       }
-  //
-  //       // Store
-  //       LLVMBuildStore(builder, val, alloca);
-  //       if (abi_arg.attribute != nullptr) {
-  //         LLVMAddAttributeAtIndex(func, param_idx, abi_arg.attribute);
-  //       }
-  //
-  //       param_idx += 1;
-  //     }
-  //
-  //     // Generate body
-  //     codegen->function_stack[codegen->function_stack_len] = {
-  //         .def = func,
-  //         .is_ret_arg = is_ret_arg,
-  //         .ret_type = return_ty,
-  //         .ret_ptr = return_ptr};
-  //     codegen->function_defer_boundary[codegen->function_stack_len] =
-  //         codegen->defer_stack_len;
-  //     codegen->function_stack_len += 1;
-  //
-  //     Symbol *fn_scope = scope->findSymbolByNode(node);
-  //     gen(codegen, builder, node->function.body, fn_scope);
-  //     codegen->function_stack_len -= 1;
-  //
-  //     LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);
-  //     if (LLVMGetBasicBlockTerminator(insert_block) == nullptr) {
-  //       injectDefer(codegen, builder, fn_scope, false);
-  //       LLVMBuildRetVoid(builder);
-  //     }
-  //
-  //     // Finish define block
-  //     LLVMPositionBuilderAtEnd(builder, codegen->define_block);
-  //     LLVMBuildBr(builder, entry);
-  //     codegen->define_block = prev_define;
-  //
-  //     LLVMPositionBuilderAtEnd(builder, prev_builder_insert_block);
-  //   }
 }
 
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,

@@ -115,7 +115,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       if (initial != nullptr) {
         mirgen->builder.buildStore(initial, field);
       }
-    } else if (node->field.initial->kind == NodeKind::Function) {
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Function) {
       field = gen(mirgen, node->field.initial, field_symbol);
       field->name = node->field.name;
       mirgen->node_to_value.insert(node, field);
@@ -131,9 +132,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       if (node->field.initial != nullptr) {
         field->global_variable.constant =
             gen(mirgen, node->field.initial, field_symbol);
-      } else if (!node->field.undefined) {
-        // TODO: Get default value for type
       }
+      field->global_variable.undefined = node->field.undefined;
     }
 
     field->source_location = node->location;
@@ -175,6 +175,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     value->source_location = node->location;
 
     // Body
+    value->function.undefined = node->function.undefined;
     if (node->function.body != nullptr) {
       MIRScope *globals =
           (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));

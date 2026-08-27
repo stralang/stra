@@ -184,7 +184,8 @@ struct MIRValue {
 
     struct {
       MIRValue *type;
-      MIRValue *constant; // set to `null` for externally defined
+      MIRValue *constant; // set to `null` for default
+      bool undefined;
     } global_variable;
     MIRFunction function;
 
