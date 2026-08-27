@@ -248,14 +248,17 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     MIRValue *callee = inst->call.callee;
     analyse(analyser, module, callee);
 
-    expect(callee->result_type->kind == TypeKind::Pointer,
-           callee->source_location, "!MIR! Pointer expected");
-
-    Type *fn_type = callee->result_type->child;
+    // Auto dereference
+    Type *callee_type = callee->result_type;
+    if (callee_type->kind == TypeKind::Pointer) {
+      callee_type = callee_type->child;
+    }
 
     // Get function
-    expect(fn_type->kind == TypeKind::Function, callee->source_location,
-           "Callee must be a function. Got " << fn_type << "`");
+    expect(callee_type->kind == TypeKind::Function, callee->source_location,
+           "Callee must be a function. Got " << callee_type << "`");
+
+    Type *fn_type = callee_type;
 
     // Get receiver
     size_t initial_idx = 0;
@@ -409,11 +412,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     }
     break;
   }
-  case MIRValueKind::Literal: {
-    inst->result_type = inst->literal.lit_type;
-    break;
-  }
   case MIRValueKind::Function: {
+    MIRLiteral type = analyser->comptime_state.execute(module, inst);
+    inst->result_type = type._typeid;
+
     // Analyse Body
     if (inst->function.globals != nullptr) {
       analyseScope(analyser, module, inst->function.globals);
@@ -421,6 +423,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         analyseBlock(analyser, module, inst->function.blocks.getUnchecked(i));
       }
     }
+    break;
+  }
+  case MIRValueKind::Literal: {
+    inst->result_type = inst->literal.lit_type;
     break;
   }
   default: {

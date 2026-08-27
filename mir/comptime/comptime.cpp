@@ -32,17 +32,10 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     raw_type.function.return_type = return_literal._typeid;
 
     // Get final type
-    MIRLiteral out_lit = {
-        .lit_type = module->ctx->type_cache->get(raw_type),
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        ._typeid = module->ctx->type_cache->get(raw_type),
     };
-    if (inst->function.globals == nullptr && !inst->function.undefined) {
-      out_lit._typeid = out_lit.lit_type;
-      out_lit.lit_type =
-          module->ctx->type_cache->get({.kind = TypeKind::TypeId});
-    } else {
-      out_lit.function = inst;
-    }
-    return out_lit;
   }
   }
 

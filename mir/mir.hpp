@@ -34,10 +34,10 @@ enum class MIRValueKind : std::uint16_t {
 
   Global = 0x2000,
   GlobalVariable,
+  Function,
 
   Constant = 0x3000,
   Literal,
-  Function,
   Struct,
   Enum,
   Union,
@@ -186,9 +186,9 @@ struct MIRValue {
       MIRValue *type;
       MIRValue *constant; // set to `null` for externally defined
     } global_variable;
+    MIRFunction function;
 
     MIRLiteral literal;
-    MIRFunction function;
     MIRStruct _struct;
     MIREnum _enum;
     MIRUnion _union;
@@ -273,4 +273,6 @@ struct MIRBuilder {
 
   MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
                                 String name);
+  MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
+                          String name);
 };

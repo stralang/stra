@@ -1071,8 +1071,7 @@ void MIRPrintRef(MIRValue *value) {
     std::cout << "null";
   } else if (value->kind == MIRValueKind::Literal) {
     MIRPrintLiteral(&value->literal);
-  } else if (value->kind == MIRValueKind::Function ||
-             value->kind == MIRValueKind::Struct ||
+  } else if (value->kind == MIRValueKind::Struct ||
              value->kind == MIRValueKind::Enum ||
              value->kind == MIRValueKind::Union ||
              value->kind == MIRValueKind::Namespace) {
@@ -1213,13 +1212,9 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->global_variable.constant);
     break;
   }
-
-  case MIRValueKind::Literal: {
-    MIRPrintLiteral(&inst->literal);
-    break;
-  }
   case MIRValueKind::Function: {
-    std::cout << "fn(";
+    MIRPrintName(inst);
+    std::cout << " = fn(";
     for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
       if (i != 0) {
         std::cout << ", ";
@@ -1236,6 +1231,11 @@ void MIRPrintInst(MIRValue *inst) {
       }
       std::cout << "}";
     }
+    break;
+  }
+
+  case MIRValueKind::Literal: {
+    MIRPrintLiteral(&inst->literal);
     break;
   }
   case MIRValueKind::Struct: {

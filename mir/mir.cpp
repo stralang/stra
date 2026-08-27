@@ -188,3 +188,13 @@ MIRValue *MIRBuilder::buildGlobalVariable(MIRValue *type, MIRValue *constant,
   inst.global_variable = {type, constant};
   return this->insert(inst, true, name);
 }
+
+MIRValue *MIRBuilder::buildFunction(Slice<MIRValue *> parameters,
+                                    MIRValue *return_type, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Function};
+  inst.function = {
+      .parameter_types = parameters,
+      .return_type = return_type,
+  };
+  return this->insert(inst, true, name);
+}

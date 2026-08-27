@@ -115,6 +115,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       if (initial != nullptr) {
         mirgen->builder.buildStore(initial, field);
       }
+    } else if (node->field.initial->kind == NodeKind::Function) {
+      field = gen(mirgen, node->field.initial, field_symbol);
+      field->name = node->field.name;
+      mirgen->node_to_value.insert(node, field);
     } else {
       field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
                                                   node->field.name);
@@ -138,21 +142,20 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   case NodeKind::Function: {
     Symbol *fn_symbol = scope->findSymbolByNode(node);
 
-    MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Function});
-    value->source_location = node->location;
-
     // Parameter Types
-    value->function.parameter_types.len = node->function.parameters.length;
-    value->function.parameter_types.ptr = (MIRValue **)mirgen->allocator->alloc(
-        sizeof(MIRValue *) * node->function.parameters.length);
+    Slice<MIRValue *> parameters = {
+        .ptr = (MIRValue **)mirgen->allocator->alloc(
+            sizeof(MIRValue *) * node->function.parameters.length),
+        .len = node->function.parameters.length,
+    };
 
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *arg = node->function.parameters.getUnchecked(i);
-      value->function.parameter_types.ptr[i] =
-          gen(mirgen, arg->field.type, fn_symbol);
+      parameters.ptr[i] = gen(mirgen, arg->field.type, fn_symbol);
     }
 
     // Return Type
+    MIRValue *return_type = nullptr;
     if (node->function.return_type == nullptr) {
       MIRValue void_ty = {.kind = MIRValueKind::Literal};
       void_ty.literal.lit_type =
@@ -161,11 +164,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
           mirgen->ctx->type_cache->get({.kind = TypeKind::Void});
       void_ty.result_type = void_ty.literal.lit_type;
 
-      value->function.return_type = mirgen->ctx->make(void_ty);
+      return_type = mirgen->ctx->make(void_ty);
     } else {
-      value->function.return_type =
-          gen(mirgen, node->function.return_type, fn_symbol);
+      return_type = gen(mirgen, node->function.return_type, fn_symbol);
     }
+
+    // Build Function
+    MIRValue *value =
+        mirgen->builder.buildFunction(parameters, return_type, str(""));
+    value->source_location = node->location;
 
     // Body
     if (node->function.body != nullptr) {
