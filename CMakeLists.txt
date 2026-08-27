@@ -27,14 +27,14 @@ add_executable(stra
   # src/comptime/operator.cpp
   # src/comptime/builtin.cpp
   #
-  # src/codegen/codegen.cpp
-  # src/codegen/convert.cpp
-  # src/codegen/operator.cpp
-  # src/codegen/function.cpp
+  src/codegen/codegen.cpp
+  src/codegen/convert.cpp
+  src/codegen/operator.cpp
+  src/codegen/function.cpp
   # src/codegen/builtin.cpp
-  #
-  # src/codegen/abi/general.cpp
-  # src/codegen/abi/sysvamd64.cpp
+
+  src/codegen/abi/general.cpp
+  src/codegen/abi/sysvamd64.cpp
 
   src/environment.cpp
   src/helper.cpp

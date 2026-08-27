@@ -24,4 +24,5 @@ std::ostream &operator<<(std::ostream &os, const Symbol &symbol);
 std::ostream &operator<<(std::ostream &os, const TypeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Type &type);
 
+void MIRPrintInst(MIRValue *inst);
 void printMIRModule(MIRModule *mod);

@@ -6,6 +6,7 @@
 #include "abi/general.hpp"
 #include "allocator.hpp"
 #include "containers.hpp"
+#include "mir.hpp"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
@@ -49,14 +50,19 @@ struct CodeGenModule {
   uint64_t source_path_hashcode;
 
   String output_path;
-  Node *ast;
-  Symbol *symbol;
+  MIRModule *mir_module;
   Allocator *allocator;
 
-  HashMap<Node *, LLVMValueRef> node_to_value;
+  HashMap<MIRValue *, LLVMValueRef> inst_to_llvm;
+  HashMap<MIRBlock *, LLVMBasicBlockRef> block_to_llvm;
   HashMap<Type *, LLVMTypeRef> type_to_llvm;
   HashMap<LLVMTypeRef, FnABICache> fn_abi_cache;
   LLVMBasicBlockRef define_block = nullptr;
+
+  LLVMValueRef parent_function;
+  LLVMTypeRef parent_function_type;
+  LLVMValueRef return_arg;
+  size_t function_arg_index;
 
   // Stacks
   Node *defer_stack[64];

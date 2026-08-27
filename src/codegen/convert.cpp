@@ -1,5 +1,6 @@
 #include "codegen.hpp"
 #include "define.hpp"
+#include "literal.hpp"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
@@ -77,7 +78,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
   }
   case TypeKind::Function: {
     ArrayList<LLVMTypeRef> param_types;
-    param_types.init(codegen->allocator, type->function.arguments.length);
+    param_types.init(codegen->allocator, type->function.arguments.len);
 
     FnABICache abi_cache;
 
@@ -94,12 +95,12 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     }
 
     // Parameters
-    abi_cache.args.len = type->function.arguments.length;
+    abi_cache.args.len = type->function.arguments.len;
     abi_cache.args.ptr = (ABIArg *)codegen->allocator->alloc(
         sizeof(ABIArg) * abi_cache.args.len);
 
-    for (size_t i = 0; i < type->function.arguments.length; i++) {
-      Type *arg_type = type->function.arguments.data.ptr[i];
+    for (size_t i = 0; i < type->function.arguments.len; i++) {
+      Type *arg_type = type->function.arguments.ptr[i];
       LLVMTypeRef ir_arg_type = typeToLLVM(codegen, arg_type);
       ABIArg arg =
           codegen->target_abi.classifyArgumentType(codegen->mod, ir_arg_type);
@@ -119,13 +120,13 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
   }
   case TypeKind::Struct: {
     LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->alloc(
-        sizeof(LLVMTypeRef) * type->_struct.fields.length);
-    for (size_t i = 0; i < type->_struct.fields.length; i++) {
-      field_types[i] = typeToLLVM(codegen, type->_struct.fields.data.ptr[i]);
+        sizeof(LLVMTypeRef) * type->_struct.fields.len);
+    for (size_t i = 0; i < type->_struct.fields.len; i++) {
+      field_types[i] = typeToLLVM(codegen, type->_struct.fields.ptr[i]);
     }
 
     out = LLVMStructCreateNamed(codegen->ctx, name);
-    LLVMStructSetBody(out, field_types, type->_struct.fields.length, false);
+    LLVMStructSetBody(out, field_types, type->_struct.fields.len, false);
     break;
   }
   case TypeKind::Enum: {
@@ -157,40 +158,32 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
   return out;
 }
 
-LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
-  if (!value->has_data) {
-    return nullptr;
-  }
-
-  switch (value->type->kind) {
+LLVMValueRef literalToLLVM(CodeGenModule *codegen, MIRLiteral *literal) {
+  switch (literal->lit_type->kind) {
   case TypeKind::Bool: {
-    return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), value->data._bool,
+    return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), literal->_bool,
                         false);
   }
   case TypeKind::Integer: {
-    LLVMTypeRef type = typeToLLVM(codegen, value->type);
-    return LLVMConstInt(type, value->data.integer,
-                        value->type->integer.is_signed);
+    LLVMTypeRef type = typeToLLVM(codegen, literal->lit_type);
+    return LLVMConstInt(type, literal->_int,
+                        literal->lit_type->integer.is_signed);
   }
   case TypeKind::Float: {
-    LLVMTypeRef type = typeToLLVM(codegen, value->type);
-    return LLVMConstReal(type, value->data._float);
+    LLVMTypeRef type = typeToLLVM(codegen, literal->lit_type);
+    return LLVMConstReal(type, literal->_float);
   }
   case TypeKind::Slice: {
-    LLVMTypeRef elem_type = typeToLLVM(codegen, value->type->slice.type);
-    LLVMValueRef *values = (LLVMValueRef *)codegen->allocator->alloc(
-        sizeof(LLVMValueRef) * value->data.text.len);
+    LLVMTypeRef elem_type = typeToLLVM(codegen, literal->lit_type->slice.type);
+    LLVMTypeRef array_type = LLVMArrayType2(elem_type, literal->slice.len);
 
-    for (size_t i = 0; i < value->data.text.len; i++) {
-      values[i] = LLVMConstInt(elem_type, value->data.text.ptr[i], false);
-    }
-
-    LLVMValueRef data = LLVMConstArray(elem_type, values, value->data.text.len);
+    LLVMValueRef ptr = literalToLLVM(codegen, literal->slice.pointer);
+    LLVMValueRef data = LLVMConstBitCast(ptr, array_type);
 
     // Runtime
-    if (value->type->slice.length == 0) {
+    if (literal->lit_type->slice.length == 0) {
       LLVMValueRef ptr = LLVMAddGlobal(
-          codegen->mod, LLVMArrayType(elem_type, value->data.text.len),
+          codegen->mod, LLVMArrayType(elem_type, literal->slice.len),
           "const_ptr");
       LLVMSetGlobalConstant(ptr, true);
       LLVMSetLinkage(ptr, LLVMPrivateLinkage);
@@ -200,17 +193,16 @@ LLVMValueRef valueToLLVM(CodeGenModule *codegen, Value *value) {
       slice_out[0] = ptr;
       slice_out[1] = LLVMConstInt(
           LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
-          value->data.text.len, false);
+          literal->slice.len, false);
       data = LLVMConstStructInContext(codegen->ctx, slice_out, 2, false);
     }
 
     return data;
   }
   case TypeKind::Enum: {
-    Type *repr_type = value->type->_enum.repr_type;
+    Type *repr_type = literal->lit_type->_enum.repr_type;
     LLVMTypeRef type = typeToLLVM(codegen, repr_type);
-    return LLVMConstInt(type, value->data.integer,
-                        repr_type->integer.is_signed);
+    return LLVMConstInt(type, literal->_int, repr_type->integer.is_signed);
   }
   }
 

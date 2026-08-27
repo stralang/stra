@@ -489,8 +489,8 @@ int main(int argc, const char **argv) {
   environment.linker_scripts.init(&global_allocator, 4);
   environment.linker_flags.init(&global_allocator, 16);
 
-  // CodeGenContext codegen_ctx;
-  // codegen_ctx.init(&environment, args.target_triple);
+  CodeGenContext codegen_ctx;
+  codegen_ctx.init(&environment, args.target_triple);
 
   // MIR
   MIRContext ctx;
@@ -565,78 +565,77 @@ int main(int argc, const char **argv) {
   //   return 0;
   // }
   //
-  // // Code Gen
-  // ArrayList<String> outputs;
-  // outputs.init(&global_allocator, 8);
-  //
-  // bool emit_ir = args.emit_mode == EmitMode::IR;
-  // bool emit_asm = args.emit_mode == EmitMode::Assembly;
-  //
-  // for (size_t i = 0; i < files.len(); i++) {
-  //   SourceFile *file = files.getPtrUnchecked(i);
-  //
-  //   // Get File name
-  //   std::string cpp_filename_str((const char *)file->filename.ptr,
-  //                                file->filename.len);
-  //   fs::path name_path = cpp_filename_str;
-  //   name_path = name_path.filename();
-  //   if (emit_ir) {
-  //     name_path.replace_extension("ll");
-  //   } else if (emit_asm) {
-  //     name_path.replace_extension("S");
-  //   } else {
-  //     name_path.replace_extension("o");
-  //   }
-  //
-  //   std::string cpp_name = name_path.string();
-  //
-  //   String out_name = {
-  //       .ptr = (uint8_t *)global_allocator.alloc(cpp_name.size()),
-  //       .len = cpp_name.size(),
-  //   };
-  //   memcpy(out_name.ptr, cpp_name.data(), cpp_name.size());
-  //   outputs.push(out_name);
-  //
-  //   // Get module name
-  //   String module_name = {(uint8_t *)cpp_filename_str.data(),
-  //                         cpp_filename_str.length()};
-  //
-  //   // Generate
-  //   CodeGenModule codegen = {
-  //       .module_name = module_name,
-  //       .source_path_hashcode = file->hashcode,
-  //       .ast = file->root->node,
-  //       .symbol = file->root,
-  //       .allocator = &global_allocator,
-  //   };
-  //   codegen.output_path = out_name;
-  //   codegen.generate(&codegen_ctx, emit_ir, emit_asm, args.optimize);
-  // }
-  //
-  // // Skip linking
-  // if (args.emit_mode != EmitMode::Executable) {
-  //   return 0;
-  // }
-  //
-  // // Link
-  // link(args.linker, outputs.slice(), args.emit_mode, args.output_path,
-  //      &environment);
-  //
-  // // Cleanup
-  // for (size_t i = 0; i < outputs.length; i++) {
-  //   String output = outputs.data.ptr[i];
-  //   std::string cpp_output((const char *)output.ptr, output.len);
-  //   std::filesystem::remove(cpp_output);
-  // }
-  //
-  // std::cout << "Compilation Success\n";
-  //
-  // // Execute
-  // if (args.run) {
-  //   std::filesystem::path exe_path = "./";
-  //   std::string s((const char *)args.output_path.ptr, args.output_path.len);
-  //   exe_path.append(s);
-  //   int status = std::system(exe_path.c_str());
-  //   return WEXITSTATUS(status);
-  // }
+  // Code Gen
+  ArrayList<String> outputs;
+  outputs.init(&global_allocator, 8);
+
+  bool emit_ir = args.emit_mode == EmitMode::IR;
+  bool emit_asm = args.emit_mode == EmitMode::Assembly;
+
+  for (size_t i = 0; i < files.len(); i++) {
+    SourceFile *file = files.getPtrUnchecked(i);
+
+    // Get File name
+    std::string cpp_filename_str((const char *)file->filename.ptr,
+                                 file->filename.len);
+    fs::path name_path = cpp_filename_str;
+    name_path = name_path.filename();
+    if (emit_ir) {
+      name_path.replace_extension("ll");
+    } else if (emit_asm) {
+      name_path.replace_extension("S");
+    } else {
+      name_path.replace_extension("o");
+    }
+
+    std::string cpp_name = name_path.string();
+
+    String out_name = {
+        .ptr = (uint8_t *)global_allocator.alloc(cpp_name.size()),
+        .len = cpp_name.size(),
+    };
+    memcpy(out_name.ptr, cpp_name.data(), cpp_name.size());
+    outputs.push(out_name);
+
+    // Get module name
+    String module_name = {(uint8_t *)cpp_filename_str.data(),
+                          cpp_filename_str.length()};
+
+    // Generate
+    CodeGenModule codegen = {
+        .module_name = module_name,
+        .source_path_hashcode = file->hashcode,
+        .mir_module = &file->mir.module,
+        .allocator = &global_allocator,
+    };
+    codegen.output_path = out_name;
+    codegen.generate(&codegen_ctx, emit_ir, emit_asm, args.optimize);
+  }
+
+  // Skip linking
+  if (args.emit_mode != EmitMode::Executable) {
+    return 0;
+  }
+
+  // Link
+  link(args.linker, outputs.slice(), args.emit_mode, args.output_path,
+       &environment);
+
+  // Cleanup
+  for (size_t i = 0; i < outputs.length; i++) {
+    String output = outputs.data.ptr[i];
+    std::string cpp_output((const char *)output.ptr, output.len);
+    std::filesystem::remove(cpp_output);
+  }
+
+  std::cout << "Compilation Success\n";
+
+  // Execute
+  if (args.run) {
+    std::filesystem::path exe_path = "./";
+    std::string s((const char *)args.output_path.ptr, args.output_path.len);
+    exe_path.append(s);
+    int status = std::system(exe_path.c_str());
+    return WEXITSTATUS(status);
+  }
 }
