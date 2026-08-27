@@ -224,7 +224,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return genBinary(mirgen, node, scope);
   }
   case NodeKind::Call: {
-    MIRValue *callee = gen(mirgen, node->call.callee, scope);
+    MIRValue *callee = addr(mirgen, node->call.callee, scope);
     Slice<MIRValue *> arguments = {
         .ptr = (MIRValue **)mirgen->allocator->alloc(
             sizeof(MIRValue *) * node->call.arguments.length),

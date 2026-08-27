@@ -248,17 +248,14 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     MIRValue *callee = inst->call.callee;
     analyse(analyser, module, callee);
 
-    // Auto dereference
-    if (callee->result_type->kind == TypeKind::Pointer) {
-      // TODO: auto dereference callee
-    }
+    expect(callee->result_type->kind == TypeKind::Pointer,
+           callee->source_location, "!MIR! Pointer expected");
+
+    Type *fn_type = callee->result_type->child;
 
     // Get function
-    expect(callee->result_type->kind == TypeKind::Function,
-           callee->source_location,
-           "Callee must be a function. Got " << callee->result_type << "`");
-
-    Type *fn_type = callee->result_type;
+    expect(fn_type->kind == TypeKind::Function, callee->source_location,
+           "Callee must be a function. Got " << fn_type << "`");
 
     // Get receiver
     size_t initial_idx = 0;
