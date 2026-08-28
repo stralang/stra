@@ -1242,6 +1242,8 @@ void MIRPrintInst(MIRValue *inst) {
   }
 
   case MIRValueKind::Literal: {
+    MIRPrintName(inst);
+    std::cout << " = ";
     MIRPrintLiteral(&inst->literal);
     break;
   }
