@@ -9,6 +9,7 @@
 // Base
 LLVMValueRef getReference(CodeGenModule *codegen, MIRValue *value);
 void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst);
+void genDeclaration(CodeGenModule *codegen, MIRValue *inst);
 
 // Conversion
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type,

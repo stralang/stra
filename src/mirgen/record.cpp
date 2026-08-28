@@ -10,6 +10,12 @@ void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
   mirgen->builder.block = nullptr;
   mirgen->builder.scope = out;
 
+  // Generate Declarations
+  for (size_t i = 0; i < list->length; i++) {
+    genDeclaration(mirgen, list->getUnchecked(i), scope);
+  }
+
+  // Generate Definitions
   for (size_t i = 0; i < list->length; i++) {
     gen(mirgen, list->getUnchecked(i), scope);
   }

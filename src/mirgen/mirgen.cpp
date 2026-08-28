@@ -11,11 +11,6 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
-      gen(mirgen, symbol->node, symbol->parent);
-      value = mirgen->node_to_value.get(symbol->node);
-    }
-
-    if (value == nullptr) {
       std::cerr << node->location << " Couldn't find value `" << node->text
                 << "`. Aborting...\n";
       std::abort();
@@ -59,19 +54,6 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
-      MIRScope *prev_scope = mirgen->builder.scope;
-      MIRBlock *prev_block = mirgen->builder.block;
-      mirgen->builder.scope = *mirgen->symbol_to_scope.get(symbol->parent);
-      mirgen->builder.block = nullptr;
-
-      gen(mirgen, symbol->node, symbol->parent);
-      value = mirgen->node_to_value.get(symbol->node);
-
-      mirgen->builder.block = prev_block;
-      mirgen->builder.scope = prev_scope;
-    }
-
-    if (value == nullptr) {
       std::cerr << node->location << " Couldn't find value `" << node->text
                 << "`. Aborting...\n";
       std::abort();
@@ -85,15 +67,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return valueToMIR(mirgen, &node->value);
   }
   case NodeKind::Field: {
-    MIRValue **cache = mirgen->node_to_value.get(node);
-    if (cache != nullptr) {
-      return *cache;
-    }
-
     // Get Symbol
     Symbol *field_symbol = scope->findSymbolByNode(node);
 
-    // TODO: Get Name
+    // TODO: Add attributes
 
     // Generate field
     MIRValue *field = nullptr;
@@ -118,12 +95,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Function) {
       field = gen(mirgen, node->field.initial, field_symbol);
-      field->name = node->field.name;
-      mirgen->node_to_value.insert(node, field);
     } else {
-      field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
-                                                  node->field.name);
-      mirgen->node_to_value.insert(node, field);
+      field = *mirgen->node_to_value.get(node); // Pre-generated
 
       if (node->field.type != nullptr) {
         field->global_variable.type =
@@ -170,8 +143,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     // Build Function
-    MIRValue *value =
-        mirgen->builder.buildFunction(parameters, return_type, str(""));
+    MIRValue *value = nullptr;
+    MIRValue **cache = mirgen->node_to_value.get(node);
+    if (cache != nullptr) {
+      value = *cache; // Pre-generated
+      value->function.parameter_types = parameters;
+      value->function.return_type = return_type;
+    } else {
+      value = mirgen->builder.buildFunction(parameters, return_type, str(""));
+    }
     value->source_location = node->location;
 
     // Body
@@ -389,6 +369,32 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   return nullptr;
 }
 
+void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope) {
+  switch (node->kind) {
+  case NodeKind::Compound: {
+    for (size_t i = 0; i < node->children.length; i++) {
+      genDeclaration(mirgen, node->children.getUnchecked(i), scope);
+    }
+    break;
+  }
+  case NodeKind::Field: {
+    MIRValue *field = nullptr;
+    if (node->field.initial != nullptr &&
+        node->field.initial->kind == NodeKind::Function) {
+      field = mirgen->builder.buildFunction({.ptr = nullptr}, nullptr,
+                                            node->field.name);
+      mirgen->node_to_value.insert(node->field.initial, field);
+    } else {
+      field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
+                                                  node->field.name);
+    }
+
+    mirgen->node_to_value.insert(node, field);
+    break;
+  }
+  }
+}
+
 void MIRGen::generate() {
   this->node_to_value.init(this->allocator, 32);
   this->symbol_to_scope.init(this->allocator, 32);
@@ -399,6 +405,7 @@ void MIRGen::generate() {
   this->builder.block = nullptr;
 
   this->symbol_to_scope.insert(this->symbol, this->module.definitions);
+  genDeclaration(this, this->ast, this->symbol);
   gen(this, this->ast, this->symbol);
 }
 

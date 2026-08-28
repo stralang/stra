@@ -166,7 +166,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   }
 }
 
-void genDefinition(CodeGenModule *codegen, MIRValue *inst) {
+void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::GlobalVariable: {
     LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type->child);
@@ -220,7 +220,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
 
   // Generate Definitions
   for (size_t i = 0; i < this->mir_module->definitions->list.length; i++) {
-    genDefinition(this, this->mir_module->definitions->list.getUnchecked(i));
+    genDeclaration(this, this->mir_module->definitions->list.getUnchecked(i));
   }
 
   // Generate Code
