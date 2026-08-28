@@ -35,7 +35,9 @@ MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
 }
 
 bool MIRBlock::hasTerminator() {
-  for (size_t i = this->instructions.length - 1; i > 0; i--) {
+  size_t i = this->instructions.length;
+  while (i > 0) {
+    i -= 1;
     MIRValue *inst = this->instructions.getUnchecked(i);
     if (inst->kind == MIRValueKind::Return) {
       return true;
