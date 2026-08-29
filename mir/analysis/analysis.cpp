@@ -336,8 +336,8 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIRValueKind::CondBranch: {
     analyse(analyser, module, inst->condbr.condition);
     expect(inst->condbr.condition->result_type->kind == TypeKind::Bool,
-           inst->source_location, "Conditional must be Bool")
-        inst->result_type = nullptr;
+           inst->source_location, "Conditional must be Bool");
+    inst->result_type = nullptr;
     break;
   }
   case MIRValueKind::Switch: {

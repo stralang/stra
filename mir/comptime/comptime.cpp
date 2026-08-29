@@ -10,6 +10,21 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
 
   switch (inst->kind) {
+  case MIRValueKind::Call: {
+    state->pushStack();
+    MIRBlock *entry = nullptr;
+    if (inst->call.callee->kind == MIRValueKind::Function) {
+      entry = inst->call.callee->function.blocks.get(0);
+    } else {
+      MIRLiteral fn = frame->get(inst->call.callee);
+      entry = fn.function->function.blocks.get(0);
+    }
+    executeProgram(state, module, entry);
+
+    MIRLiteral result = *state->currentStack()->values.back();
+    state->popStack();
+    return result;
+  }
   case MIRValueKind::BinOp: {
     return executeBinary(state, module, frame, inst);
   }
