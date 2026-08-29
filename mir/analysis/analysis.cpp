@@ -469,7 +469,8 @@ void MIRAnalyser::analyse(MIRModule *module) {
 void MIRAnalyser::init(Allocator *allocator) {
   this->allocator = allocator;
   this->arena.init(allocator, 1024 * 1024 * 8);
-  this->comptime_state.arena = &this->arena;
+
+  this->comptime_state.init(allocator, &this->arena);
 }
 
 void MIRAnalyser::deinit() { this->arena.deinit(); }
