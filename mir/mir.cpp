@@ -47,15 +47,20 @@ bool MIRBlock::hasTerminator() {
   return false;
 }
 
-MIRBlock *MIRBuilder::appendBlock(MIRValue *function, String name) {
+MIRBlock *MIRBuilder::appendBlock(MIRValue *parent, String name) {
   MIRBlock *block = (MIRBlock *)this->module->arena.alloc(sizeof(MIRBlock));
   block->id = this->module->next_id;
   block->name = name;
-  block->function = function;
+  block->parent = parent;
   this->module->next_id += 1;
 
   block->instructions.init(this->module->arena.allocator, 32);
-  function->function.blocks.push(block);
+  if (parent->kind == MIRValueKind::Function) {
+    parent->function.blocks.push(block);
+  } else if (parent->kind == MIRValueKind::Comptime) {
+    parent->comptime.blocks.push(block);
+  }
+
   return block;
 }
 
@@ -184,6 +189,10 @@ void MIRBuilder::addCase(MIRValue *switch_inst, MIRValue *onval,
   switch_inst->_switch.slots += 1;
 }
 
+MIRValue *MIRBuilder::buildComptime(String name) {
+  MIRValue inst = {.kind = MIRValueKind::Comptime};
+  return this->insert(inst, false, name);
+}
 MIRValue *MIRBuilder::buildTypeOf(MIRValue *value, String name) {
   MIRValue inst = {.kind = MIRValueKind::TypeOf};
   inst._typeof = value;

@@ -6,6 +6,11 @@
 
 MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
+  case MIRValueKind::Comptime: {
+    std::cerr << "TODO: Implement stack\n";
+    std::abort();
+    break;
+  }
   case MIRValueKind::TypeOf: {
     return MIRLiteral{
         .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
@@ -13,6 +18,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
         ._typeid = inst->_typeof->result_type,
     };
   }
+
   case MIRValueKind::Literal: {
     return inst->literal;
   }

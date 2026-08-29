@@ -1204,6 +1204,15 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
 
+  case MIRValueKind::Comptime: {
+    MIRPrintName(inst);
+    std::cout << " = comptime {\n";
+    for (size_t i = 0; i < inst->comptime.blocks.length; i++) {
+      MIRPrintBlock(inst->comptime.blocks.getUnchecked(i));
+    }
+    std::cout << "}";
+    break;
+  }
   case MIRValueKind::TypeOf: {
     MIRPrintName(inst);
     std::cout << " = typeof ";

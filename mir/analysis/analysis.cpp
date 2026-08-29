@@ -305,21 +305,25 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Return: {
-    MIRValue *function = inst->parent->function;
-    Type *expected_type = function->result_type->function.return_type;
+    if (inst->parent->parent->kind == MIRValueKind::Function) {
+      MIRValue *function = inst->parent->parent;
+      Type *expected_type = function->result_type->function.return_type;
 
-    if (inst->ret.value == nullptr) {
-      expect(expected_type->kind == TypeKind::Void, inst->source_location,
-             "Function expects return value");
-    } else {
+      if (inst->ret.value == nullptr) {
+        expect(expected_type->kind == TypeKind::Void, inst->source_location,
+               "Function expects return value");
+      } else {
+        analyse(analyser, module, inst->ret.value);
+        autoCast(analyser, inst->ret.value, expected_type);
+
+        expect(compareTypes(expected_type, inst->ret.value->result_type),
+               inst->ret.value->source_location,
+               "Unexpected return type. Got `" << inst->ret.value->result_type
+                                               << "` Expected `"
+                                               << expected_type << "`");
+      }
+    } else if (inst->ret.value != nullptr) {
       analyse(analyser, module, inst->ret.value);
-      autoCast(analyser, inst->ret.value, expected_type);
-
-      expect(compareTypes(expected_type, inst->ret.value->result_type),
-             inst->ret.value->source_location,
-             "Unexpected return type. Got `" << inst->ret.value->result_type
-                                             << "` Expected `" << expected_type
-                                             << "`");
     }
 
     inst->result_type = nullptr;
@@ -353,6 +357,12 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
 
+  case MIRValueKind::Comptime: {
+    inst->literal = analyser->comptime_state.execute(module, inst);
+    inst->kind = MIRValueKind::Literal;
+    inst->result_type = inst->literal.lit_type;
+    break;
+  }
   case MIRValueKind::TypeOf: {
     inst->literal = analyser->comptime_state.execute(module, inst);
     inst->kind = MIRValueKind::Literal;

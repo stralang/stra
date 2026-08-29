@@ -248,18 +248,18 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::If: {
     Symbol *if_scope = scope->findSymbolByNode(node);
-    MIRValue *parent_function = mirgen->builder.block->function;
+    MIRValue *parent_define = mirgen->builder.block->parent;
 
     // Blocks
     MIRBlock *then_block =
-        mirgen->builder.appendBlock(parent_function, str("if_then"));
+        mirgen->builder.appendBlock(parent_define, str("if_then"));
     MIRBlock *else_block = nullptr;
     if (node->_if._else != nullptr) {
-      else_block = mirgen->builder.appendBlock(parent_function, str("if_else"));
+      else_block = mirgen->builder.appendBlock(parent_define, str("if_else"));
     }
 
     MIRBlock *merge_block =
-        mirgen->builder.appendBlock(parent_function, str("if_merge"));
+        mirgen->builder.appendBlock(parent_define, str("if_merge"));
 
     // Conditional
     MIRValue *condition = gen(mirgen, node->_if.conditional, scope);
@@ -299,15 +299,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::For: {
     Symbol *for_scope = scope->findSymbolByNode(node);
-    MIRValue *parent_function = mirgen->builder.block->function;
+    MIRValue *parent_define = mirgen->builder.block->parent;
 
     // Blocks
     MIRBlock *condition_block =
-        mirgen->builder.appendBlock(parent_function, str("for_condition"));
+        mirgen->builder.appendBlock(parent_define, str("for_condition"));
     MIRBlock *do_block =
-        mirgen->builder.appendBlock(parent_function, str("for_do"));
+        mirgen->builder.appendBlock(parent_define, str("for_do"));
     MIRBlock *merge_block =
-        mirgen->builder.appendBlock(parent_function, str("for_merge"));
+        mirgen->builder.appendBlock(parent_define, str("for_merge"));
 
     mirgen->builder.buildBr(condition_block);
 
@@ -330,9 +330,9 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Switch: {
-    MIRValue *parent_function = mirgen->builder.block->function;
+    MIRValue *parent_define = mirgen->builder.block->parent;
     MIRBlock *merge_block =
-        mirgen->builder.appendBlock(parent_function, str("switch_merge"));
+        mirgen->builder.appendBlock(parent_define, str("switch_merge"));
 
     // Cases
     MIRValue *value = gen(mirgen, node->_switch.conditional, scope);
@@ -347,7 +347,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
       // Body
       MIRBlock *case_block =
-          mirgen->builder.appendBlock(parent_function, str("switch_case"));
+          mirgen->builder.appendBlock(parent_define, str("switch_case"));
       mirgen->builder.block = case_block;
       gen(mirgen, _case->_case.body, case_scope);
 
@@ -363,6 +363,21 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Merge
     mirgen->builder.block = merge_block;
     break;
+  }
+  case NodeKind::Comptime: {
+    MIRValue *value = mirgen->builder.buildComptime({.ptr = nullptr});
+    value->comptime.blocks.init(mirgen->allocator, 32);
+
+    MIRBlock *prev_block = mirgen->builder.block;
+    mirgen->builder.block = mirgen->builder.appendBlock(value, str("entry"));
+
+    MIRValue *output = gen(mirgen, node->child, scope);
+    if (!mirgen->builder.block->hasTerminator()) {
+      mirgen->builder.buildReturn(output);
+    }
+
+    mirgen->builder.block = prev_block;
+    return value;
   }
   }
 

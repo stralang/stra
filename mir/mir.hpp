@@ -32,13 +32,14 @@ enum class MIRValueKind : std::uint16_t {
   CondBranch,
   Switch,
 
+  Comptime = 0x2000,
   TypeOf,
 
-  Global = 0x2000,
+  Global = 0x3000,
   GlobalVariable,
   Function,
 
-  Constant = 0x3000,
+  Constant = 0x4000,
   Literal,
   Struct,
   Enum,
@@ -75,6 +76,12 @@ enum class MIROpcode : uint8_t {
   Minus,
   LogicalNot,
   BitwiseNot,
+};
+
+struct MIRInlineComptime {
+  ArrayList<MIRBlock *> blocks;
+
+  MIRBlock *appendBlock(String name);
 };
 
 struct MIRFunction {
@@ -184,6 +191,7 @@ struct MIRValue {
       // TODO: Assembly in MIR
     } assembly;
 
+    MIRInlineComptime comptime;
     MIRValue *_typeof;
 
     struct {
@@ -204,7 +212,7 @@ struct MIRValue {
 struct MIRBlock {
   size_t id;
   String name;
-  MIRValue *function;
+  MIRValue *parent;
   ArrayList<MIRValue *> instructions;
 
   bool hasTerminator();
@@ -276,6 +284,7 @@ struct MIRBuilder {
   MIRValue *buildSwitch(MIRValue *value, MIRBlock *default_block, size_t cases);
   void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
 
+  MIRValue *buildComptime(String name);
   MIRValue *buildTypeOf(MIRValue *value, String name);
 
   MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
