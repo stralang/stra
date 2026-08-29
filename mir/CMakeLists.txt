@@ -8,6 +8,7 @@ add_library(mir STATIC
   analysis/types.cpp
 
   comptime/comptime.cpp
+  comptime/operator.cpp
 )
 
 target_include_directories(mir PUBLIC ./)

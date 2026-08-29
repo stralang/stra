@@ -1,17 +1,18 @@
 #include "comptime.hpp"
 #include "containers.hpp"
+#include "define.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
 #include <cstdlib>
 #include <iostream>
 
-void executeProgram(MIRComptime *state, MIRModule *module,
-                    MIRBlock *entrypoint); // Forward Declaration
-
 MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
 
   switch (inst->kind) {
+  case MIRValueKind::BinOp: {
+    return executeBinary(state, module, frame, inst);
+  }
   case MIRValueKind::Return: {
     MIRLiteral result;
     if (inst->ret.value != nullptr) {
