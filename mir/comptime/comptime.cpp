@@ -10,16 +10,53 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
 
   switch (inst->kind) {
+  case MIRValueKind::Load: {
+    MIRLiteral ptr = frame->get(inst->load.ptr);
+    frame->lookup.insert(inst, frame->values.length);
+    frame->values.push(*ptr.pointer);
+    return ptr;
+  }
+  case MIRValueKind::Arg: {
+    MIRLiteral ty_lit = frame->get(inst->load.ptr);
+    // TODO: Compare types
+
+    MIRLiteral *arg_value = frame->values.getPtrUnchecked(frame->arg_count);
+    MIRLiteral ptr_lit = {
+        .lit_type = module->ctx->type_cache->get({
+            .kind = TypeKind::Pointer,
+            .child = ty_lit._typeid,
+            .is_constant = true,
+        }),
+        .kind = MIRLiteralKind::Typed,
+        .pointer = arg_value,
+    };
+
+    frame->lookup.insert(inst, frame->values.length);
+    frame->values.push(ptr_lit);
+
+    frame->arg_count += 1;
+    return ptr_lit;
+  }
   case MIRValueKind::Call: {
     state->pushStack();
-    MIRBlock *entry = nullptr;
+
+    // Get Function
+    MIRValue *function = nullptr;
     if (inst->call.callee->kind == MIRValueKind::Function) {
-      entry = inst->call.callee->function.blocks.get(0);
+      function = inst->call.callee;
     } else {
       MIRLiteral fn = frame->get(inst->call.callee);
-      entry = fn.function->function.blocks.get(0);
+      function = fn.function;
     }
-    executeProgram(state, module, entry);
+
+    // Inject Arguments
+    for (size_t i = 0; i < inst->call.arguments.len; i++) {
+      MIRValue *arg = inst->call.arguments.ptr[i];
+      MIRLiteral value = frame->get(arg);
+      state->currentStack()->values.push(value);
+    }
+
+    executeProgram(state, module, function->function.blocks.get(0));
 
     MIRLiteral result = *state->currentStack()->values.back();
     state->popStack();

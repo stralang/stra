@@ -8,6 +8,7 @@
 struct ComptimeStackFrame {
   HashMap<MIRValue *, size_t> lookup;
   ArrayList<MIRLiteral> values;
+  size_t arg_count = 0;
 
   MIRLiteral get(MIRValue *from) {
     if (from->kind == MIRValueKind::Literal) {
