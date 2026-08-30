@@ -10,18 +10,57 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
 
   switch (inst->kind) {
-  case MIRValueKind::Load: {
-    MIRLiteral ptr = frame->get(inst->load.ptr);
-    frame->lookup.insert(inst, frame->values.length);
-    frame->values.push(*ptr.pointer);
-    return ptr;
+  case MIRValueKind::Alloca: {
+    // Don't allocate another field
+    size_t *ptr_idx = frame->lookup.get(inst);
+    if (ptr_idx != nullptr) {
+      return *frame->values.getUnchecked(*ptr_idx);
+    }
+
+    // Get Type
+    MIRLiteral ty_lit = *frame->get(inst->alloca.type);
+
+    // Allocate value
+    MIRLiteral *value_lit = frame->add(nullptr);
+    value_lit->lit_type = ty_lit._typeid;
+    value_lit->kind = MIRLiteralKind::Null;
+    // TODO: Default
+
+    // Create pointer
+    return {
+        .lit_type = module->ctx->type_cache->get({
+            .kind = TypeKind::Pointer,
+            .child = ty_lit._typeid,
+            .is_constant = true,
+        }),
+        .kind = MIRLiteralKind::Typed,
+        .pointer = value_lit,
+    };
   }
-  case MIRValueKind::Arg: {
-    MIRLiteral ty_lit = frame->get(inst->load.ptr);
+  case MIRValueKind::Load: {
+    MIRLiteral ptr = *frame->get(inst->load.ptr);
+    return *ptr.pointer;
+  }
+  case MIRValueKind::Store: {
+    MIRLiteral ptr = *frame->get(inst->store.ptr);
+    MIRLiteral value = *frame->get(inst->store.value);
     // TODO: Compare types
 
-    MIRLiteral *arg_value = frame->values.getPtrUnchecked(frame->arg_count);
-    MIRLiteral ptr_lit = {
+    *ptr.pointer = value;
+
+    return MIRLiteral{
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void}),
+        .kind = MIRLiteralKind::Typed,
+    };
+  }
+  case MIRValueKind::Arg: {
+    MIRLiteral ty_lit = *frame->get(inst->load.ptr);
+    // TODO: Compare types
+
+    MIRLiteral *arg_value = frame->values.get(frame->arg_count);
+    frame->arg_count += 1;
+
+    return {
         .lit_type = module->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = ty_lit._typeid,
@@ -30,12 +69,6 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
         .kind = MIRLiteralKind::Typed,
         .pointer = arg_value,
     };
-
-    frame->lookup.insert(inst, frame->values.length);
-    frame->values.push(ptr_lit);
-
-    frame->arg_count += 1;
-    return ptr_lit;
   }
   case MIRValueKind::Call: {
     state->pushStack();
@@ -45,20 +78,20 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     if (inst->call.callee->kind == MIRValueKind::Function) {
       function = inst->call.callee;
     } else {
-      MIRLiteral fn = frame->get(inst->call.callee);
-      function = fn.function;
+      MIRLiteral *fn = frame->get(inst->call.callee);
+      function = fn->function;
     }
 
     // Inject Arguments
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
       MIRValue *arg = inst->call.arguments.ptr[i];
-      MIRLiteral value = frame->get(arg);
+      MIRLiteral *value = frame->get(arg);
       state->currentStack()->values.push(value);
     }
 
     executeProgram(state, module, function->function.blocks.get(0));
 
-    MIRLiteral result = *state->currentStack()->values.back();
+    MIRLiteral result = **state->currentStack()->values.back();
     state->popStack();
     return result;
   }
@@ -68,7 +101,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   case MIRValueKind::Return: {
     MIRLiteral result;
     if (inst->ret.value != nullptr) {
-      result = frame->get(inst->ret.value);
+      result = *frame->get(inst->ret.value);
     } else {
       result.lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void});
       result.kind = MIRLiteralKind::Typed;
@@ -81,7 +114,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     MIRBlock *entry = inst->comptime.blocks.get(0);
     executeProgram(state, module, entry);
 
-    MIRLiteral result = *state->currentStack()->values.back();
+    MIRLiteral result = **state->currentStack()->values.back();
     state->popStack();
     return result;
   }
@@ -148,8 +181,7 @@ void executeProgram(MIRComptime *state, MIRModule *module,
     } else if (inst->kind == MIRValueKind::CondBranch) {
       pc = 0;
 
-      size_t cond_idx = *frame->lookup.get(inst->condbr.condition);
-      MIRLiteral cond = frame->values.get(cond_idx);
+      MIRLiteral cond = *frame->get(inst->condbr.condition);
       assert(cond.lit_type->kind == TypeKind::Bool &&
              "Condition was not boolean");
 
@@ -162,9 +194,8 @@ void executeProgram(MIRComptime *state, MIRModule *module,
     }
 
     // Execute instruction
-    frame->lookup.insert(inst, frame->values.length);
     MIRLiteral value = execute(state, module, inst);
-    frame->values.push(value);
+    *frame->add(inst) = value;
   }
 }
 
@@ -187,6 +218,7 @@ void MIRComptime::pushStack() {
   ComptimeStackFrame frame;
   frame.lookup.init(this->allocator, 32);
   frame.values.init(this->allocator, 32);
+  frame.arena.init(this->allocator, 1024 * 1024);
   this->call_stack.push(frame);
 }
 
@@ -194,6 +226,7 @@ void MIRComptime::popStack() {
   ComptimeStackFrame frame = this->call_stack.pop();
   frame.lookup.deinit();
   frame.values.deinit();
+  frame.arena.deinit();
 }
 
 ComptimeStackFrame *MIRComptime::currentStack() {

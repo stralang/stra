@@ -7,12 +7,23 @@
 
 struct ComptimeStackFrame {
   HashMap<MIRValue *, size_t> lookup;
-  ArrayList<MIRLiteral> values;
+  ArrayList<MIRLiteral *> values;
+  DynamicArena arena;
   size_t arg_count = 0;
 
-  MIRLiteral get(MIRValue *from) {
+  MIRLiteral *add(MIRValue *inst) {
+    if (inst != nullptr) {
+      this->lookup.insert(inst, this->values.length);
+    }
+
+    MIRLiteral *lit = (MIRLiteral *)this->arena.alloc(sizeof(MIRLiteral));
+    this->values.push(lit);
+    return lit;
+  }
+
+  MIRLiteral *get(MIRValue *from) {
     if (from->kind == MIRValueKind::Literal) {
-      return from->literal;
+      return &from->literal;
     }
 
     size_t idx = *this->lookup.get(from);
