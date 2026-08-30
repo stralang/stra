@@ -14,7 +14,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     // Don't allocate another field
     size_t *ptr_idx = frame->lookup.get(inst);
     if (ptr_idx != nullptr) {
-      return *frame->values.getUnchecked(*ptr_idx);
+      return {.lit_type = nullptr};
     }
 
     // Get Type
@@ -195,7 +195,9 @@ void executeProgram(MIRComptime *state, MIRModule *module,
 
     // Execute instruction
     MIRLiteral value = execute(state, module, inst);
-    *frame->add(inst) = value;
+    if (value.lit_type != nullptr) {
+      *frame->add(inst) = value;
+    }
   }
 }
 
