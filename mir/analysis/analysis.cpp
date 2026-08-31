@@ -371,57 +371,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
 
   case MIRValueKind::GlobalVariable: {
-    // Analyse Type
-    if (inst->global_variable.type != nullptr) {
-      MIRLiteral type_literal =
-          analyser->comptime_state.execute(module, inst->global_variable.type);
-      expect(type_literal.lit_type->kind == TypeKind::TypeId,
-             inst->global_variable.type->source_location,
-             "Field type must be a typeid");
-
-      inst->result_type = module->ctx->type_cache->get({
-          .kind = TypeKind::Pointer,
-          .child = type_literal._typeid,
-          .is_constant = false,
-      });
-    }
-
-    // Analyse Constant
-    if (inst->global_variable.constant != nullptr) {
-      MIRLiteral const_literal = analyser->comptime_state.execute(
-          module, inst->global_variable.constant);
-      Type *type = const_literal.lit_type;
-      expect(type != nullptr, inst->global_variable.constant->source_location,
-             "Couldn't determine type of constant");
-
-      // Replace with literal
-      MIRValue *new_const = (MIRValue *)analyser->arena.alloc(sizeof(MIRValue));
-      new_const->source_location =
-          inst->global_variable.constant->source_location;
-      new_const->kind = MIRValueKind::Literal;
-      new_const->literal = const_literal;
-      new_const->result_type = const_literal.lit_type;
-
-      inst->global_variable.constant = new_const;
-
-      // Check
-      if (inst->global_variable.type == nullptr) {
-        inst->result_type = module->ctx->type_cache->get({
-            .kind = TypeKind::Pointer,
-            .child = type,
-            .is_constant = false,
-        });
-      } else {
-        autoCast(analyser, inst->global_variable.constant,
-                 inst->result_type->child);
-        expect(compareTypes(inst->result_type->child,
-                            inst->global_variable.constant->result_type),
-               inst->global_variable.constant->source_location,
-               "Field initial doesn't match type. Field Type: `"
-                   << inst->result_type << "` Initial Type: `"
-                   << inst->global_variable.constant->result_type << "`\n");
-      }
-    }
+    analyser->comptime_state.execute(module, inst);
     break;
   }
   case MIRValueKind::Function: {
@@ -471,6 +421,7 @@ void MIRAnalyser::init(Allocator *allocator) {
   this->arena.init(allocator, 1024 * 1024 * 8);
 
   this->comptime_state.init(allocator, &this->arena);
+  this->comptime_state.analyser = this;
 }
 
 void MIRAnalyser::deinit() { this->arena.deinit(); }

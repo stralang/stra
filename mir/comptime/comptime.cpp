@@ -1,4 +1,5 @@
 #include "comptime.hpp"
+#include "analysis/define.hpp"
 #include "containers.hpp"
 #include "define.hpp"
 #include "literal.hpp"
@@ -18,7 +19,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     // Get Type
-    MIRLiteral ty_lit = *frame->get(inst->alloca.type);
+    MIRLiteral ty_lit = *state->getValue(frame, module, inst->alloca.type);
 
     // Allocate value
     MIRLiteral *value_lit = frame->add(nullptr);
@@ -38,12 +39,12 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
   }
   case MIRValueKind::Load: {
-    MIRLiteral ptr = *frame->get(inst->load.ptr);
+    MIRLiteral ptr = *state->getValue(frame, module, inst->load.ptr);
     return *ptr.pointer;
   }
   case MIRValueKind::Store: {
-    MIRLiteral ptr = *frame->get(inst->store.ptr);
-    MIRLiteral value = *frame->get(inst->store.value);
+    MIRLiteral ptr = *state->getValue(frame, module, inst->store.ptr);
+    MIRLiteral value = *state->getValue(frame, module, inst->store.value);
     // TODO: Compare types
 
     *ptr.pointer = value;
@@ -54,7 +55,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
   }
   case MIRValueKind::Arg: {
-    MIRLiteral ty_lit = *frame->get(inst->load.ptr);
+    MIRLiteral ty_lit = *state->getValue(frame, module, inst->load.ptr);
     // TODO: Compare types
 
     MIRLiteral *arg_value = frame->values.get(frame->arg_count);
@@ -78,14 +79,14 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     if (inst->call.callee->kind == MIRValueKind::Function) {
       function = inst->call.callee;
     } else {
-      MIRLiteral *fn = frame->get(inst->call.callee);
+      MIRLiteral *fn = state->getValue(frame, module, inst->call.callee);
       function = fn->function;
     }
 
     // Inject Arguments
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
       MIRValue *arg = inst->call.arguments.ptr[i];
-      MIRLiteral *value = frame->get(arg);
+      MIRLiteral *value = state->getValue(frame, module, arg);
       state->currentStack()->values.push(value);
     }
 
@@ -101,7 +102,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   case MIRValueKind::Return: {
     MIRLiteral result;
     if (inst->ret.value != nullptr) {
-      result = *frame->get(inst->ret.value);
+      result = *state->getValue(frame, module, inst->ret.value);
     } else {
       result.lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void});
       result.kind = MIRLiteralKind::Typed;
@@ -124,6 +125,10 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
         .kind = MIRLiteralKind::Typed,
         ._typeid = inst->_typeof->result_type,
     };
+  }
+
+  case MIRValueKind::GlobalVariable: {
+    return executeGlobalVariable(state, module, frame, inst);
   }
 
   case MIRValueKind::Literal: {
@@ -181,7 +186,7 @@ void executeProgram(MIRComptime *state, MIRModule *module,
     } else if (inst->kind == MIRValueKind::CondBranch) {
       pc = 0;
 
-      MIRLiteral cond = *frame->get(inst->condbr.condition);
+      MIRLiteral cond = *state->getValue(frame, module, inst->condbr.condition);
       assert(cond.lit_type->kind == TypeKind::Bool &&
              "Condition was not boolean");
 
@@ -212,9 +217,13 @@ MIRLiteral MIRComptime::execute(MIRModule *module, MIRValue *inst) {
 void MIRComptime::init(Allocator *allocator, DynamicArena *arena) {
   this->allocator = allocator;
   this->call_stack.init(allocator, 8);
+  this->globals.init(allocator, 32);
   this->arena = arena;
 }
-void MIRComptime::deinit() { this->call_stack.deinit(); }
+void MIRComptime::deinit() {
+  this->call_stack.deinit();
+  this->globals.deinit();
+}
 
 void MIRComptime::pushStack() {
   ComptimeStackFrame frame;
@@ -233,4 +242,35 @@ void MIRComptime::popStack() {
 
 ComptimeStackFrame *MIRComptime::currentStack() {
   return this->call_stack.back();
+}
+
+MIRLiteral *MIRComptime::getValue(ComptimeStackFrame *frame, MIRModule *module,
+                                  MIRValue *from) {
+  if (from->kind == MIRValueKind::Literal) {
+    return &from->literal;
+  } else if (from->kind == MIRValueKind::GlobalVariable) {
+    MIRLiteral **global = this->globals.get(from);
+    if (global == nullptr) {
+      this->execute(module, from);
+      global = this->globals.get(from);
+    }
+
+    return *global;
+  }
+
+  size_t idx = *frame->lookup.get(from);
+  return frame->values.getUnchecked(idx);
+}
+
+void MIRComptime::foldGlobals() {
+  for (size_t i = 0; i < this->globals.slot_capacity; i++) {
+    auto slot = this->globals.slots + i;
+    if (!slot->alive) {
+      continue;
+    }
+
+    MIRValue *constant = slot->key->global_variable.constant;
+    constant->kind = MIRValueKind::Literal;
+    constant->literal = *slot->value->pointer;
+  }
 }

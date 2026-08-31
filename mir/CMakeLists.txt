@@ -9,6 +9,7 @@ add_library(mir STATIC
 
   comptime/comptime.cpp
   comptime/operator.cpp
+  comptime/global.cpp
 )
 
 target_include_directories(mir PUBLIC ./)

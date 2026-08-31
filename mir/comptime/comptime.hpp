@@ -5,6 +5,9 @@
 #include "literal.hpp"
 #include "mir.hpp"
 
+struct MIRAnalyser; // Forward Declaration
+struct MIRComptime; // Forward Declaration
+
 struct ComptimeStackFrame {
   HashMap<MIRValue *, size_t> lookup;
   ArrayList<MIRLiteral *> values;
@@ -20,22 +23,15 @@ struct ComptimeStackFrame {
     this->values.push(lit);
     return lit;
   }
-
-  MIRLiteral *get(MIRValue *from) {
-    if (from->kind == MIRValueKind::Literal) {
-      return &from->literal;
-    }
-
-    size_t idx = *this->lookup.get(from);
-    return this->values.getUnchecked(idx);
-  }
 };
 
 struct MIRComptime {
   ArrayList<ComptimeStackFrame> call_stack;
+  HashMap<MIRValue *, MIRLiteral *> globals;
 
   DynamicArena *arena;
   Allocator *allocator;
+  MIRAnalyser *analyser;
 
   MIRLiteral execute(MIRModule *module, MIRValue *inst);
 
@@ -45,4 +41,9 @@ struct MIRComptime {
   void pushStack();
   void popStack();
   ComptimeStackFrame *currentStack();
+
+  MIRLiteral *getValue(ComptimeStackFrame *frame, MIRModule *module,
+                       MIRValue *from);
+
+  void foldGlobals();
 };

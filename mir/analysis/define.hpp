@@ -1,6 +1,7 @@
 #pragma once
 
 #include "analysis.hpp"
+#include "mir.hpp"
 #include <sstream>
 
 #define expect(ok, srcloc, msg)                                                \
