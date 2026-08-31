@@ -1143,7 +1143,10 @@ void MIRPrintInst(MIRValue *inst) {
   }
   case MIRValueKind::GEP: {
     MIRPrintName(inst);
-    std::cout << " = gep %" << inst->gep.ptr << ", %" << inst->gep.index;
+    std::cout << " = gep ";
+    MIRPrintRef(inst->gep.ptr);
+    std::cout << ", ";
+    MIRPrintRef(inst->gep.index);
     break;
   }
   case MIRValueKind::Call: {

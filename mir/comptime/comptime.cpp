@@ -97,6 +97,10 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     state->popStack();
     return result;
   }
+  case MIRValueKind::GEP: {
+    // TODO: Implement compile-time GEP
+    break;
+  }
   case MIRValueKind::BinOp: {
     return executeBinary(state, module, frame, inst);
   }

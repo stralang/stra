@@ -40,6 +40,14 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
     break;
   }
+  case NodeKind::Index: {
+    MIRValue *ptr = addr(mirgen, node->index.slice, scope);
+    MIRValue *index = gen(mirgen, node->index.index, scope);
+
+    MIRValue *out = mirgen->builder.buildGEP(ptr, index);
+    out->source_location = node->location;
+    return out;
+  }
   }
 
   return nullptr;
@@ -225,8 +233,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       length = gen(mirgen, node->slice.length, scope);
     }
 
-    return mirgen->builder.buildSlice(element, length, node->slice.is_pointer,
-                                      {.ptr = nullptr});
+    MIRValue *out = mirgen->builder.buildSlice(
+        element, length, node->slice.is_pointer, {.ptr = nullptr});
+    out->source_location = node->location;
+    return out;
   }
   case NodeKind::Assignment: {
     return genAssignment(mirgen, node, scope);
@@ -261,6 +271,10 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
                                               {.ptr = nullptr});
     out->source_location = node->location;
     return out;
+  }
+  case NodeKind::Index: {
+    MIRValue *ptr = addr(mirgen, node, scope);
+    return mirgen->builder.buildLoad(ptr);
   }
   case NodeKind::Return: {
     MIRValue *ret_value = nullptr;
