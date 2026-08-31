@@ -400,6 +400,30 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
   case MIRValueKind::GlobalVariable: {
     analyser->comptime_state.execute(module, inst);
+
+    if (inst->result_type->child->kind == TypeKind::TypeId) {
+      Type *child = inst->result_type->child;
+      switch (child->kind) {
+      case TypeKind::Struct: {
+        analyseScope(analyser, module,
+                     child->_struct.inst->_struct.definitions);
+        break;
+      }
+      case TypeKind::Enum: {
+        analyseScope(analyser, module, child->_enum.inst->_enum.definitions);
+        break;
+      }
+      case TypeKind::Union: {
+        analyseScope(analyser, module, child->_union.inst->_union.definitions);
+        break;
+      }
+      case TypeKind::Namespace: {
+        analyseScope(analyser, module,
+                     child->_namespace.inst->_namespace.definitions);
+        break;
+      }
+      }
+    }
     break;
   }
   case MIRValueKind::Function: {

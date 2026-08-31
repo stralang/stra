@@ -27,11 +27,8 @@ void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
 MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *struct_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Struct});
-  value->source_location = node->location;
-
   // Fields
-  value->_struct.fields = {
+  Slice<MIRStruct::Field> fields = {
       .ptr = (MIRStruct::Field *)mirgen->module.arena.alloc(
           sizeof(MIRStruct::Field) * node->_struct.fields.length),
       .len = node->_struct.fields.length,
@@ -39,10 +36,14 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   for (size_t i = 0; i < node->_struct.fields.length; i++) {
     Node *ast = node->_struct.fields.getUnchecked(i);
-    MIRStruct::Field *mir = value->_struct.fields.ptr + i;
+    MIRStruct::Field *mir = fields.ptr + i;
     mir->name = ast->field.name;
     mir->type = gen(mirgen, ast->field.type, struct_symbol);
   }
+
+  // Build Instruction
+  MIRValue *value = mirgen->builder.buildStruct(fields, {.ptr = nullptr});
+  value->source_location = node->location;
 
   // Definitions
   value->_struct.definitions =
@@ -57,12 +58,10 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
 MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *enum_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Enum});
-  value->source_location = node->location;
-  value->_enum.repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
+  MIRValue *repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
 
   // Members
-  value->_enum.members = {
+  Slice<MIREnum::Member> members = {
       .ptr = (MIREnum::Member *)mirgen->module.arena.alloc(
           sizeof(MIREnum::Member) * node->_enum.members.length),
       .len = node->_enum.members.length,
@@ -70,10 +69,15 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   for (size_t i = 0; i < node->_enum.members.length; i++) {
     Node *ast = node->_enum.members.getUnchecked(i);
-    MIREnum::Member *mir = value->_enum.members.ptr + i;
+    MIREnum::Member *mir = members.ptr + i;
     mir->name = ast->member.name;
     mir->constant = gen(mirgen, ast->member.value, enum_symbol);
   }
+
+  // Build Instruction
+  MIRValue *value =
+      mirgen->builder.buildEnum(repr_type, members, {.ptr = nullptr});
+  value->source_location = node->location;
 
   // Definitions
   value->_enum.definitions =
@@ -87,12 +91,10 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
 MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *union_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Union});
-  value->source_location = node->location;
-  value->_union.repr_type = gen(mirgen, node->_union.repr_type, union_symbol);
+  MIRValue *repr_type = gen(mirgen, node->_union.repr_type, union_symbol);
 
   // Variants
-  value->_union.variants = {
+  Slice<MIRStruct::Field> variants = {
       .ptr = (MIRStruct::Field *)mirgen->module.arena.alloc(
           sizeof(MIRStruct::Field) * node->_union.variants.length),
       .len = node->_union.variants.length,
@@ -100,10 +102,15 @@ MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   for (size_t i = 0; i < node->_union.variants.length; i++) {
     Node *ast = node->_union.variants.getUnchecked(i);
-    MIRStruct::Field *mir = value->_union.variants.ptr + i;
+    MIRStruct::Field *mir = variants.ptr + i;
     mir->name = ast->field.name;
     mir->type = gen(mirgen, ast->field.type, union_symbol);
   }
+
+  // Build Instruction
+  MIRValue *value =
+      mirgen->builder.buildUnion(repr_type, variants, {.ptr = nullptr});
+  value->source_location = node->location;
 
   // Definitions
   value->_union.definitions =
@@ -117,7 +124,7 @@ MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
 MIRValue *genNamespace(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *namespace_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *value = mirgen->ctx->make({.kind = MIRValueKind::Namespace});
+  MIRValue *value = mirgen->builder.buildNamespace({.ptr = nullptr});
   value->source_location = node->location;
   value->_namespace.definitions =
       (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));

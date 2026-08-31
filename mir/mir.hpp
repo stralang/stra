@@ -300,6 +300,12 @@ struct MIRBuilder {
   MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
                           String name);
 
+  MIRValue *buildStruct(Slice<MIRStruct::Field> fields, String name);
+  MIRValue *buildEnum(MIRValue *repr_type, Slice<MIREnum::Member> members,
+                      String name);
+  MIRValue *buildUnion(MIRValue *repr_type, Slice<MIRStruct::Field> variants,
+                       String name);
+  MIRValue *buildNamespace(String name);
   MIRValue *buildSlice(MIRValue *element, MIRValue *length, bool is_pointer,
                        String name);
 };

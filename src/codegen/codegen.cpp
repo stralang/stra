@@ -191,8 +191,12 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   }
 
   case MIRValueKind::GlobalVariable: {
-    LLVMValueRef global = *codegen->inst_to_llvm.get(inst);
+    LLVMValueRef *opt_global = codegen->inst_to_llvm.get(inst);
+    if (opt_global == nullptr) {
+      break;
+    }
 
+    LLVMValueRef global = *opt_global;
     if (inst->global_variable.constant != nullptr) {
       LLVMValueRef val =
           literalToLLVM(codegen, &inst->global_variable.constant->literal);
@@ -214,6 +218,14 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
 void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::GlobalVariable: {
+    if (inst->result_type->child->kind == TypeKind::TypeId) {
+      char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
+      memcpy(name, inst->name.ptr, inst->name.len);
+      name[inst->name.len] = 0;
+      typeToLLVM(codegen, inst->global_variable.constant->result_type, name);
+      break;
+    }
+
     LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type->child);
     LLVMValueRef global = LLVMAddGlobal(codegen->mod, ty, "");
     codegen->inst_to_llvm.insert(inst, global);

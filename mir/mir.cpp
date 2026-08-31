@@ -216,6 +216,34 @@ MIRValue *MIRBuilder::buildFunction(Slice<MIRValue *> parameters,
   return this->insert(inst, true, name);
 }
 
+MIRValue *MIRBuilder::buildStruct(Slice<MIRStruct::Field> fields, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Struct};
+  inst._struct.fields = fields;
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildEnum(MIRValue *repr_type,
+                                Slice<MIREnum::Member> members, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Enum};
+  inst._enum.repr_type = repr_type;
+  inst._enum.members = members;
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildUnion(MIRValue *repr_type,
+                                 Slice<MIRStruct::Field> variants,
+                                 String name) {
+  MIRValue inst = {.kind = MIRValueKind::Union};
+  inst._union.repr_type = repr_type;
+  inst._union.variants = variants;
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildNamespace(String name) {
+  MIRValue inst = {.kind = MIRValueKind::Namespace};
+  return this->insert(inst, false, name);
+}
+
 MIRValue *MIRBuilder::buildSlice(MIRValue *element, MIRValue *length,
                                  bool is_pointer, String name) {
   MIRValue inst = {.kind = MIRValueKind::Slice};

@@ -1071,11 +1071,6 @@ void MIRPrintRef(MIRValue *value) {
     std::cout << "null";
   } else if (value->kind == MIRValueKind::Literal) {
     MIRPrintLiteral(&value->literal);
-  } else if (value->kind == MIRValueKind::Struct ||
-             value->kind == MIRValueKind::Enum ||
-             value->kind == MIRValueKind::Union ||
-             value->kind == MIRValueKind::Namespace) {
-    MIRPrintInst(value);
   } else {
     MIRPrintName(value);
   }
@@ -1260,7 +1255,8 @@ void MIRPrintInst(MIRValue *inst) {
     break;
   }
   case MIRValueKind::Struct: {
-    std::cout << "struct {\n";
+    MIRPrintName(inst);
+    std::cout << " = struct {\n";
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       MIRStruct::Field *field = inst->_struct.fields.ptr + i;
       std::cout << field->name << ": `";
@@ -1268,13 +1264,16 @@ void MIRPrintInst(MIRValue *inst) {
       std::cout << "`\n";
     }
 
-    std::cout << "\n";
-    MIRPrintScope(inst->_struct.definitions);
+    if (inst->_struct.definitions->list.length > 0) {
+      std::cout << "\n";
+      MIRPrintScope(inst->_struct.definitions);
+    }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Enum: {
-    std::cout << "enum `";
+    MIRPrintName(inst);
+    std::cout << " = enum `";
     MIRPrintRef(inst->_enum.repr_type);
     std::cout << "` {\n";
     for (size_t i = 0; i < inst->_enum.members.len; i++) {
@@ -1284,13 +1283,16 @@ void MIRPrintInst(MIRValue *inst) {
       std::cout << "`\n";
     }
 
-    std::cout << "\n";
-    MIRPrintScope(inst->_enum.definitions);
+    if (inst->_enum.definitions->list.length > 0) {
+      std::cout << "\n";
+      MIRPrintScope(inst->_enum.definitions);
+    }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Union: {
-    std::cout << "union `";
+    MIRPrintName(inst);
+    std::cout << " = union `";
     MIRPrintRef(inst->_union.repr_type);
     std::cout << "` {\n";
     for (size_t i = 0; i < inst->_union.variants.len; i++) {
@@ -1300,13 +1302,16 @@ void MIRPrintInst(MIRValue *inst) {
       std::cout << "`\n";
     }
 
-    std::cout << "\n";
-    MIRPrintScope(inst->_union.definitions);
+    if (inst->_union.definitions->list.length > 0) {
+      std::cout << "\n";
+      MIRPrintScope(inst->_union.definitions);
+    }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Namespace: {
-    std::cout << "namespace {\n";
+    MIRPrintName(inst);
+    std::cout << " = namespace {\n";
     MIRPrintScope(inst->_namespace.definitions);
     std::cout << "}";
     break;

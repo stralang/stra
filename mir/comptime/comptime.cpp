@@ -167,6 +167,96 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
         ._typeid = module->ctx->type_cache->get(raw_type),
     };
   }
+  case MIRValueKind::Struct: {
+    Type raw_type = {
+        .kind = TypeKind::Struct,
+        .is_constant = true,
+    };
+    raw_type._struct.inst = inst;
+
+    Type *struct_type = module->ctx->type_cache->get(raw_type);
+
+    // Fields
+    struct_type->_struct.fields = {
+        .ptr = (Type **)state->arena->alloc(sizeof(Type *) *
+                                            inst->_struct.fields.len),
+        .len = inst->_struct.fields.len,
+    };
+    for (size_t i = 0; i < inst->_struct.fields.len; i++) {
+      MIRStruct::Field *field = inst->_struct.fields.ptr + i;
+      MIRLiteral type_lit = *state->getValue(frame, module, field->type);
+      struct_type->_struct.fields.ptr[i] = type_lit._typeid;
+    }
+
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = struct_type,
+    };
+  }
+  case MIRValueKind::Enum: {
+    Type raw_type = {
+        .kind = TypeKind::Enum,
+        .is_constant = true,
+    };
+    raw_type._enum.inst = inst;
+
+    Type *enum_type = module->ctx->type_cache->get(raw_type);
+
+    // Represent Type
+    MIRLiteral repr_lit =
+        *state->getValue(frame, module, inst->_enum.repr_type);
+    enum_type->_enum.repr_type = repr_lit._typeid;
+
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = enum_type,
+    };
+  }
+  case MIRValueKind::Union: {
+    Type raw_type = {
+        .kind = TypeKind::Union,
+        .is_constant = true,
+    };
+    raw_type._union.inst = inst;
+
+    Type *union_type = module->ctx->type_cache->get(raw_type);
+
+    // Represent Type
+    MIRLiteral repr_lit =
+        *state->getValue(frame, module, inst->_union.repr_type);
+    union_type->_enum.repr_type = repr_lit._typeid;
+
+    // Fields
+    union_type->_union.variants = {
+        .ptr = (Type **)state->arena->alloc(sizeof(Type *) *
+                                            inst->_struct.fields.len),
+        .len = inst->_struct.fields.len,
+    };
+    for (size_t i = 0; i < inst->_struct.fields.len; i++) {
+      MIRStruct::Field *field = inst->_struct.fields.ptr + i;
+      MIRLiteral type_lit = *state->getValue(frame, module, field->type);
+      union_type->_union.variants.ptr[i] = type_lit._typeid;
+    }
+
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = union_type,
+    };
+  }
+  case MIRValueKind::Namespace: {
+    Type raw_type = {.kind = TypeKind::Namespace};
+    raw_type._namespace.inst = inst;
+
+    Type *namespace_type = module->ctx->type_cache->get(raw_type);
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = namespace_type,
+    };
+  }
   case MIRValueKind::Slice: {
     Type raw_type = {.kind = TypeKind::Slice, .is_constant = true};
 
