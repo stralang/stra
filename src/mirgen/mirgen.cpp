@@ -5,6 +5,22 @@
 #include "mir.hpp"
 #include <iostream>
 
+MIRValue *genComptime(MIRGen *mirgen, Node *child, Symbol *scope) {
+  MIRValue *value = mirgen->builder.buildComptime(str("comptime"));
+  value->comptime.blocks.init(mirgen->allocator, 32);
+
+  MIRBlock *prev_block = mirgen->builder.block;
+  mirgen->builder.block = mirgen->builder.appendBlock(value, str("entry"));
+
+  MIRValue *output = gen(mirgen, child, scope);
+  if (!mirgen->builder.block->hasTerminator()) {
+    mirgen->builder.buildReturn(output);
+  }
+
+  mirgen->builder.block = prev_block;
+  return value;
+}
+
 MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Name: {
@@ -100,11 +116,11 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
       if (node->field.type != nullptr) {
         field->global_variable.type =
-            gen(mirgen, node->field.type, field_symbol);
+            genComptime(mirgen, node->field.type, field_symbol);
       }
       if (node->field.initial != nullptr) {
         field->global_variable.constant =
-            gen(mirgen, node->field.initial, field_symbol);
+            genComptime(mirgen, node->field.initial, field_symbol);
       }
       field->global_variable.undefined = node->field.undefined;
     }
@@ -365,19 +381,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Comptime: {
-    MIRValue *value = mirgen->builder.buildComptime({.ptr = nullptr});
-    value->comptime.blocks.init(mirgen->allocator, 32);
-
-    MIRBlock *prev_block = mirgen->builder.block;
-    mirgen->builder.block = mirgen->builder.appendBlock(value, str("entry"));
-
-    MIRValue *output = gen(mirgen, node->child, scope);
-    if (!mirgen->builder.block->hasTerminator()) {
-      mirgen->builder.buildReturn(output);
-    }
-
-    mirgen->builder.block = prev_block;
-    return value;
+    return genComptime(mirgen, node->child, scope);
   }
   }
 
