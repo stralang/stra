@@ -4,6 +4,7 @@
 #include "define.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
+#include "types.hpp"
 #include <cstdlib>
 #include <iostream>
 
@@ -157,6 +158,31 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     raw_type.function.return_type = return_literal._typeid;
 
     // Get final type
+    return {
+        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        ._typeid = module->ctx->type_cache->get(raw_type),
+    };
+  }
+  case MIRValueKind::Slice: {
+    Type raw_type = {.kind = TypeKind::Slice, .is_constant = true};
+
+    MIRLiteral element = *state->getValue(frame, module, inst->slice.element);
+    assert(element.lit_type->kind == TypeKind::TypeId);
+    raw_type.slice.type = element._typeid;
+
+    if (inst->slice.is_pointer) {
+      raw_type.slice.length = -1;
+    } else if (inst->slice.length != nullptr) {
+      MIRLiteral length = *state->getValue(frame, module, inst->slice.length);
+      assert(length.lit_type->kind == TypeKind::Integer &&
+             (length.lit_type->integer.is_untyped ||
+              (length.lit_type->integer.bits =
+                   -1 && !length.lit_type->integer.is_signed)));
+      raw_type.slice.length = length._int;
+    } else {
+      raw_type.slice.length = 0;
+    }
+
     return {
         .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         ._typeid = module->ctx->type_cache->get(raw_type),

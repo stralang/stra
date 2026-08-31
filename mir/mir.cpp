@@ -215,3 +215,10 @@ MIRValue *MIRBuilder::buildFunction(Slice<MIRValue *> parameters,
   };
   return this->insert(inst, true, name);
 }
+
+MIRValue *MIRBuilder::buildSlice(MIRValue *element, MIRValue *length,
+                                 bool is_pointer, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Slice};
+  inst.slice = {.element = element, .length = length, .is_pointer = is_pointer};
+  return this->insert(inst, false, name);
+}

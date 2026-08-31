@@ -41,6 +41,7 @@ enum class MIRValueKind : std::uint16_t {
 
   Constant = 0x4000,
   Literal,
+  Slice,
   Struct,
   Enum,
   Union,
@@ -92,6 +93,12 @@ struct MIRFunction {
   bool undefined;
 
   MIRBlock *appendBlock(String name);
+};
+
+struct MIRSlice {
+  MIRValue *element;
+  MIRValue *length;
+  bool is_pointer;
 };
 
 struct MIRStruct {
@@ -206,6 +213,7 @@ struct MIRValue {
     MIREnum _enum;
     MIRUnion _union;
     MIRNamespace _namespace;
+    MIRSlice slice;
   };
 };
 
@@ -291,4 +299,7 @@ struct MIRBuilder {
                                 String name);
   MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
                           String name);
+
+  MIRValue *buildSlice(MIRValue *element, MIRValue *length, bool is_pointer,
+                       String name);
 };

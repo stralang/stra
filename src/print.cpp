@@ -1308,6 +1308,19 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << "}";
     break;
   }
+  case MIRValueKind::Slice: {
+    MIRPrintName(inst);
+    std::cout << " = [";
+    MIRPrintRef(inst->slice.element);
+    if (inst->slice.is_pointer) {
+      std::cout << " *";
+    } else if (inst->slice.length != nullptr) {
+      std::cout << " x ";
+      MIRPrintRef(inst->slice.length);
+    }
+    std::cout << "]";
+    break;
+  }
   }
 
   std::cout << "\n";

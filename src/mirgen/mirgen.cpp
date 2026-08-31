@@ -97,7 +97,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
         initial = gen(mirgen, node->field.initial, field_symbol);
       }
       if (node->field.type != nullptr) {
-        type = gen(mirgen, node->field.type, field_symbol);
+        type = genComptime(mirgen, node->field.type, field_symbol);
       } else {
         type = mirgen->builder.buildTypeOf(initial, {.ptr = nullptr});
       }
@@ -217,6 +217,16 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Namespace: {
     return genNamespace(mirgen, node, scope);
+  }
+  case NodeKind::Slice: {
+    MIRValue *element = gen(mirgen, node->slice.type, scope);
+    MIRValue *length = nullptr;
+    if (node->slice.length != nullptr) {
+      length = gen(mirgen, node->slice.length, scope);
+    }
+
+    return mirgen->builder.buildSlice(element, length, node->slice.is_pointer,
+                                      {.ptr = nullptr});
   }
   case NodeKind::Assignment: {
     return genAssignment(mirgen, node, scope);
