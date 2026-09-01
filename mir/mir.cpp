@@ -134,11 +134,11 @@ MIRValue *MIRBuilder::buildGEP(MIRValue *ptr, MIRValue *index, String name) {
   return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildMemberAccess(MIRValue *parent, String member,
-                                        String name) {
-  MIRValue inst = {.kind = MIRValueKind::MemberAccess};
-  inst.member_access.parent = parent;
-  inst.member_access.member = member;
+MIRValue *MIRBuilder::buildLookup(MIRValue *parent, String member,
+                                  String name) {
+  MIRValue inst = {.kind = MIRValueKind::Lookup};
+  inst.lookup.parent = parent;
+  inst.lookup.member = member;
   return this->insert(inst, false, name);
 }
 

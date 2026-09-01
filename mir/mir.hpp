@@ -26,7 +26,7 @@ enum class MIRValueKind : std::uint16_t {
   UnaryOp,
   Call,
   GEP,
-  MemberAccess,
+  Lookup,
   Return,
   Branch,
   CondBranch,
@@ -175,7 +175,7 @@ struct MIRValue {
     struct {
       MIRValue *parent;
       String member;
-    } member_access;
+    } lookup;
     struct {
       MIRValue *type;
       MIRValue *value;
@@ -280,8 +280,8 @@ struct MIRBuilder {
 
   MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
                      String name = {.ptr = nullptr});
-  MIRValue *buildMemberAccess(MIRValue *ptr, String member,
-                              String name = {.ptr = nullptr});
+  MIRValue *buildLookup(MIRValue *ptr, String member,
+                        String name = {.ptr = nullptr});
 
   // If `value` is null then this returns `void`
   MIRValue *buildReturn(MIRValue *value);

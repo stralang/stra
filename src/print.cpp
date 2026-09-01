@@ -1126,13 +1126,13 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->unaryop.value);
     break;
   }
-  case MIRValueKind::MemberAccess: {
+  case MIRValueKind::Lookup: {
     MIRPrintName(inst);
-    std::cout << " = memberaccess ";
-    MIRPrintRef(inst->member_access.parent);
+    std::cout << " = lookup ";
+    MIRPrintRef(inst->lookup.parent);
     std::cout << " \"";
-    std::cout.write((const char *)inst->member_access.member.ptr,
-                    inst->member_access.member.len);
+    std::cout.write((const char *)inst->lookup.member.ptr,
+                    inst->lookup.member.len);
     std::cout << "\"";
     break;
   }

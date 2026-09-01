@@ -5,7 +5,7 @@
 MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
   MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
   MIRValue *out =
-      mirgen->builder.buildMemberAccess(record, node->_operator.rhs->text);
+      mirgen->builder.buildLookup(record, node->_operator.rhs->text);
   out->source_location = node->location;
   return out;
 }
