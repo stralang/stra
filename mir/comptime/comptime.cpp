@@ -81,7 +81,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
       function = inst->call.callee;
     } else {
       MIRLiteral *fn = state->getValue(frame, module, inst->call.callee);
-      function = fn->function;
+      assert(fn->kind == MIRLiteralKind::Instruction);
+      function = fn->instruction;
     }
 
     // Inject Arguments

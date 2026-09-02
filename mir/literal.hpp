@@ -9,6 +9,7 @@ struct MIRValue;   // Forward declaration
 enum class MIRLiteralKind {
   Null,
   Typed,
+  Instruction, // Only allowed for Pointer Literals
 };
 
 struct SliceLiteral {
@@ -26,8 +27,8 @@ struct MIRLiteral {
     MIRLiteral *pointer;
     SliceLiteral slice;
     Type *_typeid;
-    MIRValue *function;
     Slice<MIRLiteral> values;
+    MIRValue *instruction;
     uint8_t *inline_data;
   };
 };

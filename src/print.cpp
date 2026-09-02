@@ -1,5 +1,6 @@
 #include "print.hpp"
 #include "ast.hpp"
+#include "literal.hpp"
 #include "mir.hpp"
 #include "token.hpp"
 #include <cstddef>
@@ -931,6 +932,10 @@ void MIRPrintLiteral(MIRLiteral *literal) {
   case MIRLiteralKind::Typed: {
     break;
   }
+  case MIRLiteralKind::Instruction: {
+    std::cout << literal->instruction << "\n";
+    return;
+  }
   }
 
   switch (literal->lit_type->kind) {
@@ -957,10 +962,6 @@ void MIRPrintLiteral(MIRLiteral *literal) {
   }
   case TypeKind::TypeId: {
     std::cout << *literal->_typeid;
-    break;
-  }
-  case TypeKind::Function: {
-    MIRPrintInst(literal->function);
     break;
   }
   }
