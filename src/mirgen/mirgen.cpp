@@ -87,6 +87,46 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     out->source_location = node->location;
     return out;
   }
+  case NodeKind::RawString: {
+    Type int_t = {.kind = TypeKind::Integer};
+    int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
+
+    // Parse text
+    uint8_t *real_text = (uint8_t *)mirgen->allocator->alloc(node->text.len);
+    size_t len = 0;
+    bool escape = false;
+    for (size_t i = 0; i < node->text.len; i++) {
+      uint8_t c = node->text.ptr[i];
+      if (escape) {
+        if (c == '0') {
+          c = '\0';
+        } else if (c == 'n') {
+          c = '\n';
+        }
+        escape = false;
+      } else if (c == '\\') {
+        escape = true;
+        continue;
+      }
+
+      real_text[len] = c;
+      len += 1;
+    }
+
+    // Set Value
+    Type slice_t = {.kind = TypeKind::Slice};
+    slice_t.slice = SliceType{
+        .length = (int64_t)len,
+        .type = mirgen->ctx->type_cache->get(int_t),
+    };
+
+    MIRLiteral slice_lit = {
+        .lit_type = mirgen->ctx->type_cache->get(slice_t),
+        .kind = MIRLiteralKind::Typed,
+    };
+    slice_lit.inline_data = real_text; // Length is stored in the type
+    return mirgen->ctx->makeLiteral(slice_lit);
+  }
   case NodeKind::Value: {
     return valueToMIR(mirgen, &node->value);
   }

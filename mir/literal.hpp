@@ -28,5 +28,6 @@ struct MIRLiteral {
     Type *_typeid;
     MIRValue *function;
     Slice<MIRLiteral> values;
+    uint8_t *inline_data;
   };
 };
