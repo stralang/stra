@@ -4,6 +4,7 @@
 #include "abi/general.hpp"
 #include "containers.hpp"
 #include "define.hpp"
+#include "literal.hpp"
 #include "mir.hpp"
 #include "passes.hpp"
 #include "types.hpp"
@@ -24,6 +25,8 @@
 LLVMValueRef getReference(CodeGenModule *codegen, MIRValue *value) {
   if (value->kind == MIRValueKind::Literal) {
     return literalToLLVM(codegen, &value->literal);
+  } else if (value->kind == MIRValueKind::Alias) {
+    return getReference(codegen, value->alias);
   }
 
   return *codegen->inst_to_llvm.get(value);
@@ -191,6 +194,26 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   }
 
   case MIRValueKind::GlobalVariable: {
+    // Sub-Definitions
+    if (inst->result_type->child->kind == TypeKind::TypeId) {
+      MIRLiteral *lit = &inst->global_variable.constant->literal;
+      MIRScope *scope = nullptr;
+      if (lit->_typeid->kind == TypeKind::Struct) {
+        scope = lit->_typeid->_struct.inst->_struct.definitions;
+      } else if (lit->_typeid->kind == TypeKind::Enum) {
+        scope = lit->_typeid->_enum.inst->_enum.definitions;
+      } else if (lit->_typeid->kind == TypeKind::Union) {
+        scope = lit->_typeid->_union.inst->_union.definitions;
+      } else if (lit->_typeid->kind == TypeKind::Namespace) {
+        scope = lit->_typeid->_namespace.inst->_namespace.definitions;
+      }
+
+      for (size_t i = 0; i < scope->list.length; i++) {
+        gen(codegen, builder, scope->list.getUnchecked(i));
+      }
+      break;
+    }
+
     LLVMValueRef *opt_global = codegen->inst_to_llvm.get(inst);
     if (opt_global == nullptr) {
       break;
@@ -219,10 +242,31 @@ void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::GlobalVariable: {
     if (inst->result_type->child->kind == TypeKind::TypeId) {
-      char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
-      memcpy(name, inst->name.ptr, inst->name.len);
-      name[inst->name.len] = 0;
-      typeToLLVM(codegen, inst->global_variable.constant->result_type, name);
+      // Sub-Declarations
+      MIRLiteral *lit = &inst->global_variable.constant->literal;
+      MIRScope *scope = nullptr;
+      bool real_type = false;
+      if (lit->_typeid->kind == TypeKind::Struct) {
+        scope = lit->_typeid->_struct.inst->_struct.definitions;
+        real_type = true;
+      } else if (lit->_typeid->kind == TypeKind::Enum) {
+        scope = lit->_typeid->_enum.inst->_enum.definitions;
+      } else if (lit->_typeid->kind == TypeKind::Union) {
+        scope = lit->_typeid->_union.inst->_union.definitions;
+      } else if (lit->_typeid->kind == TypeKind::Namespace) {
+        scope = lit->_typeid->_namespace.inst->_namespace.definitions;
+      }
+
+      if (real_type) {
+        char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
+        memcpy(name, inst->name.ptr, inst->name.len);
+        name[inst->name.len] = 0;
+        typeToLLVM(codegen, inst->global_variable.constant->result_type, name);
+      }
+
+      for (size_t i = 0; i < scope->list.length; i++) {
+        genDeclaration(codegen, scope->list.getUnchecked(i));
+      }
       break;
     }
 

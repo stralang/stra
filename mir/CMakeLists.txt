@@ -5,6 +5,7 @@ add_library(mir STATIC
   mir.cpp
 
   analysis/analysis.cpp
+  analysis/lookup.cpp
   analysis/types.cpp
 
   comptime/comptime.cpp

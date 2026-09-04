@@ -34,6 +34,7 @@ enum class MIRValueKind : std::uint16_t {
 
   Comptime = 0x2000,
   TypeOf,
+  Alias,
 
   Global = 0x3000,
   GlobalVariable,
@@ -200,6 +201,7 @@ struct MIRValue {
 
     MIRInlineComptime comptime;
     MIRValue *_typeof;
+    MIRValue *alias;
 
     struct {
       MIRValue *type;

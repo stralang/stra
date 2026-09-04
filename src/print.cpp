@@ -1218,6 +1218,12 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->_typeof);
     break;
   }
+  case MIRValueKind::Alias: {
+    MIRPrintName(inst);
+    std::cout << " = alias ";
+    MIRPrintRef(inst->alias);
+    break;
+  }
 
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);

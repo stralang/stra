@@ -15,6 +15,7 @@
   }
 
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 
 bool compareTypes(Type *lhs, Type *rhs);
 void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real);

@@ -332,6 +332,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
            index->source_location, "Index must be of type `usize`");
     break;
   }
+  case MIRValueKind::Lookup: {
+    analyseLookup(analyser, module, inst);
+    break;
+  }
   case MIRValueKind::Return: {
     if (inst->parent->parent->kind == MIRValueKind::Function) {
       MIRValue *function = inst->parent->parent;
@@ -395,6 +399,11 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     inst->literal = analyser->comptime_state.execute(module, inst);
     inst->kind = MIRValueKind::Literal;
     inst->result_type = inst->literal.lit_type;
+    break;
+  }
+  case MIRValueKind::Alias: {
+    analyse(analyser, module, inst->alias);
+    inst->result_type = inst->alias->result_type;
     break;
   }
 
