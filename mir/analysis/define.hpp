@@ -14,8 +14,12 @@
     analyser->error_count += 1;                                                \
   }
 
+void analyseBlock(MIRAnalyser *analyser, MIRModule *module, MIRBlock *block);
+void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope);
+
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 
 bool compareTypes(Type *lhs, Type *rhs);
 void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real);

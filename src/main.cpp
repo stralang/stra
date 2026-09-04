@@ -543,8 +543,6 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  analyser.comptime_state.foldGlobals();
-
   // Emit Analysed MIR
   if (args.emit_mode == EmitMode::AnalysedMIR) {
     for (size_t i = 0; i < files.len(); i++) {

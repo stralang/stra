@@ -6,6 +6,7 @@ add_library(mir STATIC
 
   analysis/analysis.cpp
   analysis/lookup.cpp
+  analysis/global.cpp
   analysis/types.cpp
 
   comptime/comptime.cpp

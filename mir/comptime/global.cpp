@@ -109,7 +109,7 @@ MIRLiteral executeGlobalVariable(MIRComptime *state, MIRModule *module,
         .pointer = data_literal,
     };
 
-    state->globals.insert(inst, ptr_literal);
+    // state->globals.insert(inst, ptr_literal);
     return *ptr_literal;
   }
 

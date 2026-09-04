@@ -6,8 +6,8 @@
 
 MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
                          ComptimeStackFrame *frame, MIRValue *inst) {
-  MIRLiteral lhs = *state->getValue(frame, module, inst->binop.lhs);
-  MIRLiteral rhs = *state->getValue(frame, module, inst->binop.rhs);
+  MIRLiteral lhs = state->getValue(frame, module, inst->binop.lhs);
+  MIRLiteral rhs = state->getValue(frame, module, inst->binop.rhs);
 
   switch (inst->binop.opcode) {
   case MIROpcode::Add: {

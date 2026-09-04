@@ -3,11 +3,6 @@
 #include "literal.hpp"
 #include "mir.hpp"
 
-// --- Forward Declarations ---
-void analyseBlock(MIRAnalyser *analyser, MIRModule *module, MIRBlock *block);
-void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope);
-// --- Forward Declarations ---
-
 void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   MIRValue *lhs = inst->binop.lhs;
   MIRValue *rhs = inst->binop.rhs;
@@ -407,45 +402,9 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
 
-  case MIRValueKind::GlobalVariable: {
-    analyser->comptime_state.execute(module, inst);
-
-    if (inst->result_type->child->kind == TypeKind::TypeId) {
-      Type *child = inst->result_type->child;
-      switch (child->kind) {
-      case TypeKind::Struct: {
-        analyseScope(analyser, module,
-                     child->_struct.inst->_struct.definitions);
-        break;
-      }
-      case TypeKind::Enum: {
-        analyseScope(analyser, module, child->_enum.inst->_enum.definitions);
-        break;
-      }
-      case TypeKind::Union: {
-        analyseScope(analyser, module, child->_union.inst->_union.definitions);
-        break;
-      }
-      case TypeKind::Namespace: {
-        analyseScope(analyser, module,
-                     child->_namespace.inst->_namespace.definitions);
-        break;
-      }
-      }
-    }
-    break;
-  }
+  case MIRValueKind::GlobalVariable:
   case MIRValueKind::Function: {
-    MIRLiteral type = analyser->comptime_state.execute(module, inst);
-    inst->result_type = type._typeid;
-
-    // Analyse Body
-    if (inst->function.globals != nullptr) {
-      analyseScope(analyser, module, inst->function.globals);
-      for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        analyseBlock(analyser, module, inst->function.blocks.getUnchecked(i));
-      }
-    }
+    analyseGlobal(analyser, module, inst);
     break;
   }
   case MIRValueKind::Literal: {

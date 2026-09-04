@@ -14,6 +14,13 @@ struct ComptimeStackFrame {
   DynamicArena arena;
   size_t arg_count = 0;
 
+  MIRLiteral *inject(MIRLiteral lit) {
+    MIRLiteral *ptr = (MIRLiteral *)this->arena.alloc(sizeof(MIRLiteral));
+    *ptr = lit;
+    this->values.push(ptr);
+    return ptr;
+  }
+
   MIRLiteral *add(MIRValue *inst) {
     if (inst != nullptr) {
       this->lookup.insert(inst, this->values.length);
@@ -27,7 +34,6 @@ struct ComptimeStackFrame {
 
 struct MIRComptime {
   ArrayList<ComptimeStackFrame> call_stack;
-  HashMap<MIRValue *, MIRLiteral *> globals;
 
   DynamicArena *arena;
   Allocator *allocator;
@@ -42,8 +48,6 @@ struct MIRComptime {
   void popStack();
   ComptimeStackFrame *currentStack();
 
-  MIRLiteral *getValue(ComptimeStackFrame *frame, MIRModule *module,
-                       MIRValue *from);
-
-  void foldGlobals();
+  MIRLiteral getValue(ComptimeStackFrame *frame, MIRModule *module,
+                      MIRValue *from);
 };
