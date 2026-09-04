@@ -43,7 +43,7 @@ struct MIRComptime {
   ComptimeStackFrame *currentStack();
 
   MIRLiteral *getValue(ComptimeStackFrame *frame, MIRModule *module,
-                       MIRValue *from);
+                       MIRValueId from);
 
   void foldGlobals();
 };

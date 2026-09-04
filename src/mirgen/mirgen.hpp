@@ -10,8 +10,8 @@ struct MIRGen {
   Symbol *symbol;
   Allocator *allocator;
 
-  HashMap<Node *, MIRValue *> node_to_value;
-  HashMap<Symbol *, MIRScope *> symbol_to_scope;
+  HashMap<Node *, MIRValueId> node_to_value;
+  HashMap<Symbol *, MIRScopeId> symbol_to_scope;
 
   MIRBlock block;
   MIRBuilder builder;

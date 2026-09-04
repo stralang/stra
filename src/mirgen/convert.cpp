@@ -2,7 +2,7 @@
 #include "mir.hpp"
 #include "mirgen.hpp"
 
-MIRValue *valueToMIR(MIRGen *mirgen, Value *value) {
+MIRValueId valueToMIR(MIRGen *mirgen, Value *value) {
   MIRLiteral literal;
   switch (value->type->kind) {
   case TypeKind::Bool: {
@@ -39,5 +39,9 @@ MIRValue *valueToMIR(MIRGen *mirgen, Value *value) {
   }
   }
 
-  return mirgen->ctx->makeLiteral(literal);
+  MIRValue out = {
+      .kind = MIRValueKind::Literal,
+      .literal = literal,
+  };
+  return mirgen->builder.insert(out);
 }

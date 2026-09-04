@@ -3,16 +3,28 @@
 #include "allocator.hpp"
 #include "containers.hpp"
 #include "literal.hpp"
+#include "optional.hpp"
 #include "srcloc.hpp"
 #include "types.hpp"
 #include <cassert>
 #include <cstdint>
 
 // Forward declarations
-struct MIRValue;
-struct MIRBlock;
-struct MIRScope;
+struct MIRModule;
 // Forward declarations
+
+struct MIRValueId {
+  uint32_t module;
+  uint32_t local;
+};
+struct MIRBlockId {
+  uint32_t module;
+  uint32_t local;
+};
+struct MIRScopeId {
+  uint32_t module;
+  uint32_t local;
+};
 
 enum class MIRValueKind : std::uint16_t {
   Nop,
@@ -80,117 +92,118 @@ enum class MIROpcode : uint8_t {
 };
 
 struct MIRInlineComptime {
-  ArrayList<MIRBlock *> blocks;
+  ArrayList<MIRBlockId> blocks;
 
-  MIRBlock *appendBlock(String name);
+  MIRBlockId appendBlock(String name);
 };
 
 struct MIRFunction {
-  Slice<MIRValue *> parameter_types;
-  MIRValue *return_type;
-  MIRScope *globals;
-  ArrayList<MIRBlock *> blocks;
+  Slice<MIRValueId> parameter_types;
+  Option<MIRValueId> return_type;
+  MIRScopeId globals;
+  ArrayList<MIRBlockId> blocks;
   bool undefined;
 
-  MIRBlock *appendBlock(String name);
+  MIRBlockId appendBlock(String name);
 };
 
 struct MIRSlice {
-  MIRValue *element;
-  MIRValue *length;
+  MIRValueId element;
+  Option<MIRValueId> length;
   bool is_pointer;
 };
 
 struct MIRStruct {
   struct Field {
     String name;
-    MIRValue *type;
+    MIRValueId type;
   };
 
   Slice<Field> fields;
-  MIRScope *definitions;
+  MIRScopeId definitions;
 };
 
 struct MIREnum {
   struct Member {
     String name;
-    MIRValue *constant;
+    MIRValueId constant;
   };
 
-  MIRValue *repr_type;
+  MIRValueId repr_type;
   Slice<Member> members;
-  MIRScope *definitions;
+  MIRScopeId definitions;
 };
 struct MIRUnion {
-  MIRValue *repr_type;
+  MIRValueId repr_type;
   Slice<MIRStruct::Field> variants;
-  MIRScope *definitions;
+  MIRScopeId definitions;
 };
 
 struct MIRNamespace {
-  MIRScope *definitions;
+  MIRScopeId definitions;
 };
 
 struct MIRValue {
-  size_t id;
+  MIRValueId id;
   String name;
   SrcLoc source_location;
 
+  MIRBlockId parent;
   MIRValueKind kind = MIRValueKind::Nop;
-  MIRBlock *parent = nullptr;
   Type *result_type = nullptr;
 
   union {
     struct {
-      MIRValue *type;
+      MIRValueId type;
     } alloca;
     struct {
-      MIRValue *ptr;
+      MIRValueId ptr;
     } load;
     struct {
-      MIRValue *value;
-      MIRValue *ptr;
+      MIRValueId value;
+      MIRValueId ptr;
     } store;
     struct {
-      MIRValue *type;
+      MIRValueId type;
     } arg;
     struct {
       MIROpcode opcode;
-      MIRValue *lhs;
-      MIRValue *rhs;
+      MIRValueId lhs;
+      MIRValueId rhs;
     } binop;
     struct {
       MIROpcode opcode;
-      MIRValue *value;
+      MIRValueId value;
     } unaryop;
     struct {
-      MIRValue *callee;
-      Slice<MIRValue *> arguments;
-      MIRValue *receiver; // NOTE: this is only valid after type checking
+      MIRValueId callee;
+      Slice<MIRValueId> arguments;
+      Option<MIRValueId>
+          receiver; // NOTE: this is only valid after type checking
     } call;
     struct {
-      MIRValue *ptr;
-      MIRValue *index;
+      MIRValueId ptr;
+      MIRValueId index;
     } gep;
     struct {
-      MIRValue *parent;
+      MIRValueId parent;
       String member;
     } lookup;
     struct {
-      MIRValue *type;
-      MIRValue *value;
+      MIRValueId type;
+      Option<MIRValueId> value;
     } ret;
-    MIRBlock *br;
+    MIRBlockId br;
     struct {
-      MIRValue *condition;
-      MIRBlock *then;
-      MIRBlock *_else;
+      MIRValueId condition;
+      MIRBlockId then;
+      MIRBlockId _else;
     } condbr;
     struct {
-      MIRValue *condition;
-      MIRBlock *default_block;
-      Slice<MIRValue *> onvals;
-      Slice<MIRBlock *> blocks;
+      MIRValueId condition;
+      MIRBlockId default_block;
+      Slice<MIRValueId> onvals;
+      Slice<MIRBlockId> blocks;
       size_t slots;
     } _switch;
     // TODO: Comptime
@@ -199,11 +212,11 @@ struct MIRValue {
     } assembly;
 
     MIRInlineComptime comptime;
-    MIRValue *_typeof;
+    MIRValueId _typeof;
 
     struct {
-      MIRValue *type;
-      MIRValue *constant; // set to `null` for default
+      Option<MIRValueId> type;
+      Option<MIRValueId> constant;
       bool undefined;
     } global_variable;
     MIRFunction function;
@@ -218,17 +231,18 @@ struct MIRValue {
 };
 
 struct MIRBlock {
-  size_t id;
+  MIRBlockId id;
   String name;
-  MIRValue *parent;
-  ArrayList<MIRValue *> instructions;
+  MIRValueId parent;
+  ArrayList<MIRValueId> instructions;
 
-  bool hasTerminator();
+  bool hasTerminator(MIRModule *module);
 };
 
 struct MIRScope {
-  MIRValue *owner = nullptr;
-  ArrayList<MIRValue *> list;
+  MIRScopeId id;
+  MIRValueId owner;
+  ArrayList<MIRValueId> list;
 };
 
 struct MIRContext {
@@ -236,76 +250,95 @@ struct MIRContext {
   DynamicArena arena;
   Allocator *allocator;
 
+  ArrayList<MIRModule *> modules;
+
   void init(Allocator *allocator);
   void deinit();
 
-  MIRValue *make(MIRValue value);
-  MIRValue *makeLiteral(MIRLiteral literal);
+  MIRValue *getInstr(MIRValueId id);
+  MIRBlock *getBlock(MIRBlockId id);
+  MIRScope *getScope(MIRScopeId id);
+
+  MIRValueId make(MIRValue value);
+  MIRValueId makeLiteral(MIRLiteral literal);
 };
 
 struct MIRModule {
-  size_t next_id = 0;
-  MIRScope *definitions;
+  uint32_t id;
+  MIRScopeId definitions;
+  ArrayList<MIRValue> instrs;
+  ArrayList<MIRBlock> blocks;
+  ArrayList<MIRScope> scopes;
 
   DynamicArena arena; // Memory that stores `MIRValue`
   MIRContext *ctx;
 
   void init(Allocator *allocator);
   void deinit();
+
+  MIRValue *getInstr(MIRValueId id);
+  MIRBlock *getBlock(MIRBlockId id);
+  MIRScope *getScope(MIRScopeId id);
 };
 
 struct MIRBuilder {
-  MIRBlock *block;
-  MIRScope *scope;
+  Option<MIRBlockId> block;
+  Option<MIRScopeId> scope;
   MIRModule *module;
 
-  MIRBlock *appendBlock(MIRValue *function, String name);
+  void setSourceLocation(MIRValueId inst, SrcLoc location);
 
-  MIRValue *insert(MIRValue inst, bool global = false,
-                   String name = {.ptr = nullptr});
+  MIRBlockId appendBlock(MIRValueId function, String name);
+  MIRScopeId makeScope(MIRValueId parent);
 
-  MIRValue *buildAlloca(MIRValue *type, String name);
-  MIRValue *buildLoad(MIRValue *ptr, String name = {.ptr = nullptr});
-  MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
+  MIRValueId insert(MIRValue inst, bool global = false,
+                    String name = {.ptr = nullptr});
 
-  MIRValue *buildArg(MIRValue *type, String name);
+  MIRValueId buildAlloca(MIRValueId type, String name);
+  MIRValueId buildLoad(MIRValueId ptr, String name = {.ptr = nullptr});
+  MIRValueId buildStore(MIRValueId value, MIRValueId ptr);
 
-  MIRValue *buildBinOp(MIRValue *lhs, MIRValue *rhs, MIROpcode opcode,
+  MIRValueId buildArg(MIRValueId type, String name);
+
+  MIRValueId buildBinOp(MIRValueId lhs, MIRValueId rhs, MIROpcode opcode,
+                        String name = {.ptr = nullptr});
+  MIRValueId buildUnaryOp(MIRValueId value, MIROpcode opcode,
+                          String name = {.ptr = nullptr});
+
+  MIRValueId buildCall(MIRValueId callee, Slice<MIRValueId> arguments,
+                       Option<MIRValueId> receiver,
                        String name = {.ptr = nullptr});
-  MIRValue *buildUnaryOp(MIRValue *value, MIROpcode opcode,
+
+  MIRValueId buildGEP(MIRValueId ptr, MIRValueId index,
+                      String name = {.ptr = nullptr});
+  MIRValueId buildLookup(MIRValueId ptr, String member,
                          String name = {.ptr = nullptr});
 
-  MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
-                      MIRValue *receiver, String name = {.ptr = nullptr});
+  // If `value` is none then this returns `void`
+  MIRValueId buildReturn(Option<MIRValueId> value);
 
-  MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
-                     String name = {.ptr = nullptr});
-  MIRValue *buildLookup(MIRValue *ptr, String member,
-                        String name = {.ptr = nullptr});
+  MIRValueId buildBr(MIRBlockId block);
+  MIRValueId buildCondBr(MIRValueId condition, MIRBlockId then,
+                         MIRBlockId _else);
 
-  // If `value` is null then this returns `void`
-  MIRValue *buildReturn(MIRValue *value);
+  MIRValueId buildSwitch(MIRValueId value, MIRBlockId default_block,
+                         size_t cases);
+  void addCase(MIRValueId _switch, MIRValueId onval, MIRBlockId then);
 
-  MIRValue *buildBr(MIRBlock *block);
-  MIRValue *buildCondBr(MIRValue *condition, MIRBlock *then, MIRBlock *_else);
+  MIRValueId buildComptime(String name);
+  MIRValueId buildTypeOf(MIRValueId value, String name);
 
-  MIRValue *buildSwitch(MIRValue *value, MIRBlock *default_block, size_t cases);
-  void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
+  MIRValueId buildGlobalVariable(Option<MIRValueId> type,
+                                 Option<MIRValueId> constant, String name);
+  MIRValueId buildFunction(Slice<MIRValueId> parameters,
+                           Option<MIRValueId> return_type, String name);
 
-  MIRValue *buildComptime(String name);
-  MIRValue *buildTypeOf(MIRValue *value, String name);
-
-  MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
-                                String name);
-  MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
-                          String name);
-
-  MIRValue *buildStruct(Slice<MIRStruct::Field> fields, String name);
-  MIRValue *buildEnum(MIRValue *repr_type, Slice<MIREnum::Member> members,
-                      String name);
-  MIRValue *buildUnion(MIRValue *repr_type, Slice<MIRStruct::Field> variants,
+  MIRValueId buildStruct(Slice<MIRStruct::Field> fields, String name);
+  MIRValueId buildEnum(MIRValueId repr_type, Slice<MIREnum::Member> members,
                        String name);
-  MIRValue *buildNamespace(String name);
-  MIRValue *buildSlice(MIRValue *element, MIRValue *length, bool is_pointer,
-                       String name);
+  MIRValueId buildUnion(MIRValueId repr_type, Slice<MIRStruct::Field> variants,
+                        String name);
+  MIRValueId buildNamespace(String name);
+  MIRValueId buildSlice(MIRValueId element, Option<MIRValueId> length,
+                        bool is_pointer, String name);
 };

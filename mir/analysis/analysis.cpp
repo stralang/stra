@@ -9,8 +9,8 @@ void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope);
 // --- Forward Declarations ---
 
 void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
-  MIRValue *lhs = inst->binop.lhs;
-  MIRValue *rhs = inst->binop.rhs;
+  MIRValue *lhs = module->getInstr(inst->binop.lhs);
+  MIRValue *rhs = module->getInstr(inst->binop.rhs);
   analyse(analyser, module, lhs);
   analyse(analyser, module, rhs);
 
@@ -153,15 +153,16 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 }
 
 void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
-  analyse(analyser, module, inst->unaryop.value);
+  MIRValue *operand = module->getInstr(inst->unaryop.value);
+  analyse(analyser, module, operand);
 
-  Type *child_primitive = inst->unaryop.value->result_type;
+  Type *child_primitive = operand->result_type;
 
   switch (inst->unaryop.opcode) {
   case MIROpcode::Minus: {
     if (child_primitive->kind != TypeKind::Integer &&
         child_primitive->kind != TypeKind::Float) {
-      expect(false, inst->unaryop.value->source_location,
+      expect(false, operand->source_location,
              "Child must be of Integer, Float, or SIMD. Got `"
                  << child_primitive << "`");
     }
@@ -177,15 +178,13 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIROpcode::LogicalNot: {
-    expect(child_primitive->kind == TypeKind::Bool,
-           inst->unaryop.value->source_location,
+    expect(child_primitive->kind == TypeKind::Bool, operand->source_location,
            "Child must be Bool. Got `" << child_primitive << "`");
     inst->result_type = child_primitive;
     break;
   }
   case MIROpcode::BitwiseNot: {
-    expect(child_primitive->kind == TypeKind::Integer,
-           inst->unaryop.value->source_location,
+    expect(child_primitive->kind == TypeKind::Integer, operand->source_location,
            "Child must be Integer. Got `" << child_primitive << "`");
     inst->result_type = child_primitive;
     break;
@@ -196,10 +195,11 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::Alloca: {
+    MIRValue *type_inst = module->getInstr(inst->alloca.type);
     MIRLiteral type_literal =
-        analyser->comptime_state.execute(module, inst->alloca.type);
+        analyser->comptime_state.execute(module, type_inst);
     expect(type_literal.lit_type->kind == TypeKind::TypeId,
-           inst->alloca.type->source_location, "Field type must be a typeid");
+           type_inst->source_location, "Field type must be a typeid");
 
     inst->result_type = module->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
@@ -209,25 +209,29 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Load: {
-    analyse(analyser, module, inst->load.ptr);
-    expect(inst->load.ptr->result_type->kind == TypeKind::Pointer,
-           inst->load.ptr->source_location, "!MIR! Can only load from pointer");
-    inst->result_type = inst->load.ptr->result_type->child;
+    MIRValue *ptr_inst = module->getInstr(inst->load.ptr);
+    analyse(analyser, module, ptr_inst);
+    expect(ptr_inst->result_type->kind == TypeKind::Pointer,
+           ptr_inst->source_location, "!MIR! Can only load from pointer");
+    inst->result_type = ptr_inst->result_type->child;
     break;
   }
   case MIRValueKind::Store: {
-    analyse(analyser, module, inst->store.ptr);
-    analyse(analyser, module, inst->store.value);
-    autoCast(analyser, inst->store.value, inst->store.ptr->result_type->child);
-    expect(inst->store.ptr->result_type->child ==
-               inst->store.value->result_type,
+    MIRValue *ptr_inst = module->getInstr(inst->store.ptr);
+    MIRValue *value_inst = module->getInstr(inst->store.value);
+
+    analyse(analyser, module, ptr_inst);
+    analyse(analyser, module, value_inst);
+    autoCast(analyser, value_inst, ptr_inst->result_type->child);
+    expect(ptr_inst->result_type->child == value_inst->result_type,
            inst->source_location, "Cannot assign non-matching types");
     inst->result_type = nullptr;
     break;
   }
   case MIRValueKind::Arg: {
+    MIRValue *arg_type_inst = module->getInstr(inst->arg.type);
     MIRLiteral arg_literal =
-        analyser->comptime_state.execute(module, inst->arg.type);
+        analyser->comptime_state.execute(module, arg_type_inst);
 
     inst->result_type = module->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
@@ -245,7 +249,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Call: {
-    MIRValue *callee = inst->call.callee;
+    MIRValue *callee = module->getInstr(inst->call.callee);
     analyse(analyser, module, callee);
 
     // Auto dereference
@@ -262,30 +266,31 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
     // Get receiver
     size_t initial_idx = 0;
-    if (inst->call.receiver != nullptr) {
-      analyse(analyser, module, inst->call.receiver);
+    if (inst->call.receiver.isSome()) {
+      MIRValue *receiver_inst = module->getInstr(inst->call.receiver.get());
+      analyse(analyser, module, receiver_inst);
 
-      if (inst->call.receiver->result_type->kind != TypeKind::TypeId) {
+      if (receiver_inst->result_type->kind != TypeKind::TypeId) {
         expect(fn_type->function.arguments.len >= 1,
-               inst->call.receiver->source_location,
+               receiver_inst->source_location,
                "Receiver expects method with atleast 1 argument");
 
         Type *expected_type = fn_type->function.arguments.ptr[0];
-        Type *receiver_type = inst->call.receiver->result_type;
+        Type *receiver_type = receiver_inst->result_type;
         expect(compareTypes(expected_type, receiver_type),
-               inst->call.receiver->source_location,
+               receiver_inst->source_location,
                "Receiver `" << receiver_type << "` doesn't match `"
                             << expected_type << "`");
 
         initial_idx = 1;
       } else {
-        inst->call.receiver = nullptr;
+        inst->call.receiver.setNone();
       }
     }
 
     // Analyse arguments
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
-      MIRValue *arg = inst->call.arguments.ptr[i];
+      MIRValue *arg = module->getInstr(inst->call.arguments.ptr[i]);
       if (i > fn_type->function.arguments.len - initial_idx) {
         expect(false, arg->source_location, "Too many arguments");
         break;
@@ -306,8 +311,8 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
   case MIRValueKind::GEP: {
     // Analyse Pointer
-    analyse(analyser, module, inst->gep.ptr);
-    MIRValue *ptr = inst->gep.ptr;
+    MIRValue *ptr = module->getInstr(inst->gep.ptr);
+    analyse(analyser, module, ptr);
     expect(ptr->result_type->child->kind == TypeKind::Slice,
            inst->source_location, "Cannot index into non-slice");
 
@@ -323,8 +328,8 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
     });
 
-    analyse(analyser, module, inst->gep.index);
-    MIRValue *index = inst->gep.index;
+    MIRValue *index = module->getInstr(inst->gep.index);
+    analyse(analyser, module, index);
     fixUntyped(analyser, index, usize_ty);
     expect(index->result_type->kind == TypeKind::Integer &&
                !index->result_type->integer.is_signed &&
@@ -333,25 +338,28 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Return: {
-    if (inst->parent->parent->kind == MIRValueKind::Function) {
-      MIRValue *function = inst->parent->parent;
+    MIRBlock *parent_block = module->getBlock(inst->parent);
+    MIRValue *function = module->getInstr(parent_block->parent);
+    if (function->kind == MIRValueKind::Function) {
       Type *expected_type = function->result_type->function.return_type;
 
-      if (inst->ret.value == nullptr) {
+      if (inst->ret.value.isNone()) {
         expect(expected_type->kind == TypeKind::Void, inst->source_location,
                "Function expects return value");
       } else {
-        analyse(analyser, module, inst->ret.value);
-        autoCast(analyser, inst->ret.value, expected_type);
+        MIRValue *value_inst = module->getInstr(inst->ret.value.get());
+        analyse(analyser, module, value_inst);
+        autoCast(analyser, value_inst, expected_type);
 
-        expect(compareTypes(expected_type, inst->ret.value->result_type),
-               inst->ret.value->source_location,
-               "Unexpected return type. Got `" << inst->ret.value->result_type
-                                               << "` Expected `"
-                                               << expected_type << "`");
+        expect(compareTypes(expected_type, value_inst->result_type),
+               value_inst->source_location,
+               "Unexpected return type. Got `"
+                   << value_inst->result_type << "` Expected `" << expected_type
+                   << "`");
       }
-    } else if (inst->ret.value != nullptr) {
-      analyse(analyser, module, inst->ret.value);
+    } else if (inst->ret.value.isSome()) {
+      MIRValue *value_inst = module->getInstr(inst->ret.value.get());
+      analyse(analyser, module, value_inst);
     }
 
     inst->result_type = nullptr;
@@ -362,17 +370,19 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     break;
   }
   case MIRValueKind::CondBranch: {
-    analyse(analyser, module, inst->condbr.condition);
-    expect(inst->condbr.condition->result_type->kind == TypeKind::Bool,
+    MIRValue *cond_inst = module->getInstr(inst->condbr.condition);
+    analyse(analyser, module, cond_inst);
+    expect(cond_inst->result_type->kind == TypeKind::Bool,
            inst->source_location, "Conditional must be Bool");
     inst->result_type = nullptr;
     break;
   }
   case MIRValueKind::Switch: {
-    analyse(analyser, module, inst->_switch.condition);
+    MIRValue *cond_inst = module->getInstr(inst->_switch.condition);
+    analyse(analyser, module, cond_inst);
 
     for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
-      MIRValue *on_val = inst->_switch.onvals.ptr[i];
+      MIRValue *on_val = module->getInstr(inst->_switch.onvals.ptr[i]);
       analyse(analyser, module, on_val);
 
       MIRLiteral onval_literal =
@@ -405,21 +415,27 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       Type *child = inst->result_type->child;
       switch (child->kind) {
       case TypeKind::Struct: {
-        analyseScope(analyser, module,
-                     child->_struct.inst->_struct.definitions);
+        MIRScope *scope =
+            module->getScope(child->_struct.inst->_struct.definitions);
+        analyseScope(analyser, module, scope);
         break;
       }
       case TypeKind::Enum: {
-        analyseScope(analyser, module, child->_enum.inst->_enum.definitions);
+        MIRScope *scope =
+            module->getScope(child->_enum.inst->_enum.definitions);
+        analyseScope(analyser, module, scope);
         break;
       }
       case TypeKind::Union: {
-        analyseScope(analyser, module, child->_union.inst->_union.definitions);
+        MIRScope *scope =
+            module->getScope(child->_union.inst->_union.definitions);
+        analyseScope(analyser, module, scope);
         break;
       }
       case TypeKind::Namespace: {
-        analyseScope(analyser, module,
-                     child->_namespace.inst->_namespace.definitions);
+        MIRScope *scope =
+            module->getScope(child->_namespace.inst->_namespace.definitions);
+        analyseScope(analyser, module, scope);
         break;
       }
       }
@@ -431,11 +447,11 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     inst->result_type = type._typeid;
 
     // Analyse Body
-    if (inst->function.globals != nullptr) {
-      analyseScope(analyser, module, inst->function.globals);
-      for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        analyseBlock(analyser, module, inst->function.blocks.getUnchecked(i));
-      }
+    MIRScope *global_scope = module->getScope(inst->function.globals);
+    analyseScope(analyser, module, global_scope);
+    for (size_t i = 0; i < inst->function.blocks.length; i++) {
+      MIRBlock *block = module->getBlock(inst->function.blocks.getUnchecked(i));
+      analyseBlock(analyser, module, block);
     }
     break;
   }
@@ -454,18 +470,21 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
 void analyseBlock(MIRAnalyser *analyser, MIRModule *module, MIRBlock *block) {
   for (size_t i = 0; i < block->instructions.length; i++) {
-    analyse(analyser, module, block->instructions.getUnchecked(i));
+    MIRValue *inst = module->getInstr(block->instructions.getUnchecked(i));
+    analyse(analyser, module, inst);
   }
 }
 
 void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope) {
   for (size_t i = 0; i < scope->list.length; i++) {
-    analyse(analyser, module, scope->list.getUnchecked(i));
+    MIRValue *inst = module->getInstr(scope->list.getUnchecked(i));
+    analyse(analyser, module, inst);
   }
 }
 
 void MIRAnalyser::analyse(MIRModule *module) {
-  analyseScope(this, module, module->definitions);
+  MIRScope *scope = module->getScope(module->definitions);
+  analyseScope(this, module, scope);
 }
 
 void MIRAnalyser::init(Allocator *allocator) {

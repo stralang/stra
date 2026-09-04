@@ -2,20 +2,20 @@
 
 #include "mirgen.hpp"
 
-MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId addr(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId gen(MIRGen *mirgen, Node *node, Symbol *scope);
 void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope);
 
-MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genAssignment(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genUnary(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genBinary(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope);
 
-MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope);
-MIRValue *genNamespace(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genStruct(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genEnum(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genUnion(MIRGen *mirgen, Node *node, Symbol *scope);
+MIRValueId genNamespace(MIRGen *mirgen, Node *node, Symbol *scope);
 
-MIRValue *genBuiltin(MIRGen *mirgen, String name);
+Option<MIRValueId> genBuiltin(MIRGen *mirgen, String name);
 
-MIRValue *valueToMIR(MIRGen *mirgen, Value *value);
+MIRValueId valueToMIR(MIRGen *mirgen, Value *value);

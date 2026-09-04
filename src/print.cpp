@@ -919,9 +919,9 @@ std::ostream &operator<<(std::ostream &os, const Type &type) {
 }
 
 // MIR
-void MIRPrintInst(MIRValue *inst);   // Forward Declaration
-void MIRPrintBlock(MIRBlock *block); // Forward Declaration
-void MIRPrintScope(MIRScope *scope); // Forward Declaration
+void MIRPrintInst(MIRModule *mod, MIRValueId id);  // Forward Declaration
+void MIRPrintBlock(MIRModule *mod, MIRBlockId id); // Forward Declaration
+void MIRPrintScope(MIRModule *mod, MIRScopeId id); // Forward Declaration
 
 void MIRPrintLiteral(MIRLiteral *literal) {
   switch (literal->kind) {
@@ -1052,11 +1052,12 @@ void MIRPrintOpcode(MIROpcode opcode) {
   }
 }
 
-void MIRPrintBlockName(MIRBlock *block) {
+void MIRPrintBlockName(MIRModule *mod, MIRBlockId id) {
+  MIRBlock *block = mod->getBlock(id);
   if (block->name.ptr != nullptr) {
     std::cout << block->name << "#";
   }
-  std::cout << block->id;
+  std::cout << block->id.local;
 }
 
 void MIRPrintName(MIRValue *value) {
@@ -1064,10 +1065,11 @@ void MIRPrintName(MIRValue *value) {
   if (value->name.ptr != nullptr) {
     std::cout << value->name << "#";
   }
-  std::cout << value->id;
+  std::cout << value->id.local;
 }
 
-void MIRPrintRef(MIRValue *value) {
+void MIRPrintRef(MIRModule *mod, MIRValueId id) {
+  MIRValue *value = mod->getInstr(id);
   if (value == nullptr) {
     std::cout << "null";
   } else if (value->kind == MIRValueKind::Literal) {
@@ -1077,7 +1079,9 @@ void MIRPrintRef(MIRValue *value) {
   }
 }
 
-void MIRPrintInst(MIRValue *inst) {
+void MIRPrintInst(MIRModule *mod, MIRValueId id) {
+  MIRValue *inst = mod->getInstr(id);
+
   switch (inst->kind) {
   case MIRValueKind::Nop: {
     break;
@@ -1085,27 +1089,27 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::Alloca: {
     MIRPrintName(inst);
     std::cout << " = alloca `";
-    MIRPrintRef(inst->alloca.type);
+    MIRPrintRef(mod, inst->alloca.type);
     std::cout << "`";
     break;
   }
   case MIRValueKind::Load: {
     MIRPrintName(inst);
     std::cout << " = load ";
-    MIRPrintRef(inst->load.ptr);
+    MIRPrintRef(mod, inst->load.ptr);
     break;
   }
   case MIRValueKind::Store: {
     std::cout << "store ";
-    MIRPrintRef(inst->store.value);
+    MIRPrintRef(mod, inst->store.value);
     std::cout << ", ";
-    MIRPrintRef(inst->store.ptr);
+    MIRPrintRef(mod, inst->store.ptr);
     break;
   }
   case MIRValueKind::Arg: {
     MIRPrintName(inst);
     std::cout << " = arg `";
-    MIRPrintRef(inst->arg.type);
+    MIRPrintRef(mod, inst->arg.type);
     std::cout << "`";
     break;
   }
@@ -1114,9 +1118,9 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << " = ";
     MIRPrintOpcode(inst->binop.opcode);
     std::cout << " ";
-    MIRPrintRef(inst->binop.lhs);
+    MIRPrintRef(mod, inst->binop.lhs);
     std::cout << ", ";
-    MIRPrintRef(inst->binop.rhs);
+    MIRPrintRef(mod, inst->binop.rhs);
     break;
   }
   case MIRValueKind::UnaryOp: {
@@ -1124,13 +1128,13 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << " = ";
     MIRPrintOpcode(inst->unaryop.opcode);
     std::cout << " ";
-    MIRPrintRef(inst->unaryop.value);
+    MIRPrintRef(mod, inst->unaryop.value);
     break;
   }
   case MIRValueKind::Lookup: {
     MIRPrintName(inst);
     std::cout << " = lookup ";
-    MIRPrintRef(inst->lookup.parent);
+    MIRPrintRef(mod, inst->lookup.parent);
     std::cout << " \"";
     std::cout.write((const char *)inst->lookup.member.ptr,
                     inst->lookup.member.len);
@@ -1140,63 +1144,63 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::GEP: {
     MIRPrintName(inst);
     std::cout << " = gep ";
-    MIRPrintRef(inst->gep.ptr);
+    MIRPrintRef(mod, inst->gep.ptr);
     std::cout << ", ";
-    MIRPrintRef(inst->gep.index);
+    MIRPrintRef(mod, inst->gep.index);
     break;
   }
   case MIRValueKind::Call: {
     MIRPrintName(inst);
     std::cout << " = call ";
-    MIRPrintRef(inst->call.callee);
+    MIRPrintRef(mod, inst->call.callee);
     std::cout << "(";
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
       if (i != 0) {
         std::cout << ", ";
       }
 
-      MIRPrintRef(inst->call.arguments.ptr[i]);
+      MIRPrintRef(mod, inst->call.arguments.ptr[i]);
     }
     std::cout << ")";
 
-    if (inst->call.receiver != nullptr) {
+    if (inst->call.receiver.isSome()) {
       std::cout << " Receiver: ";
-      MIRPrintRef(inst->call.receiver);
+      MIRPrintRef(mod, inst->call.receiver.get());
     }
     break;
   }
   case MIRValueKind::Return: {
     std::cout << "ret";
-    if (inst->ret.value != nullptr) {
+    if (inst->ret.value.isSome()) {
       std::cout << ' ';
-      MIRPrintRef(inst->ret.value);
+      MIRPrintRef(mod, inst->ret.value.get());
     }
     break;
   }
   case MIRValueKind::Branch: {
     std::cout << "br @";
-    MIRPrintBlockName(inst->br);
+    MIRPrintBlockName(mod, inst->br);
     break;
   }
   case MIRValueKind::CondBranch: {
     std::cout << "condbr ";
-    MIRPrintRef(inst->condbr.condition);
+    MIRPrintRef(mod, inst->condbr.condition);
     std::cout << ", @";
-    MIRPrintBlockName(inst->condbr.then);
+    MIRPrintBlockName(mod, inst->condbr.then);
     std::cout << ", @";
-    MIRPrintBlockName(inst->condbr._else);
+    MIRPrintBlockName(mod, inst->condbr._else);
     break;
   }
   case MIRValueKind::Switch: {
     std::cout << "switch ";
-    MIRPrintRef(inst->_switch.condition);
+    MIRPrintRef(mod, inst->_switch.condition);
     std::cout << "[\n";
 
     for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
       std::cout << "    ";
-      MIRPrintRef(inst->_switch.onvals.ptr[i]);
+      MIRPrintRef(mod, inst->_switch.onvals.ptr[i]);
       std::cout << ", @";
-      MIRPrintBlockName(inst->_switch.blocks.ptr[i]);
+      MIRPrintBlockName(mod, inst->_switch.blocks.ptr[i]);
       std::cout << "\n";
     }
     std::cout << "  ]";
@@ -1207,7 +1211,7 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintName(inst);
     std::cout << " = comptime {\n";
     for (size_t i = 0; i < inst->comptime.blocks.length; i++) {
-      MIRPrintBlock(inst->comptime.blocks.getUnchecked(i));
+      MIRPrintBlock(mod, inst->comptime.blocks.getUnchecked(i));
     }
     std::cout << "}";
     break;
@@ -1215,16 +1219,22 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::TypeOf: {
     MIRPrintName(inst);
     std::cout << " = typeof ";
-    MIRPrintRef(inst->_typeof);
+    MIRPrintRef(mod, inst->_typeof);
     break;
   }
 
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);
-    std::cout << " = global `";
-    MIRPrintRef(inst->global_variable.type);
-    std::cout << "`, ";
-    MIRPrintRef(inst->global_variable.constant);
+    std::cout << " = global ";
+    if (inst->global_variable.type.isSome()) {
+      std::cout << "`";
+      MIRPrintRef(mod, inst->global_variable.type.get());
+      std::cout << "`, ";
+    }
+
+    if (inst->global_variable.constant.isSome()) {
+      MIRPrintRef(mod, inst->global_variable.constant.get());
+    }
     break;
   }
   case MIRValueKind::Function: {
@@ -1234,15 +1244,19 @@ void MIRPrintInst(MIRValue *inst) {
       if (i != 0) {
         std::cout << ", ";
       }
-      MIRPrintRef(inst->function.parameter_types.ptr[i]);
+      MIRPrintRef(mod, inst->function.parameter_types.ptr[i]);
     }
     std::cout << ") ";
-    MIRPrintRef(inst->function.return_type);
+    if (inst->function.return_type.isSome()) {
+      MIRPrintRef(mod, inst->function.return_type.get());
+      std::cout << " ";
+    }
+
     if (inst->function.blocks.data.ptr != nullptr) {
-      std::cout << " {\n";
-      MIRPrintScope(inst->function.globals);
+      std::cout << "{\n";
+      MIRPrintScope(mod, inst->function.globals);
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        MIRPrintBlock(inst->function.blocks.getUnchecked(i));
+        MIRPrintBlock(mod, inst->function.blocks.getUnchecked(i));
       }
       std::cout << "}";
     }
@@ -1261,71 +1275,71 @@ void MIRPrintInst(MIRValue *inst) {
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       MIRStruct::Field *field = inst->_struct.fields.ptr + i;
       std::cout << field->name << ": `";
-      MIRPrintRef(field->type);
+      MIRPrintRef(mod, field->type);
       std::cout << "`\n";
     }
 
-    if (inst->_struct.definitions->list.length > 0) {
-      std::cout << "\n";
-      MIRPrintScope(inst->_struct.definitions);
-    }
+    // if (inst->_struct.definitions->list.length > 0) {
+    std::cout << "\n";
+    MIRPrintScope(mod, inst->_struct.definitions);
+    // }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Enum: {
     MIRPrintName(inst);
     std::cout << " = enum `";
-    MIRPrintRef(inst->_enum.repr_type);
+    MIRPrintRef(mod, inst->_enum.repr_type);
     std::cout << "` {\n";
     for (size_t i = 0; i < inst->_enum.members.len; i++) {
       MIREnum::Member *member = inst->_enum.members.ptr + i;
       std::cout << member->name << ": `";
-      MIRPrintRef(member->constant);
+      MIRPrintRef(mod, member->constant);
       std::cout << "`\n";
     }
 
-    if (inst->_enum.definitions->list.length > 0) {
-      std::cout << "\n";
-      MIRPrintScope(inst->_enum.definitions);
-    }
+    // if (inst->_enum.definitions->list.length > 0) {
+    std::cout << "\n";
+    MIRPrintScope(mod, inst->_enum.definitions);
+    // }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Union: {
     MIRPrintName(inst);
     std::cout << " = union `";
-    MIRPrintRef(inst->_union.repr_type);
+    MIRPrintRef(mod, inst->_union.repr_type);
     std::cout << "` {\n";
     for (size_t i = 0; i < inst->_union.variants.len; i++) {
       MIRStruct::Field *field = inst->_union.variants.ptr + i;
       std::cout << field->name << ": `";
-      MIRPrintRef(field->type);
+      MIRPrintRef(mod, field->type);
       std::cout << "`\n";
     }
 
-    if (inst->_union.definitions->list.length > 0) {
-      std::cout << "\n";
-      MIRPrintScope(inst->_union.definitions);
-    }
+    // if (inst->_union.definitions->list.length > 0) {
+    std::cout << "\n";
+    MIRPrintScope(mod, inst->_union.definitions);
+    // }
     std::cout << "}";
     break;
   }
   case MIRValueKind::Namespace: {
     MIRPrintName(inst);
     std::cout << " = namespace {\n";
-    MIRPrintScope(inst->_namespace.definitions);
+    MIRPrintScope(mod, inst->_namespace.definitions);
     std::cout << "}";
     break;
   }
   case MIRValueKind::Slice: {
     MIRPrintName(inst);
     std::cout << " = [";
-    MIRPrintRef(inst->slice.element);
+    MIRPrintRef(mod, inst->slice.element);
     if (inst->slice.is_pointer) {
       std::cout << " *";
-    } else if (inst->slice.length != nullptr) {
+    } else if (inst->slice.length.isSome()) {
       std::cout << " x ";
-      MIRPrintRef(inst->slice.length);
+      MIRPrintRef(mod, inst->slice.length.get());
     }
     std::cout << "]";
     break;
@@ -1335,19 +1349,21 @@ void MIRPrintInst(MIRValue *inst) {
   std::cout << "\n";
 }
 
-void MIRPrintBlock(MIRBlock *block) {
-  MIRPrintBlockName(block);
+void MIRPrintBlock(MIRModule *mod, MIRBlockId id) {
+  MIRBlock *block = mod->getBlock(id);
+  MIRPrintBlockName(mod, id);
   std::cout << ":\n";
   for (size_t i = 0; i < block->instructions.length; i++) {
     std::cout << "  ";
-    MIRPrintInst(block->instructions.getUnchecked(i));
+    MIRPrintInst(mod, block->instructions.getUnchecked(i));
   }
 }
 
-void MIRPrintScope(MIRScope *scope) {
+void MIRPrintScope(MIRModule *mod, MIRScopeId id) {
+  MIRScope *scope = mod->getScope(id);
   for (size_t i = 0; i < scope->list.length; i++) {
-    MIRPrintInst(scope->list.getUnchecked(i));
+    MIRPrintInst(mod, scope->list.getUnchecked(i));
   }
 }
 
-void printMIRModule(MIRModule *mod) { MIRPrintScope(mod->definitions); }
+void printMIRModule(MIRModule *mod) { MIRPrintScope(mod, mod->definitions); }

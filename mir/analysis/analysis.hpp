@@ -7,6 +7,7 @@
 
 struct MIRAnalyser {
   MIRComptime comptime_state;
+  MIRContext *ctx;
 
   DynamicArena arena;
   Allocator *allocator;

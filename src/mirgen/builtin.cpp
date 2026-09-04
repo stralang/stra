@@ -4,7 +4,7 @@
 #include "mirgen.hpp"
 #include <charconv>
 
-MIRValue *genBuiltin(MIRGen *mirgen, String name) {
+Option<MIRValueId> genBuiltin(MIRGen *mirgen, String name) {
   std::string str((const char *)name.ptr, name.len);
 
   Type *out_type = nullptr;
@@ -64,10 +64,10 @@ MIRValue *genBuiltin(MIRGen *mirgen, String name) {
     literal.kind = MIRLiteralKind::Typed;
     literal._bool = false;
   } else {
-    return nullptr;
+    return {};
   }
 
   MIRValue value = {.kind = MIRValueKind::Literal};
   value.literal = literal;
-  return mirgen->ctx->make(value);
+  return Option<MIRValueId>::from(mirgen->builder.insert(value));
 }

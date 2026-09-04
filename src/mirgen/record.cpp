@@ -2,13 +2,11 @@
 #include "mir.hpp"
 
 void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
-             MIRScope *out) {
-  out->list.init(mirgen->module.arena.allocator, list->length);
-
-  MIRBlock *prev_block = mirgen->builder.block;
-  MIRScope *prev_scope = mirgen->builder.scope;
-  mirgen->builder.block = nullptr;
-  mirgen->builder.scope = out;
+             MIRScopeId out) {
+  Option<MIRBlockId> prev_block = mirgen->builder.block;
+  Option<MIRScopeId> prev_scope = mirgen->builder.scope;
+  mirgen->builder.block.setNone();
+  mirgen->builder.scope.setSome(out);
 
   // Generate Declarations
   for (size_t i = 0; i < list->length; i++) {
@@ -24,7 +22,7 @@ void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
   mirgen->builder.block = prev_block;
 }
 
-MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *struct_symbol = scope->findSymbolByNode(node);
 
   // Fields
@@ -42,23 +40,22 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  MIRValue *value = mirgen->builder.buildStruct(fields, {.ptr = nullptr});
-  value->source_location = node->location;
+  MIRValueId value = mirgen->builder.buildStruct(fields, {.ptr = nullptr});
+  mirgen->builder.setSourceLocation(value, node->location);
 
   // Definitions
-  value->_struct.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-  mirgen->symbol_to_scope.insert(struct_symbol, value->_struct.definitions);
-  genList(mirgen, &node->_struct.body, struct_symbol,
-          value->_struct.definitions);
+  MIRScopeId definitions = mirgen->builder.makeScope(value);
+  mirgen->symbol_to_scope.insert(struct_symbol, definitions);
+  genList(mirgen, &node->_struct.body, struct_symbol, definitions);
+  mirgen->module.getInstr(value)->_struct.definitions = definitions;
 
   return value;
 }
 
-MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *enum_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
+  MIRValueId repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
 
   // Members
   Slice<MIREnum::Member> members = {
@@ -75,23 +72,23 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  MIRValue *value =
+  MIRValueId value =
       mirgen->builder.buildEnum(repr_type, members, {.ptr = nullptr});
-  value->source_location = node->location;
+  mirgen->builder.setSourceLocation(value, node->location);
 
   // Definitions
-  value->_enum.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-  mirgen->symbol_to_scope.insert(enum_symbol, value->_enum.definitions);
-  genList(mirgen, &node->_enum.body, enum_symbol, value->_enum.definitions);
+  MIRScopeId definitions = mirgen->builder.makeScope(value);
+  mirgen->symbol_to_scope.insert(enum_symbol, definitions);
+  genList(mirgen, &node->_enum.body, enum_symbol, definitions);
+  mirgen->module.getInstr(value)->_enum.definitions = definitions;
 
   return value;
 }
 
-MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *union_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *repr_type = gen(mirgen, node->_union.repr_type, union_symbol);
+  MIRValueId repr_type = gen(mirgen, node->_union.repr_type, union_symbol);
 
   // Variants
   Slice<MIRStruct::Field> variants = {
@@ -108,30 +105,28 @@ MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  MIRValue *value =
+  MIRValueId value =
       mirgen->builder.buildUnion(repr_type, variants, {.ptr = nullptr});
-  value->source_location = node->location;
+  mirgen->builder.setSourceLocation(value, node->location);
 
   // Definitions
-  value->_union.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-  mirgen->symbol_to_scope.insert(union_symbol, value->_union.definitions);
-  genList(mirgen, &node->_union.body, union_symbol, value->_union.definitions);
+  MIRScopeId definitions = mirgen->builder.makeScope(value);
+  mirgen->symbol_to_scope.insert(union_symbol, definitions);
+  genList(mirgen, &node->_union.body, union_symbol, definitions);
+  mirgen->module.getInstr(value)->_union.definitions = definitions;
 
   return value;
 }
 
-MIRValue *genNamespace(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genNamespace(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *namespace_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *value = mirgen->builder.buildNamespace({.ptr = nullptr});
-  value->source_location = node->location;
-  value->_namespace.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-  mirgen->symbol_to_scope.insert(namespace_symbol,
-                                 value->_namespace.definitions);
+  MIRValueId value = mirgen->builder.buildNamespace({.ptr = nullptr});
+  mirgen->builder.setSourceLocation(value, node->location);
 
-  genList(mirgen, &node->children, namespace_symbol,
-          value->_namespace.definitions);
+  MIRScopeId definitions = mirgen->builder.makeScope(value);
+  mirgen->symbol_to_scope.insert(namespace_symbol, definitions);
+  genList(mirgen, &node->children, namespace_symbol, definitions);
+
   return value;
 }

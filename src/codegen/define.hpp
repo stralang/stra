@@ -7,7 +7,7 @@
 #include <llvm-c/Core.h>
 
 // Base
-LLVMValueRef getReference(CodeGenModule *codegen, MIRValue *value);
+LLVMValueRef getReference(CodeGenModule *codegen, MIRValueId value);
 void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst);
 void genDeclaration(CodeGenModule *codegen, MIRValue *inst);
 

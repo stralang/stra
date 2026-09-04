@@ -100,12 +100,15 @@ void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real) {
   inst->result_type = real;
   switch (inst->kind) {
   case MIRValueKind::BinOp: {
-    fixUntyped(analyser, inst->binop.lhs, real);
-    fixUntyped(analyser, inst->binop.rhs, real);
+    MIRValue *lhs_inst = analyser->ctx->getInstr(inst->binop.lhs);
+    MIRValue *rhs_inst = analyser->ctx->getInstr(inst->binop.rhs);
+    fixUntyped(analyser, lhs_inst, real);
+    fixUntyped(analyser, rhs_inst, real);
     break;
   }
   case MIRValueKind::UnaryOp: {
-    fixUntyped(analyser, inst->unaryop.value, real);
+    MIRValue *value_inst = analyser->ctx->getInstr(inst->unaryop.value);
+    fixUntyped(analyser, value_inst, real);
     break;
   }
   case MIRValueKind::Literal: {

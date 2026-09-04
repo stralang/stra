@@ -3,29 +3,32 @@
 #include "define.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
+#include <cstdint>
 #include <iostream>
 
-MIRValue *genComptime(MIRGen *mirgen, Node *child, Symbol *scope) {
-  MIRValue *value = mirgen->builder.buildComptime(str("comptime"));
-  value->comptime.blocks.init(mirgen->allocator, 32);
+MIRValueId genComptime(MIRGen *mirgen, Node *child, Symbol *scope) {
+  MIRValueId value = mirgen->builder.buildComptime(str("comptime"));
 
-  MIRBlock *prev_block = mirgen->builder.block;
-  mirgen->builder.block = mirgen->builder.appendBlock(value, str("entry"));
+  Option<MIRBlockId> prev_block = mirgen->builder.block;
+  mirgen->builder.block.setSome(
+      mirgen->builder.appendBlock(value, str("entry")));
 
-  MIRValue *output = gen(mirgen, child, scope);
-  if (!mirgen->builder.block->hasTerminator()) {
-    mirgen->builder.buildReturn(output);
+  MIRValueId output = gen(mirgen, child, scope);
+  MIRBlock *current_block =
+      mirgen->module.getBlock(mirgen->builder.block.get());
+  if (!current_block->hasTerminator(&mirgen->module)) {
+    mirgen->builder.buildReturn(Option<MIRValueId>::from(output));
   }
 
   mirgen->builder.block = prev_block;
   return value;
 }
 
-MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId addr(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
-    MIRValue **value = mirgen->node_to_value.get(symbol->node);
+    MIRValueId *value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
       std::cerr << node->location << " Couldn't find value `" << node->text
                 << "`. Aborting...\n";
@@ -41,19 +44,19 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Index: {
-    MIRValue *ptr = addr(mirgen, node->index.slice, scope);
-    MIRValue *index = gen(mirgen, node->index.index, scope);
+    MIRValueId ptr = addr(mirgen, node->index.slice, scope);
+    MIRValueId index = gen(mirgen, node->index.index, scope);
 
-    MIRValue *out = mirgen->builder.buildGEP(ptr, index);
-    out->source_location = node->location;
+    MIRValueId out = mirgen->builder.buildGEP(ptr, index);
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
   }
 
-  return nullptr;
+  return {0xFFFFFFFF, 0};
 }
 
-MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
     for (size_t i = 0; i < node->children.length; i++) {
@@ -70,21 +73,21 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Name: {
-    MIRValue *builtin = genBuiltin(mirgen, node->text);
-    if (builtin != nullptr) {
-      return builtin;
+    Option<MIRValueId> builtin = genBuiltin(mirgen, node->text);
+    if (builtin.isSome()) {
+      return builtin.get();
     }
 
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
-    MIRValue **value = mirgen->node_to_value.get(symbol->node);
+    MIRValueId *value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
       std::cerr << node->location << " Couldn't find value `" << node->text
                 << "`. Aborting...\n";
       std::abort();
     }
 
-    MIRValue *out = mirgen->builder.buildLoad(*value, {.ptr = nullptr});
-    out->source_location = node->location;
+    MIRValueId out = mirgen->builder.buildLoad(*value, {.ptr = nullptr});
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
   case NodeKind::RawString: {
@@ -137,24 +140,24 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // TODO: Add attributes
 
     // Generate field
-    MIRValue *field = nullptr;
+    MIRValueId field;
     if (scope->location_aware) {
-      MIRValue *initial = nullptr;
-      MIRValue *type = nullptr;
+      Option<MIRValueId> initial;
+      MIRValueId type;
       if (node->field.initial != nullptr) {
-        initial = gen(mirgen, node->field.initial, field_symbol);
+        initial.setSome(gen(mirgen, node->field.initial, field_symbol));
       }
       if (node->field.type != nullptr) {
         type = genComptime(mirgen, node->field.type, field_symbol);
       } else {
-        type = mirgen->builder.buildTypeOf(initial, {.ptr = nullptr});
+        type = mirgen->builder.buildTypeOf(initial.get(), {.ptr = nullptr});
       }
 
       field = mirgen->builder.buildAlloca(type, node->field.name);
       mirgen->node_to_value.insert(node, field);
 
-      if (initial != nullptr) {
-        mirgen->builder.buildStore(initial, field);
+      if (initial.isSome()) {
+        mirgen->builder.buildStore(initial.get(), field);
       }
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Function) {
@@ -162,27 +165,32 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     } else {
       field = *mirgen->node_to_value.get(node); // Pre-generated
 
+      Option<MIRValueId> type;
+      Option<MIRValueId> constant;
       if (node->field.type != nullptr) {
-        field->global_variable.type =
-            genComptime(mirgen, node->field.type, field_symbol);
+        type.setSome(genComptime(mirgen, node->field.type, field_symbol));
       }
       if (node->field.initial != nullptr) {
-        field->global_variable.constant =
-            genComptime(mirgen, node->field.initial, field_symbol);
+        constant.setSome(
+            genComptime(mirgen, node->field.initial, field_symbol));
       }
-      field->global_variable.undefined = node->field.undefined;
+
+      MIRValue *glob = mirgen->module.getInstr(field);
+      glob->global_variable.type = type;
+      glob->global_variable.constant = constant;
+      glob->global_variable.undefined = node->field.undefined;
     }
 
-    field->source_location = node->location;
+    mirgen->builder.setSourceLocation(field, node->location);
     return field;
   }
   case NodeKind::Function: {
     Symbol *fn_symbol = scope->findSymbolByNode(node);
 
     // Parameter Types
-    Slice<MIRValue *> parameters = {
-        .ptr = (MIRValue **)mirgen->allocator->alloc(
-            sizeof(MIRValue *) * node->function.parameters.length),
+    Slice<MIRValueId> parameters = {
+        .ptr = (MIRValueId *)mirgen->allocator->alloc(
+            sizeof(MIRValueId) * node->function.parameters.length),
         .len = node->function.parameters.length,
     };
 
@@ -192,55 +200,45 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     // Return Type
-    MIRValue *return_type = nullptr;
-    if (node->function.return_type == nullptr) {
-      MIRValue void_ty = {.kind = MIRValueKind::Literal};
-      void_ty.literal.lit_type =
-          mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId});
-      void_ty.literal._typeid =
-          mirgen->ctx->type_cache->get({.kind = TypeKind::Void});
-      void_ty.result_type = void_ty.literal.lit_type;
-
-      return_type = mirgen->ctx->make(void_ty);
-    } else {
-      return_type = gen(mirgen, node->function.return_type, fn_symbol);
+    Option<MIRValueId> return_type;
+    if (node->function.return_type != nullptr) {
+      return_type.setSome(gen(mirgen, node->function.return_type, fn_symbol));
     }
 
     // Build Function
-    MIRValue *value = nullptr;
-    MIRValue **cache = mirgen->node_to_value.get(node);
+    MIRValueId value;
+    MIRValueId *cache = mirgen->node_to_value.get(node);
     if (cache != nullptr) {
       value = *cache; // Pre-generated
-      value->function.parameter_types = parameters;
-      value->function.return_type = return_type;
+
+      MIRValue *fn_inst = mirgen->module.getInstr(value);
+      fn_inst->function.parameter_types = parameters;
+      fn_inst->function.return_type = return_type;
     } else {
       value = mirgen->builder.buildFunction(parameters, return_type, str(""));
     }
-    value->source_location = node->location;
+    mirgen->builder.setSourceLocation(value, node->location);
 
     // Body
-    value->function.undefined = node->function.undefined;
     if (node->function.body != nullptr) {
-      MIRScope *globals =
-          (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-      globals->owner = value;
-      globals->list.init(mirgen->builder.module->arena.allocator, 32);
-      value->function.globals = globals;
+      MIRValue *fn_inst = mirgen->module.getInstr(value);
+      MIRScopeId globals = mirgen->builder.makeScope(value);
+      fn_inst->function.globals = globals;
 
-      value->function.blocks.init(mirgen->allocator, 32);
-      MIRBlock *entry_block = mirgen->builder.appendBlock(value, str("entry"));
+      fn_inst->function.blocks.init(mirgen->allocator, 32);
+      MIRBlockId entry_block = mirgen->builder.appendBlock(value, str("entry"));
 
-      MIRBlock *prev_block = mirgen->builder.block;
-      MIRScope *prev_scope = mirgen->builder.scope;
-      mirgen->builder.block = entry_block;
-      mirgen->builder.scope = globals;
+      Option<MIRBlockId> prev_block = mirgen->builder.block;
+      Option<MIRScopeId> prev_scope = mirgen->builder.scope;
+      mirgen->builder.block.setSome(entry_block);
+      mirgen->builder.scope.setSome(globals);
 
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
         Node *arg = node->function.parameters.getUnchecked(i);
-        MIRValue *mir_arg = mirgen->builder.buildArg(
-            value->function.parameter_types.ptr[i], arg->field.name);
-        mir_arg->source_location = arg->location;
+        MIRValueId mir_arg =
+            mirgen->builder.buildArg(parameters.ptr[i], arg->field.name);
+        mirgen->builder.setSourceLocation(mir_arg, arg->location);
         mirgen->node_to_value.insert(arg, mir_arg);
       }
 
@@ -250,6 +248,11 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       // End
       mirgen->builder.block = prev_block;
       mirgen->builder.scope = prev_scope;
+    } else {
+      MIRValue *fn_inst = mirgen->module.getInstr(value);
+      fn_inst->function.undefined = node->function.undefined;
+
+      fn_inst->function.parameter_types = parameters;
     }
 
     return value;
@@ -267,15 +270,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return genNamespace(mirgen, node, scope);
   }
   case NodeKind::Slice: {
-    MIRValue *element = gen(mirgen, node->slice.type, scope);
-    MIRValue *length = nullptr;
+    MIRValueId element = gen(mirgen, node->slice.type, scope);
+    Option<MIRValueId> length;
     if (node->slice.length != nullptr) {
-      length = gen(mirgen, node->slice.length, scope);
+      length.setSome(gen(mirgen, node->slice.length, scope));
     }
 
-    MIRValue *out = mirgen->builder.buildSlice(
+    MIRValueId out = mirgen->builder.buildSlice(
         element, length, node->slice.is_pointer, {.ptr = nullptr});
-    out->source_location = node->location;
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
   case NodeKind::Assignment: {
@@ -288,17 +291,17 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return genBinary(mirgen, node, scope);
   }
   case NodeKind::Call: {
-    MIRValue *callee = addr(mirgen, node->call.callee, scope);
-    Slice<MIRValue *> arguments = {
-        .ptr = (MIRValue **)mirgen->allocator->alloc(
-            sizeof(MIRValue *) * node->call.arguments.length),
+    MIRValueId callee = addr(mirgen, node->call.callee, scope);
+    Slice<MIRValueId> arguments = {
+        .ptr = (MIRValueId *)mirgen->allocator->alloc(
+            sizeof(MIRValueId) * node->call.arguments.length),
         .len = node->call.arguments.length,
     };
 
     // Receiver
-    MIRValue *receiver = nullptr;
+    Option<MIRValueId> receiver;
     if (node->call.callee->_operator.opcode == Operator::MemberAccess) {
-      receiver = addr(mirgen, node->call.callee->_operator.lhs, scope);
+      receiver.setSome(addr(mirgen, node->call.callee->_operator.lhs, scope));
     }
 
     // Arguments
@@ -307,59 +310,64 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
           gen(mirgen, node->call.arguments.getUnchecked(i), scope);
     }
 
-    MIRValue *out = mirgen->builder.buildCall(callee, arguments, receiver,
-                                              {.ptr = nullptr});
-    out->source_location = node->location;
+    MIRValueId out = mirgen->builder.buildCall(callee, arguments, receiver,
+                                               {.ptr = nullptr});
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
   case NodeKind::Index: {
-    MIRValue *ptr = addr(mirgen, node, scope);
+    MIRValueId ptr = addr(mirgen, node, scope);
     return mirgen->builder.buildLoad(ptr);
   }
   case NodeKind::Return: {
-    MIRValue *ret_value = nullptr;
+    Option<MIRValueId> ret_value;
     if (node->child != nullptr) {
-      ret_value = gen(mirgen, node->child, scope);
+      ret_value.setSome(gen(mirgen, node->child, scope));
     }
 
-    MIRValue *out = mirgen->builder.buildReturn(ret_value);
-    out->source_location = node->location;
+    MIRValueId out = mirgen->builder.buildReturn(ret_value);
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
   case NodeKind::If: {
     Symbol *if_scope = scope->findSymbolByNode(node);
-    MIRValue *parent_define = mirgen->builder.block->parent;
+    MIRBlock *entry_block =
+        mirgen->module.getBlock(mirgen->builder.block.get());
+    MIRValueId parent_define = entry_block->parent;
 
     // Blocks
-    MIRBlock *then_block =
+    MIRBlockId then_block =
         mirgen->builder.appendBlock(parent_define, str("if_then"));
-    MIRBlock *else_block = nullptr;
+    Option<MIRBlockId> else_block;
     if (node->_if._else != nullptr) {
-      else_block = mirgen->builder.appendBlock(parent_define, str("if_else"));
+      else_block.setSome(
+          mirgen->builder.appendBlock(parent_define, str("if_else")));
     }
 
-    MIRBlock *merge_block =
+    MIRBlockId merge_block =
         mirgen->builder.appendBlock(parent_define, str("if_merge"));
 
     // Conditional
-    MIRValue *condition = gen(mirgen, node->_if.conditional, scope);
+    MIRValueId condition = gen(mirgen, node->_if.conditional, scope);
 
-    if (else_block != nullptr) {
-      mirgen->builder.buildCondBr(condition, then_block, else_block);
+    if (else_block.isSome()) {
+      mirgen->builder.buildCondBr(condition, then_block, else_block.get());
     } else {
       mirgen->builder.buildCondBr(condition, then_block, merge_block);
     }
 
     // Body
-    mirgen->builder.block = then_block;
+    mirgen->builder.block.setSome(then_block);
     gen(mirgen, node->_if.body, if_scope);
 
-    if (!mirgen->builder.block->hasTerminator()) {
+    MIRBlock *terminator_block =
+        mirgen->module.getBlock(mirgen->builder.block.get());
+    if (!terminator_block->hasTerminator(&mirgen->module)) {
       mirgen->builder.buildBr(merge_block);
     }
 
     // Else
-    if (else_block != nullptr) {
+    if (else_block.isSome()) {
       mirgen->builder.block = else_block;
 
       Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
@@ -368,57 +376,64 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       }
       gen(mirgen, node->_if._else, else_scope);
 
-      if (!mirgen->builder.block->hasTerminator()) {
+      terminator_block = mirgen->module.getBlock(mirgen->builder.block.get());
+      if (!terminator_block->hasTerminator(&mirgen->module)) {
         mirgen->builder.buildBr(merge_block);
       }
     }
 
     // Merge
-    mirgen->builder.block = merge_block;
+    mirgen->builder.block.setSome(merge_block);
     break;
   }
   case NodeKind::For: {
     Symbol *for_scope = scope->findSymbolByNode(node);
-    MIRValue *parent_define = mirgen->builder.block->parent;
+    MIRBlock *entry_block =
+        mirgen->module.getBlock(mirgen->builder.block.get());
+    MIRValueId parent_define = entry_block->parent;
 
     // Blocks
-    MIRBlock *condition_block =
+    MIRBlockId condition_block =
         mirgen->builder.appendBlock(parent_define, str("for_condition"));
-    MIRBlock *do_block =
+    MIRBlockId do_block =
         mirgen->builder.appendBlock(parent_define, str("for_do"));
-    MIRBlock *merge_block =
+    MIRBlockId merge_block =
         mirgen->builder.appendBlock(parent_define, str("for_merge"));
 
     mirgen->builder.buildBr(condition_block);
 
     // Conditional
-    mirgen->builder.block = condition_block;
-    MIRValue *condition = gen(mirgen, node->_for.conditional, for_scope);
+    mirgen->builder.block.setSome(condition_block);
+    MIRValueId condition = gen(mirgen, node->_for.conditional, for_scope);
 
     mirgen->builder.buildCondBr(condition, do_block, merge_block);
 
     // Do
-    mirgen->builder.block = do_block;
+    mirgen->builder.block.setSome(do_block);
     gen(mirgen, node->_for.body, for_scope);
 
-    if (!mirgen->builder.block->hasTerminator()) {
+    MIRBlock *terminator_block =
+        mirgen->module.getBlock(mirgen->builder.block.get());
+    if (!terminator_block->hasTerminator(&mirgen->module)) {
       mirgen->builder.buildBr(condition_block);
     }
 
     // Merge
-    mirgen->builder.block = merge_block;
+    mirgen->builder.block.setSome(merge_block);
     break;
   }
   case NodeKind::Switch: {
-    MIRValue *parent_define = mirgen->builder.block->parent;
-    MIRBlock *merge_block =
+    MIRBlock *entry_block =
+        mirgen->module.getBlock(mirgen->builder.block.get());
+    MIRValueId parent_define = entry_block->parent;
+    MIRBlockId merge_block =
         mirgen->builder.appendBlock(parent_define, str("switch_merge"));
 
     // Cases
-    MIRValue *value = gen(mirgen, node->_switch.conditional, scope);
-    MIRValue *_switch = mirgen->builder.buildSwitch(value, merge_block,
-                                                    node->_switch.cases.length);
-    _switch->source_location = node->location;
+    MIRValueId value = gen(mirgen, node->_switch.conditional, scope);
+    MIRValueId _switch = mirgen->builder.buildSwitch(
+        value, merge_block, node->_switch.cases.length);
+    mirgen->builder.setSourceLocation(_switch, node->location);
 
     // Cases
     for (size_t i = 0; i < node->_switch.cases.length; i++) {
@@ -426,22 +441,24 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       Symbol *case_scope = scope->findSymbolByNode(_case);
 
       // Body
-      MIRBlock *case_block =
+      MIRBlockId case_block =
           mirgen->builder.appendBlock(parent_define, str("switch_case"));
-      mirgen->builder.block = case_block;
+      mirgen->builder.block.setSome(case_block);
       gen(mirgen, _case->_case.body, case_scope);
 
-      if (!mirgen->builder.block->hasTerminator()) {
+      MIRBlock *terminator_block =
+          mirgen->module.getBlock(mirgen->builder.block.get());
+      if (!terminator_block->hasTerminator(&mirgen->module)) {
         mirgen->builder.buildBr(merge_block);
       }
 
       // Add
-      MIRValue *constant = gen(mirgen, _case->_case.constant, scope);
+      MIRValueId constant = gen(mirgen, _case->_case.constant, scope);
       mirgen->builder.addCase(_switch, constant, case_block);
     }
 
     // Merge
-    mirgen->builder.block = merge_block;
+    mirgen->builder.block.setSome(merge_block);
     break;
   }
   case NodeKind::Comptime: {
@@ -449,7 +466,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
   }
 
-  return nullptr;
+  return {0xFFFFFFFF, 0};
 }
 
 void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope) {
@@ -461,15 +478,14 @@ void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Field: {
-    MIRValue *field = nullptr;
+    MIRValueId field;
     if (node->field.initial != nullptr &&
         node->field.initial->kind == NodeKind::Function) {
-      field = mirgen->builder.buildFunction({.ptr = nullptr}, nullptr,
-                                            node->field.name);
+      field =
+          mirgen->builder.buildFunction({.ptr = nullptr}, {}, node->field.name);
       mirgen->node_to_value.insert(node->field.initial, field);
     } else {
-      field = mirgen->builder.buildGlobalVariable(nullptr, nullptr,
-                                                  node->field.name);
+      field = mirgen->builder.buildGlobalVariable({}, {}, node->field.name);
     }
 
     mirgen->node_to_value.insert(node, field);
@@ -484,8 +500,8 @@ void MIRGen::generate() {
   this->module.init(this->allocator);
   this->module.ctx = this->ctx;
   this->builder.module = &this->module;
-  this->builder.scope = this->module.definitions;
-  this->builder.block = nullptr;
+  this->builder.scope.setSome(this->module.definitions);
+  this->builder.block.setNone();
 
   this->symbol_to_scope.insert(this->symbol, this->module.definitions);
   genDeclaration(this, this->ast, this->symbol);

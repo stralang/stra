@@ -8,7 +8,8 @@
 
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
                       MIRValue *inst) {
-  Type *child_type = inst->unaryop.value->result_type;
+  MIRValue *child_inst = codegen->mir_module->getInstr(inst->unaryop.value);
+  Type *child_type = child_inst->result_type;
   if (child_type->kind == TypeKind::SIMD) {
     child_type = child_type->slice.type;
   }
@@ -51,7 +52,8 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
 LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
                        MIRValue *inst) {
-  Type *src_type = inst->binop.lhs->result_type;
+  MIRValue *lhs_inst = codegen->mir_module->getInstr(inst->binop.lhs);
+  Type *src_type = lhs_inst->result_type;
   Type *dst_type = inst->result_type;
   LLVMTypeRef dst_llvm_type = typeToLLVM(codegen, dst_type);
 
@@ -133,16 +135,17 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
 
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
                        MIRValue *inst) {
-
-  Type *lhs_type = inst->binop.lhs->result_type;
-  Type *rhs_type = inst->binop.rhs->result_type;
+  MIRValue *lhs_inst = codegen->mir_module->getInstr(inst->binop.lhs);
+  MIRValue *rhs_inst = codegen->mir_module->getInstr(inst->binop.rhs);
+  Type *lhs_type = lhs_inst->result_type;
+  Type *rhs_type = rhs_inst->result_type;
 
   // Cast
   if (inst->binop.opcode == MIROpcode::As) {
     return genCastAs(codegen, builder, inst);
   } else if (inst->binop.opcode == MIROpcode::Bitcast) {
     LLVMValueRef lhs_value = getReference(codegen, inst->binop.lhs);
-    LLVMTypeRef dest_ty = typeToLLVM(codegen, inst->binop.rhs->literal._typeid);
+    LLVMTypeRef dest_ty = typeToLLVM(codegen, rhs_inst->literal._typeid);
     return LLVMBuildBitCast(builder, lhs_value, dest_ty, "");
   }
 

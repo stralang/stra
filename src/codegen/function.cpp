@@ -25,7 +25,8 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMAppendBasicBlockInContext(codegen->ctx, func, "defines");
 
   for (size_t i = 0; i < inst->function.blocks.length; i++) {
-    MIRBlock *block = inst->function.blocks.getUnchecked(i);
+    MIRBlock *block =
+        codegen->mir_module->getBlock(inst->function.blocks.getUnchecked(i));
 
     char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
     memcpy(name, inst->name.ptr, inst->name.len);
@@ -43,24 +44,29 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   // Code
   for (size_t i = 0; i < inst->function.blocks.length; i++) {
-    MIRBlock *block = inst->function.blocks.getUnchecked(i);
+    MIRBlock *block =
+        codegen->mir_module->getBlock(inst->function.blocks.getUnchecked(i));
     LLVMBasicBlockRef llvm_block = *codegen->block_to_llvm.get(block);
     LLVMPositionBuilderAtEnd(builder, llvm_block);
 
     for (size_t l = 0; l < block->instructions.length; l++) {
-      gen(codegen, builder, block->instructions.getUnchecked(l));
+      MIRValue *inst =
+          codegen->mir_module->getInstr(block->instructions.getUnchecked(l));
+      gen(codegen, builder, inst);
     }
   }
 
   // Finish define block
   LLVMPositionBuilderAtEnd(builder, codegen->define_block);
-  LLVMBuildBr(builder, *codegen->block_to_llvm.get(
-                           inst->function.blocks.getUnchecked(0)));
+  MIRBlock *block =
+      codegen->mir_module->getBlock(inst->function.blocks.getUnchecked(0));
+  LLVMBuildBr(builder, *codegen->block_to_llvm.get(block));
 }
 
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
                      MIRValue *inst) {
-  Type *callee_type = inst->call.callee->result_type;
+  MIRValue *callee_inst = codegen->mir_module->getInstr(inst->call.callee);
+  Type *callee_type = callee_inst->result_type;
   bool needs_dereference = false;
   if (callee_type->kind == TypeKind::Pointer) {
     callee_type = callee_type->child;
@@ -72,8 +78,8 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
   // Get receiver
   LLVMValueRef receiver = nullptr;
   size_t has_receiver = 0;
-  if (inst->call.receiver != nullptr) {
-    receiver = getReference(codegen, inst->call.receiver);
+  if (inst->call.receiver.isSome()) {
+    receiver = getReference(codegen, inst->call.receiver.get());
     has_receiver = 1;
   }
 

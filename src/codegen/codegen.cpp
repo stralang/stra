@@ -21,12 +21,13 @@
 #include <llvm-c/TargetMachine.h>
 #include <sstream>
 
-LLVMValueRef getReference(CodeGenModule *codegen, MIRValue *value) {
-  if (value->kind == MIRValueKind::Literal) {
-    return literalToLLVM(codegen, &value->literal);
+LLVMValueRef getReference(CodeGenModule *codegen, MIRValueId value) {
+  MIRValue *inst = codegen->mir_module->getInstr(value);
+  if (inst->kind == MIRValueKind::Literal) {
+    return literalToLLVM(codegen, &inst->literal);
   }
 
-  return *codegen->inst_to_llvm.get(value);
+  return *codegen->inst_to_llvm.get(inst);
 }
 
 void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
@@ -34,7 +35,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
 
   switch (inst->kind) {
   case MIRValueKind::Alloca: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->alloca.type->literal._typeid);
+    MIRValue *type_inst = codegen->mir_module->getInstr(inst->alloca.type);
+    LLVMTypeRef ty = typeToLLVM(codegen, type_inst->literal._typeid);
     out = BuildAlloca(codegen, builder, ty, "");
 
     LLVMSetValueName2(out, (const char *)inst->name.ptr, inst->name.len);
@@ -53,7 +55,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Arg: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->arg.type->literal._typeid);
+    MIRValue *type_inst = codegen->mir_module->getInstr(inst->arg.type);
+    LLVMTypeRef ty = typeToLLVM(codegen, type_inst->literal._typeid);
     out = BuildAlloca(codegen, builder, ty, "");
     LLVMSetValueName2(out, (const char *)inst->name.ptr, inst->name.len);
 
@@ -97,7 +100,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   }
   case MIRValueKind::GEP: {
     LLVMValueRef value = getReference(codegen, inst->gep.ptr);
-    Type *value_type = inst->gep.ptr->result_type->child;
+    MIRValue *ptr_inst = codegen->mir_module->getInstr(inst->gep.ptr);
+    Type *value_type = ptr_inst->result_type->child;
 
     if (value_type->kind == TypeKind::Slice) {
       LLVMValueRef slice = value;
@@ -145,10 +149,10 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Return: {
-    if (inst->ret.value == nullptr) {
+    if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);
     } else {
-      LLVMValueRef value = getReference(codegen, inst->ret.value);
+      LLVMValueRef value = getReference(codegen, inst->ret.value.get());
       if (codegen->return_arg != nullptr) {
         LLVMBuildStore(builder, value, codegen->return_arg);
         LLVMBuildRetVoid(builder);
@@ -162,29 +166,35 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Branch: {
-    LLVMBasicBlockRef dst = *codegen->block_to_llvm.get(inst->br);
+    MIRBlock *br_block = codegen->mir_module->getBlock(inst->br);
+    LLVMBasicBlockRef dst = *codegen->block_to_llvm.get(br_block);
     LLVMBuildBr(builder, dst);
     break;
   }
   case MIRValueKind::CondBranch: {
     LLVMValueRef condition = getReference(codegen, inst->condbr.condition);
-    LLVMBasicBlockRef then = *codegen->block_to_llvm.get(inst->condbr.then);
-    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(inst->condbr._else);
+
+    MIRBlock *then_block = codegen->mir_module->getBlock(inst->condbr.then);
+    MIRBlock *_else_block = codegen->mir_module->getBlock(inst->condbr._else);
+    LLVMBasicBlockRef then = *codegen->block_to_llvm.get(then_block);
+    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(_else_block);
     LLVMBuildCondBr(builder, condition, then, _else);
     break;
   }
   case MIRValueKind::Switch: {
     LLVMValueRef condition = getReference(codegen, inst->_switch.condition);
-    LLVMBasicBlockRef _else =
-        *codegen->block_to_llvm.get(inst->_switch.default_block);
+    MIRBlock *default_block =
+        codegen->mir_module->getBlock(inst->_switch.default_block);
+    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(default_block);
 
     LLVMValueRef switch_inst =
         LLVMBuildSwitch(builder, condition, _else, inst->_switch.onvals.len);
 
     for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
       LLVMValueRef on_val = getReference(codegen, inst->_switch.onvals.ptr[i]);
-      LLVMBasicBlockRef dst =
-          *codegen->block_to_llvm.get(inst->_switch.blocks.ptr[i]);
+      MIRBlock *case_block =
+          codegen->mir_module->getBlock(inst->_switch.blocks.ptr[i]);
+      LLVMBasicBlockRef dst = *codegen->block_to_llvm.get(case_block);
       LLVMAddCase(switch_inst, on_val, dst);
     }
     break;
@@ -197,9 +207,10 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     }
 
     LLVMValueRef global = *opt_global;
-    if (inst->global_variable.constant != nullptr) {
-      LLVMValueRef val =
-          literalToLLVM(codegen, &inst->global_variable.constant->literal);
+    if (inst->global_variable.constant.isSome()) {
+      MIRValue *constant_inst =
+          codegen->mir_module->getInstr(inst->global_variable.constant.get());
+      LLVMValueRef val = literalToLLVM(codegen, &constant_inst->literal);
       LLVMSetInitializer(global, val);
     }
     break;
@@ -222,7 +233,10 @@ void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
       char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
       memcpy(name, inst->name.ptr, inst->name.len);
       name[inst->name.len] = 0;
-      typeToLLVM(codegen, inst->global_variable.constant->result_type, name);
+
+      MIRValue *constant_inst =
+          codegen->mir_module->getInstr(inst->global_variable.constant.get());
+      typeToLLVM(codegen, constant_inst->result_type, name);
       break;
     }
 
@@ -276,14 +290,19 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->target_abi = ABIcreateTarget(context->abi);
 
   // Generate Definitions
-  for (size_t i = 0; i < this->mir_module->definitions->list.length; i++) {
-    genDeclaration(this, this->mir_module->definitions->list.getUnchecked(i));
+  MIRScope *definitions =
+      this->mir_module->getScope(this->mir_module->definitions);
+  for (size_t i = 0; i < definitions->list.length; i++) {
+    MIRValue *inst =
+        this->mir_module->getInstr(definitions->list.getUnchecked(i));
+    genDeclaration(this, inst);
   }
 
   // Generate Code
-  for (size_t i = 0; i < this->mir_module->definitions->list.length; i++) {
-    gen(this, this->builder,
-        this->mir_module->definitions->list.getUnchecked(i));
+  for (size_t i = 0; i < definitions->list.length; i++) {
+    MIRValue *inst =
+        this->mir_module->getInstr(definitions->list.getUnchecked(i));
+    gen(this, this->builder, inst);
   }
 
 // Optimize

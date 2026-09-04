@@ -509,6 +509,8 @@ int main(int argc, const char **argv) {
         .allocator = &global_allocator,
         .ctx = &ctx,
     };
+    ctx.modules.push(&file->mir.module);
+    file->mir.module.id = i;
     file->mir.generate();
   }
 
@@ -524,6 +526,7 @@ int main(int argc, const char **argv) {
 
   // Analysis
   MIRAnalyser analyser = {
+      .ctx = &ctx,
       .error_func = &error_handler,
       .warning_func = &warning_handler,
   };

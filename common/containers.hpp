@@ -128,19 +128,20 @@ template <typename T> struct ArrayList {
     return this->data.ptr[this->length];
   }
 
-  T get(size_t index) {
+  T *getPtr(size_t index) {
     if (this->length <= index) {
       std::cerr << "Index out of bounds. " << index << " >= " << this->length
                 << "\n";
       std::abort();
     }
 
-    return this->data.ptr[index];
+    return this->data.ptr + index;
   }
 
-  T getUnchecked(size_t index) { return this->data.ptr[index]; }
-
   T *getPtrUnchecked(size_t index) { return this->data.ptr + index; }
+
+  inline T get(size_t index) { return *this->getPtr(index); }
+  inline T getUnchecked(size_t index) { return *this->getPtrUnchecked(index); }
 
   T *back() {
     if (this->length == 0) {

@@ -24,20 +24,20 @@ Type *placeholderType(MIRModule *module, MIRValue *inst) {
 MIRLiteral executeGlobalVariable(MIRComptime *state, MIRModule *module,
                                  ComptimeStackFrame *frame, MIRValue *inst) {
   // Type
-  if (inst->global_variable.type != nullptr) {
-    // Placeholder Type for cyclic dependencies
-    Type *placeholder = placeholderType(module, inst->global_variable.type);
-    if (placeholder != nullptr) {
-      inst->result_type = module->ctx->type_cache->get({
-          .kind = TypeKind::Pointer,
-          .child = placeholder,
-          .is_constant = true,
-      });
-    }
+  if (inst->global_variable.type.isSome()) {
+    // // Placeholder Type for cyclic dependencies
+    // Type *placeholder = placeholderType(module, inst->global_variable.type);
+    // if (placeholder != nullptr) {
+    //   inst->result_type = module->ctx->type_cache->get({
+    //       .kind = TypeKind::Pointer,
+    //       .child = placeholder,
+    //       .is_constant = true,
+    //   });
+    // }
 
     // Get Type
-    MIRLiteral type_literal =
-        state->execute(module, inst->global_variable.type);
+    MIRValue *type_inst = module->getInstr(inst->global_variable.type.get());
+    MIRLiteral type_literal = state->execute(module, type_inst);
     // TODO:
     // expect(type_literal.lit_type->kind == TypeKind::TypeId,
     //        inst->global_variable.type->source_location,
@@ -51,29 +51,30 @@ MIRLiteral executeGlobalVariable(MIRComptime *state, MIRModule *module,
   }
 
   // Analyse Constant
-  if (inst->global_variable.constant != nullptr) {
-    // Placeholder Type for cyclic dependencies
-    if (inst->global_variable.type == nullptr) {
-      Type *placeholder =
-          placeholderType(module, inst->global_variable.constant);
-      if (placeholder != nullptr) {
-        inst->result_type = module->ctx->type_cache->get({
-            .kind = TypeKind::Pointer,
-            .child = placeholder,
-            .is_constant = true,
-        });
-      }
-    }
+  if (inst->global_variable.constant.isSome()) {
+    // // Placeholder Type for cyclic dependencies
+    // if (inst->global_variable.type.isNone()) {
+    //   Type *placeholder =
+    //       placeholderType(module, inst->global_variable.constant);
+    //   if (placeholder != nullptr) {
+    //     inst->result_type = module->ctx->type_cache->get({
+    //         .kind = TypeKind::Pointer,
+    //         .child = placeholder,
+    //         .is_constant = true,
+    //     });
+    //   }
+    // }
 
     // Get Initial
-    MIRLiteral const_literal =
-        state->execute(module, inst->global_variable.constant);
+    MIRValue *constant_inst =
+        module->getInstr(inst->global_variable.constant.get());
+    MIRLiteral const_literal = state->execute(module, constant_inst);
     Type *type = const_literal.lit_type;
     // expect(type != nullptr, inst->global_variable.constant->source_location,
     //        "Couldn't determine type of constant");
 
     // Check
-    if (inst->global_variable.type == nullptr) {
+    if (inst->global_variable.type.isNone()) {
       inst->result_type = module->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
           .child = type,

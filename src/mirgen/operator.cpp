@@ -2,37 +2,37 @@
 #include "mir.hpp"
 #include "mirgen.hpp"
 
-MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
-  MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
-  MIRValue *out =
+MIRValueId addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
+  MIRValueId record = addr(mirgen, node->_operator.lhs, scope);
+  MIRValueId out =
       mirgen->builder.buildLookup(record, node->_operator.rhs->text);
-  out->source_location = node->location;
+  mirgen->builder.setSourceLocation(out, node->location);
   return out;
 }
 
-MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope) {
-  MIRValue *rhs_value;
+MIRValueId genAssignment(MIRGen *mirgen, Node *node, Symbol *scope) {
+  MIRValueId rhs_value;
   if (node->_operator.opcode != Operator::Assign) {
     rhs_value = genBinary(mirgen, node, scope);
   } else {
     rhs_value = gen(mirgen, node->_operator.rhs, scope);
   }
 
-  MIRValue *lhs_ptr = addr(mirgen, node->_operator.lhs, scope);
-  MIRValue *out = mirgen->builder.buildStore(rhs_value, lhs_ptr);
-  out->source_location = node->location;
+  MIRValueId lhs_ptr = addr(mirgen, node->_operator.lhs, scope);
+  MIRValueId out = mirgen->builder.buildStore(rhs_value, lhs_ptr);
+  mirgen->builder.setSourceLocation(out, node->location);
   return out;
 }
 
-MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
   if (node->unary_operator.opcode == UnaryOperator::Reference) {
-    MIRValue *out = addr(mirgen, node->unary_operator.child, scope);
-    out->source_location = node->location;
+    MIRValueId out = addr(mirgen, node->unary_operator.child, scope);
+    mirgen->builder.setSourceLocation(out, node->location);
     return out;
   }
 
-  MIRValue *child_value = gen(mirgen, node->unary_operator.child, scope);
-  MIRValue *out = nullptr;
+  MIRValueId child_value = gen(mirgen, node->unary_operator.child, scope);
+  MIRValueId out;
 
   switch (node->unary_operator.opcode) {
   case UnaryOperator::Minus: {
@@ -51,27 +51,26 @@ MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
     out = child_value;
     break;
   }
+  default: {
+    std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled unary operator `"
+              << (int32_t)node->unary_operator.opcode << "`\n";
+    std::abort();
+  }
   }
 
-  if (out != nullptr) {
-    out->source_location = node->location;
-    return out;
-  }
-
-  std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled unary operator `"
-            << (int32_t)node->unary_operator.opcode << "`\n";
-  return nullptr;
+  mirgen->builder.setSourceLocation(out, node->location);
+  return out;
 }
 
-MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
+MIRValueId genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
   if (node->_operator.opcode == Operator::MemberAccess) {
-    MIRValue *value = addrMemberAccess(mirgen, node, scope);
+    MIRValueId value = addrMemberAccess(mirgen, node, scope);
     return mirgen->builder.buildLoad(value);
   }
 
-  MIRValue *lhs_value = gen(mirgen, node->_operator.lhs, scope);
-  MIRValue *rhs_value = gen(mirgen, node->_operator.rhs, scope);
-  MIRValue *out = nullptr;
+  MIRValueId lhs_value = gen(mirgen, node->_operator.lhs, scope);
+  MIRValueId rhs_value = gen(mirgen, node->_operator.rhs, scope);
+  MIRValueId out;
 
   switch (node->_operator.opcode) {
   case Operator::Add: {
@@ -160,14 +159,13 @@ MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
     out = mirgen->builder.buildBinOp(lhs_value, rhs_value, MIROpcode::Bitcast);
     break;
   }
+  default: {
+    std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled binary operator `"
+              << (int32_t)node->_operator.opcode << "`\n";
+    std::abort();
+  }
   }
 
-  if (out != nullptr) {
-    out->source_location = node->location;
-    return out;
-  }
-
-  std::cerr << __FILE__ << ":" << __LINE__ << " Unhandled binary operator `"
-            << (int32_t)node->_operator.opcode << "`\n";
-  return nullptr;
+  mirgen->builder.setSourceLocation(out, node->location);
+  return out;
 }
