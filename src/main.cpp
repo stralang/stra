@@ -3,7 +3,6 @@
 #include "codegen/codegen.hpp"
 #include "containers.hpp"
 #include "environment.hpp"
-#include "evaluator/evaluator.hpp"
 #include "helper.hpp"
 #include "mir.hpp"
 #include "mirgen/mirgen.hpp"

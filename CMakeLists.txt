@@ -16,17 +16,6 @@ add_executable(stra
   src/mirgen/operator.cpp
   src/mirgen/record.cpp
 
-  # src/evaluator/evaluator.cpp
-  # src/evaluator/operator.cpp
-  # src/evaluator/function.cpp
-  # src/evaluator/type.cpp
-  # src/evaluator/builtin.cpp
-  # src/evaluator/desugar.cpp
-  #
-  # src/comptime/comptime.cpp
-  # src/comptime/operator.cpp
-  # src/comptime/builtin.cpp
-  #
   src/codegen/codegen.cpp
   src/codegen/convert.cpp
   src/codegen/operator.cpp
