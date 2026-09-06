@@ -3,6 +3,7 @@
 #include "allocator.hpp"
 #include "containers.hpp"
 #include "literal.hpp"
+#include "optional.hpp"
 #include "srcloc.hpp"
 #include "types.hpp"
 #include <cassert>
@@ -167,7 +168,8 @@ struct MIRValue {
     struct {
       MIRValue *callee;
       Slice<MIRValue *> arguments;
-      MIRValue *receiver; // NOTE: this is only valid after type checking
+      Option<MIRValue *>
+          receiver; // NOTE: this is only valid after type checking
     } call;
     struct {
       MIRValue *ptr;
@@ -179,7 +181,7 @@ struct MIRValue {
     } lookup;
     struct {
       MIRValue *type;
-      MIRValue *value;
+      Option<MIRValue *> value;
     } ret;
     MIRBlock *br;
     struct {
@@ -204,8 +206,8 @@ struct MIRValue {
     MIRValue *alias;
 
     struct {
-      MIRValue *type;
-      MIRValue *constant; // set to `null` for default
+      Option<MIRValue *> type;
+      Option<MIRValue *> constant; // set to `null` for default
       bool undefined;
     } global_variable;
     MIRFunction function;
@@ -278,7 +280,8 @@ struct MIRBuilder {
                          String name = {.ptr = nullptr});
 
   MIRValue *buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
-                      MIRValue *receiver, String name = {.ptr = nullptr});
+                      Option<MIRValue *> receiver,
+                      String name = {.ptr = nullptr});
 
   MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
                      String name = {.ptr = nullptr});
@@ -286,7 +289,7 @@ struct MIRBuilder {
                         String name = {.ptr = nullptr});
 
   // If `value` is null then this returns `void`
-  MIRValue *buildReturn(MIRValue *value);
+  MIRValue *buildReturn(Option<MIRValue *> value);
 
   MIRValue *buildBr(MIRBlock *block);
   MIRValue *buildCondBr(MIRValue *condition, MIRBlock *then, MIRBlock *_else);
@@ -297,8 +300,8 @@ struct MIRBuilder {
   MIRValue *buildComptime(String name);
   MIRValue *buildTypeOf(MIRValue *value, String name);
 
-  MIRValue *buildGlobalVariable(MIRValue *type, MIRValue *constant,
-                                String name);
+  MIRValue *buildGlobalVariable(Option<MIRValue *> type,
+                                Option<MIRValue *> constant, String name);
   MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
                           String name);
 

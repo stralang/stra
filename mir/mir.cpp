@@ -122,7 +122,7 @@ MIRValue *MIRBuilder::buildUnaryOp(MIRValue *value, MIROpcode opcode,
 }
 
 MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
-                                MIRValue *receiver, String name) {
+                                Option<MIRValue *> receiver, String name) {
   MIRValue inst = {.kind = MIRValueKind::Call};
   inst.call = {.callee = callee, .arguments = arguments, .receiver = receiver};
   return this->insert(inst, false, name);
@@ -143,7 +143,7 @@ MIRValue *MIRBuilder::buildLookup(MIRValue *parent, String member,
 }
 
 // If `value` is null then this returns `void`
-MIRValue *MIRBuilder::buildReturn(MIRValue *value) {
+MIRValue *MIRBuilder::buildReturn(Option<MIRValue *> value) {
   MIRValue inst = {.kind = MIRValueKind::Return};
   inst.ret = {.value = value};
   return this->insert(inst);
@@ -199,7 +199,8 @@ MIRValue *MIRBuilder::buildTypeOf(MIRValue *value, String name) {
   return this->insert(inst, true, name);
 }
 
-MIRValue *MIRBuilder::buildGlobalVariable(MIRValue *type, MIRValue *constant,
+MIRValue *MIRBuilder::buildGlobalVariable(Option<MIRValue *> type,
+                                          Option<MIRValue *> constant,
                                           String name) {
   MIRValue inst = {.kind = MIRValueKind::GlobalVariable};
   inst.global_variable = {type, constant};

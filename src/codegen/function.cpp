@@ -72,8 +72,8 @@ LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
   // Get receiver
   LLVMValueRef receiver = nullptr;
   size_t has_receiver = 0;
-  if (inst->call.receiver != nullptr) {
-    receiver = getReference(codegen, inst->call.receiver);
+  if (inst->call.receiver.isSome()) {
+    receiver = getReference(codegen, inst->call.receiver.get());
     has_receiver = 1;
   }
 

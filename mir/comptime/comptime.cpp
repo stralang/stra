@@ -112,8 +112,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   }
   case MIRValueKind::Return: {
     MIRLiteral result;
-    if (inst->ret.value != nullptr) {
-      result = state->getValue(frame, module, inst->ret.value);
+    if (inst->ret.value.isSome()) {
+      result = state->getValue(frame, module, inst->ret.value.get());
     } else {
       result.lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void});
       result.kind = MIRLiteralKind::Typed;
@@ -370,13 +370,14 @@ MIRLiteral MIRComptime::getValue(ComptimeStackFrame *frame, MIRModule *module,
   if (from->kind == MIRValueKind::Literal) {
     return from->literal;
   } else if (from->kind == MIRValueKind::GlobalVariable) {
-    if (from->global_variable.constant->kind != MIRValueKind::Literal) {
+    MIRValue *constant = from->global_variable.constant.get();
+    if (constant->kind != MIRValueKind::Literal) {
       analyseGlobal(this->analyser, module, from);
     }
 
     // Make the literal type constant
     // because all global variables are constant during compile-time execution
-    Type vtype = *from->global_variable.constant->result_type;
+    Type vtype = *constant->result_type;
     vtype.is_constant = true;
 
     Type *real_vtype = module->ctx->type_cache->get(vtype);
@@ -389,7 +390,7 @@ MIRLiteral MIRComptime::getValue(ComptimeStackFrame *frame, MIRModule *module,
     // Return Pointer to constant
     return MIRLiteral{
         .lit_type = ptr_type,
-        .pointer = &from->global_variable.constant->literal,
+        .pointer = &constant->literal,
     };
   }
 

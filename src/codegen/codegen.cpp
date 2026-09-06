@@ -148,10 +148,10 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Return: {
-    if (inst->ret.value == nullptr) {
+    if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);
     } else {
-      LLVMValueRef value = getReference(codegen, inst->ret.value);
+      LLVMValueRef value = getReference(codegen, inst->ret.value.get());
       if (codegen->return_arg != nullptr) {
         LLVMBuildStore(builder, value, codegen->return_arg);
         LLVMBuildRetVoid(builder);
@@ -196,7 +196,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   case MIRValueKind::GlobalVariable: {
     // Sub-Definitions
     if (inst->result_type->child->kind == TypeKind::TypeId) {
-      MIRLiteral *lit = &inst->global_variable.constant->literal;
+      MIRLiteral *lit = &inst->global_variable.constant.get()->literal;
       MIRScope *scope = nullptr;
       if (lit->_typeid->kind == TypeKind::Struct) {
         scope = lit->_typeid->_struct.inst->_struct.definitions;
@@ -220,9 +220,9 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     }
 
     LLVMValueRef global = *opt_global;
-    if (inst->global_variable.constant != nullptr) {
-      LLVMValueRef val =
-          literalToLLVM(codegen, &inst->global_variable.constant->literal);
+    if (inst->global_variable.constant.isSome()) {
+      MIRValue *const_inst = inst->global_variable.constant.get();
+      LLVMValueRef val = literalToLLVM(codegen, &const_inst->literal);
       LLVMSetInitializer(global, val);
     }
     break;
@@ -243,7 +243,7 @@ void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
   case MIRValueKind::GlobalVariable: {
     if (inst->result_type->child->kind == TypeKind::TypeId) {
       // Sub-Declarations
-      MIRLiteral *lit = &inst->global_variable.constant->literal;
+      MIRLiteral *lit = &inst->global_variable.constant.get()->literal;
       MIRScope *scope = nullptr;
       bool real_type = false;
       if (lit->_typeid->kind == TypeKind::Struct) {
@@ -261,7 +261,8 @@ void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
         char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
         memcpy(name, inst->name.ptr, inst->name.len);
         name[inst->name.len] = 0;
-        typeToLLVM(codegen, inst->global_variable.constant->result_type, name);
+        typeToLLVM(codegen, inst->global_variable.constant.get()->result_type,
+                   name);
       }
 
       for (size_t i = 0; i < scope->list.length; i++) {

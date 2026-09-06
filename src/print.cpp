@@ -1159,17 +1159,17 @@ void MIRPrintInst(MIRValue *inst) {
     }
     std::cout << ")";
 
-    if (inst->call.receiver != nullptr) {
+    if (inst->call.receiver.isSome()) {
       std::cout << " Receiver: ";
-      MIRPrintRef(inst->call.receiver);
+      MIRPrintRef(inst->call.receiver.get());
     }
     break;
   }
   case MIRValueKind::Return: {
     std::cout << "ret";
-    if (inst->ret.value != nullptr) {
+    if (inst->ret.value.isSome()) {
       std::cout << ' ';
-      MIRPrintRef(inst->ret.value);
+      MIRPrintRef(inst->ret.value.get());
     }
     break;
   }
@@ -1228,9 +1228,15 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);
     std::cout << " = global `";
-    MIRPrintRef(inst->global_variable.type);
+    if (inst->global_variable.type.isSome()) {
+      MIRPrintRef(inst->global_variable.type.get());
+    } else {
+      std::cout << "INFERRED\n";
+    }
     std::cout << "`, ";
-    MIRPrintRef(inst->global_variable.constant);
+    if (inst->global_variable.constant.isSome()) {
+      MIRPrintRef(inst->global_variable.constant.get());
+    }
     break;
   }
   case MIRValueKind::Function: {

@@ -257,18 +257,19 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
     // Get receiver
     size_t initial_idx = 0;
-    if (inst->call.receiver != nullptr) {
-      analyse(analyser, module, inst->call.receiver);
+    if (inst->call.receiver.isSome()) {
+      MIRValue *receiver_inst = inst->call.receiver.get();
+      analyse(analyser, module, receiver_inst);
 
-      if (inst->call.receiver->result_type->kind != TypeKind::TypeId) {
+      if (receiver_inst->result_type->kind != TypeKind::TypeId) {
         expect(fn_type->function.arguments.len >= 1,
-               inst->call.receiver->source_location,
+               receiver_inst->source_location,
                "Receiver expects method with atleast 1 argument");
 
         Type *expected_type = fn_type->function.arguments.ptr[0];
-        Type *receiver_type = inst->call.receiver->result_type;
+        Type *receiver_type = receiver_inst->result_type;
         expect(compareTypes(expected_type, receiver_type),
-               inst->call.receiver->source_location,
+               receiver_inst->source_location,
                "Receiver `" << receiver_type << "` doesn't match `"
                             << expected_type << "`");
 
@@ -336,21 +337,22 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       MIRValue *function = inst->parent->parent;
       Type *expected_type = function->result_type->function.return_type;
 
-      if (inst->ret.value == nullptr) {
+      if (inst->ret.value.isNone()) {
         expect(expected_type->kind == TypeKind::Void, inst->source_location,
                "Function expects return value");
       } else {
-        analyse(analyser, module, inst->ret.value);
-        autoCast(analyser, inst->ret.value, expected_type);
+        MIRValue *value_inst = inst->ret.value.get();
+        analyse(analyser, module, value_inst);
+        autoCast(analyser, value_inst, expected_type);
 
-        expect(compareTypes(expected_type, inst->ret.value->result_type),
-               inst->ret.value->source_location,
-               "Unexpected return type. Got `" << inst->ret.value->result_type
-                                               << "` Expected `"
-                                               << expected_type << "`");
+        expect(compareTypes(expected_type, value_inst->result_type),
+               value_inst->source_location,
+               "Unexpected return type. Got `"
+                   << value_inst->result_type << "` Expected `" << expected_type
+                   << "`");
       }
-    } else if (inst->ret.value != nullptr) {
-      analyse(analyser, module, inst->ret.value);
+    } else if (inst->ret.value.isSome()) {
+      analyse(analyser, module, inst->ret.value.get());
     }
 
     inst->result_type = nullptr;

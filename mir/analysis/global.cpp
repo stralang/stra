@@ -5,13 +5,13 @@ void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
   case MIRValueKind::GlobalVariable: {
     // Type
-    if (inst->global_variable.type != nullptr) {
+    if (inst->global_variable.type.isSome()) {
       // Get Type
+      MIRValue *type_inst = inst->global_variable.type.get();
       MIRLiteral type_literal =
-          analyser->comptime_state.execute(module, inst->global_variable.type);
+          analyser->comptime_state.execute(module, type_inst);
       expect(type_literal.lit_type->kind == TypeKind::TypeId,
-             inst->global_variable.type->source_location,
-             "Field type must be a typeid");
+             type_inst->source_location, "Field type must be a typeid");
 
       inst->result_type = module->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
@@ -21,21 +21,22 @@ void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     }
 
     // Analyse Constant
-    if (inst->global_variable.constant != nullptr) {
+    if (inst->global_variable.constant.isSome()) {
       // Get Initial
-      MIRLiteral const_literal = analyser->comptime_state.execute(
-          module, inst->global_variable.constant);
+      MIRValue *const_inst = inst->global_variable.constant.get();
+      MIRLiteral const_literal =
+          analyser->comptime_state.execute(module, const_inst);
       Type *type = const_literal.lit_type;
-      expect(type != nullptr, inst->global_variable.constant->source_location,
+      expect(type != nullptr, const_inst->source_location,
              "Couldn't determine type of constant");
 
       // Set data
-      inst->global_variable.constant->kind = MIRValueKind::Literal;
-      inst->global_variable.constant->literal = const_literal;
-      inst->global_variable.constant->result_type = const_literal.lit_type;
+      const_inst->kind = MIRValueKind::Literal;
+      const_inst->literal = const_literal;
+      const_inst->result_type = const_literal.lit_type;
 
       // Check
-      if (inst->global_variable.type == nullptr) {
+      if (inst->global_variable.type.isNone()) {
         inst->result_type = module->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = type,
@@ -47,14 +48,12 @@ void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
           type = inst->result_type->child;
         }
 
-        autoCast(analyser, inst->global_variable.constant,
-                 inst->result_type->child);
-        expect(compareTypes(inst->result_type->child,
-                            inst->global_variable.constant->result_type),
-               inst->global_variable.constant->source_location,
+        autoCast(analyser, const_inst, inst->result_type->child);
+        expect(compareTypes(inst->result_type->child, const_inst->result_type),
+               const_inst->source_location,
                "Field initial doesn't match type. Field Type: `"
                    << inst->result_type << "` Initial Type: `"
-                   << inst->global_variable.constant->result_type << "`\n");
+                   << const_inst->result_type << "`\n");
       }
     }
 
