@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.30)
 project(mir VERSION 0.1.0 LANGUAGES CXX)
 add_library(mir STATIC
   mir.cpp
+  builder.cpp
 
   analysis/analysis.cpp
   analysis/lookup.cpp

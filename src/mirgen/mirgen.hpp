@@ -3,6 +3,7 @@
 #include "../ast.hpp"
 #include "../symbol.hpp"
 #include "allocator.hpp"
+#include "builder.hpp"
 #include "mir.hpp"
 
 struct MIRGen {
