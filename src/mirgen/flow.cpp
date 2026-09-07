@@ -1,4 +1,6 @@
 #include "define.hpp"
+#include "literal.hpp"
+#include "mir.hpp"
 
 void genIf(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *if_scope = scope->findSymbolByNode(node);
@@ -77,6 +79,39 @@ void genLoop(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *for_scope = scope->findSymbolByNode(node);
   MIRValue *parent_define = mirgen->builder.block->parent;
 
+  // `for-in` Init
+  bool range_loop = node->_for.conditional->kind == NodeKind::In;
+  if (range_loop) {
+    MIRBlock *init_block =
+        mirgen->builder.appendBlock(parent_define, str("for_init"));
+    mirgen->builder.buildBr(init_block);
+    mirgen->builder.block = init_block;
+
+    MIRValue *initial =
+        gen(mirgen, node->_for.conditional->in.range->range.min, for_scope);
+    MIRValue *type;
+    if (initial->kind == MIRValueKind::Literal) {
+      type = mirgen->ctx->makeLiteral({
+          .lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+          .kind = MIRLiteralKind::Typed,
+          ._typeid = mirgen->ctx->type_cache->get({
+              .kind = TypeKind::Integer,
+              .integer = {false, false, -1},
+              .is_constant = true,
+          }),
+      });
+    } else {
+      type = mirgen->builder.buildTypeOf(initial);
+    }
+
+    MIRValue *field = mirgen->builder.buildLocalVariable(
+        type, node->_for.conditional->in.name);
+    field->source_location = node->_for.conditional->location;
+
+    mirgen->builder.buildStore(initial, field);
+    mirgen->node_to_value.insert(node->_for.conditional, field);
+  }
+
   // Blocks
   MIRBlock *condition_block =
       mirgen->builder.appendBlock(parent_define, str("for_condition"));
@@ -84,15 +119,52 @@ void genLoop(MIRGen *mirgen, Node *node, Symbol *scope) {
       mirgen->builder.appendBlock(parent_define, str("for_do"));
   MIRBlock *merge_block =
       mirgen->builder.appendBlock(parent_define, str("for_merge"));
+  MIRBlock *continue_block = condition_block;
 
   mirgen->builder.buildBr(condition_block);
 
   // Conditional
   mirgen->builder.block = condition_block;
-  MIRValue *condition = gen(mirgen, node->_for.conditional, for_scope);
+  MIRValue *condition;
+  if (range_loop) {
+    // `for-in` Conditional
+    MIRValue *lhs_ptr = *mirgen->node_to_value.get(node->_for.conditional);
+    MIRValue *lhs = mirgen->builder.buildLoad(lhs_ptr);
+    MIRValue *rhs =
+        gen(mirgen, node->_for.conditional->in.range->range.max, for_scope);
+
+    MIROpcode opcode =
+        node->_for.conditional->in.range->range.mode == NodeRange::EqualTo
+            ? MIROpcode::LessThenOrEqualTo
+            : MIROpcode::LessThen;
+
+    condition = mirgen->builder.buildBinOp(lhs, rhs, opcode);
+  } else {
+    condition = gen(mirgen, node->_for.conditional, for_scope);
+  }
 
   mirgen->builder.buildCondBr(condition, do_block, merge_block);
 
+  // `for-in` Increment
+  if (range_loop) {
+    MIRBlock *increment_block =
+        mirgen->builder.appendBlock(parent_define, str("for_increment"));
+    continue_block = increment_block;
+    mirgen->builder.block = increment_block;
+
+    MIRValue *ptr = *mirgen->node_to_value.get(node->_for.conditional);
+    MIRValue *idx = mirgen->builder.buildLoad(ptr);
+    MIRValue *one = mirgen->ctx->makeLiteral(
+        {.lit_type = ptr->local_variable.type->literal._typeid,
+         .kind = MIRLiteralKind::Typed,
+         ._int = 1});
+    MIRValue *result = mirgen->builder.buildBinOp(idx, one, MIROpcode::Add);
+    mirgen->builder.buildStore(result, ptr);
+
+    mirgen->builder.buildBr(condition_block);
+  }
+
+  // Body
   {
     // Set Defer
     size_t old_defer_len = mirgen->defer_stack_len;
@@ -104,7 +176,7 @@ void genLoop(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     if (!mirgen->builder.block->hasTerminator()) {
       injectDefer(mirgen, for_scope, false);
-      mirgen->builder.buildBr(condition_block);
+      mirgen->builder.buildBr(continue_block);
     }
 
     // Reset Defer

@@ -42,7 +42,7 @@ struct MIRBuilder {
   void addCase(MIRValue *switch_inst, MIRValue *onval, MIRBlock *then);
 
   MIRValue *buildComptime(String name);
-  MIRValue *buildTypeOf(MIRValue *value, String name);
+  MIRValue *buildTypeOf(MIRValue *value, String name = {.ptr = nullptr});
 
   MIRValue *buildGlobalVariable(Option<MIRValue *> type,
                                 Option<MIRValue *> constant, String name);
