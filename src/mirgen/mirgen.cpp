@@ -72,19 +72,28 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Block: {
+    Symbol *block_scope = scope->findSymbolByNode(node);
+
     // Set Defer
     size_t old_defer_len = mirgen->defer_stack_len;
     size_t old_defer_boundary = mirgen->defer_local_boundary;
 
-    // Body
-    Symbol *block_scope = scope->findSymbolByNode(node);
+    // Blocks
+    MIRValue *parent = mirgen->builder.block->parent;
+    MIRBlock *body_block = mirgen->builder.appendBlock(parent, str("scope"));
+    MIRBlock *merge_block =
+        mirgen->builder.appendBlock(parent, str("scope_merge"));
 
+    // Generate Body
+    mirgen->builder.buildBr(body_block);
+    mirgen->builder.block = body_block;
     for (size_t i = 0; i < node->children.length; i++) {
       gen(mirgen, node->children.getUnchecked(i), block_scope);
     }
 
-    // Inject defer
     injectDefer(mirgen, block_scope, false);
+    mirgen->builder.buildBr(merge_block);
+    mirgen->builder.block = merge_block;
 
     // Reset Defer
     mirgen->defer_stack_len = old_defer_len;
