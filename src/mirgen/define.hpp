@@ -4,7 +4,12 @@
 
 MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope);
+void injectDefer(MIRGen *mirgen, Symbol *scope, bool is_return);
 void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope);
+
+void genIf(MIRGen *mirgen, Node *node, Symbol *scope);
+void genLoop(MIRGen *mirgen, Node *node, Symbol *scope);
+void genSwitch(MIRGen *mirgen, Node *node, Symbol *scope);
 
 MIRValue *genAssignment(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope);

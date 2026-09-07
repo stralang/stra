@@ -11,10 +11,11 @@ add_executable(stra
   src/symbolize.cpp
 
   src/mirgen/mirgen.cpp
+  src/mirgen/operator.cpp
+  src/mirgen/flow.cpp
+  src/mirgen/record.cpp
   src/mirgen/convert.cpp
   src/mirgen/builtin.cpp
-  src/mirgen/operator.cpp
-  src/mirgen/record.cpp
 
   src/codegen/codegen.cpp
   src/codegen/convert.cpp
