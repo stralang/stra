@@ -53,6 +53,16 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
   return nullptr;
 }
 
+void injectDefer(MIRGen *mirgen, Symbol *scope, bool is_return) {
+  size_t i = mirgen->defer_stack_len;
+  size_t min = is_return ? 0 : mirgen->defer_local_boundary;
+
+  while (i > min) {
+    i -= 1;
+    gen(mirgen, mirgen->defer_stack[i], scope);
+  }
+}
+
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Compound: {
@@ -62,11 +72,24 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case NodeKind::Block: {
+    // Set Defer
+    size_t old_defer_len = mirgen->defer_stack_len;
+    size_t old_defer_boundary = mirgen->defer_local_boundary;
+
+    // Body
     Symbol *block_scope = scope->findSymbolByNode(node);
 
     for (size_t i = 0; i < node->children.length; i++) {
       gen(mirgen, node->children.getUnchecked(i), block_scope);
     }
+
+    // Inject defer
+    injectDefer(mirgen, block_scope, false);
+
+    // Reset Defer
+    mirgen->defer_stack_len = old_defer_len;
+    mirgen->defer_local_boundary = old_defer_boundary;
+
     break;
   }
   case NodeKind::Name: {
@@ -247,9 +270,16 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       // Body
       gen(mirgen, node->function.body, fn_symbol);
 
+      // Inject void return
+      if (!mirgen->builder.block->hasTerminator()) {
+        injectDefer(mirgen, fn_symbol, false);
+        mirgen->builder.buildReturn(nullptr);
+      }
+
       // End
       mirgen->builder.block = prev_block;
       mirgen->builder.scope = prev_scope;
+      mirgen->defer_stack_len = 0; // Clear defer stack
     }
 
     return value;
@@ -317,11 +347,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return mirgen->builder.buildLoad(ptr);
   }
   case NodeKind::Return: {
+    injectDefer(mirgen, scope, true);
+
+    // Generate value
     MIRValue *ret_value = nullptr;
     if (node->child != nullptr) {
       ret_value = gen(mirgen, node->child, scope);
     }
 
+    // Build
     MIRValue *out = mirgen->builder.buildReturn(ret_value);
     out->source_location = node->location;
     return out;
@@ -350,16 +384,33 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       mirgen->builder.buildCondBr(condition, then_block, merge_block);
     }
 
-    // Body
-    mirgen->builder.block = then_block;
-    gen(mirgen, node->_if.body, if_scope);
+    // Then
+    {
+      // Set Defer
+      size_t old_defer_len = mirgen->defer_stack_len;
+      size_t old_defer_boundary = mirgen->defer_local_boundary;
 
-    if (!mirgen->builder.block->hasTerminator()) {
-      mirgen->builder.buildBr(merge_block);
+      // Body
+      mirgen->builder.block = then_block;
+      gen(mirgen, node->_if.body, if_scope);
+
+      if (!mirgen->builder.block->hasTerminator()) {
+        injectDefer(mirgen, if_scope, false);
+        mirgen->builder.buildBr(merge_block);
+      }
+
+      // Reset Defer
+      mirgen->defer_stack_len = old_defer_len;
+      mirgen->defer_local_boundary = old_defer_boundary;
     }
 
     // Else
     if (else_block != nullptr) {
+      // Set Defer
+      size_t old_defer_len = mirgen->defer_stack_len;
+      size_t old_defer_boundary = mirgen->defer_local_boundary;
+
+      // Body
       mirgen->builder.block = else_block;
 
       Symbol *else_scope = scope->findSymbolByNode(node->_if._else);
@@ -369,8 +420,13 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       gen(mirgen, node->_if._else, else_scope);
 
       if (!mirgen->builder.block->hasTerminator()) {
+        injectDefer(mirgen, else_scope, false);
         mirgen->builder.buildBr(merge_block);
       }
+
+      // Reset Defer
+      mirgen->defer_stack_len = old_defer_len;
+      mirgen->defer_local_boundary = old_defer_boundary;
     }
 
     // Merge
@@ -397,12 +453,23 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     mirgen->builder.buildCondBr(condition, do_block, merge_block);
 
-    // Do
-    mirgen->builder.block = do_block;
-    gen(mirgen, node->_for.body, for_scope);
+    {
+      // Set Defer
+      size_t old_defer_len = mirgen->defer_stack_len;
+      size_t old_defer_boundary = mirgen->defer_local_boundary;
 
-    if (!mirgen->builder.block->hasTerminator()) {
-      mirgen->builder.buildBr(condition_block);
+      // Do
+      mirgen->builder.block = do_block;
+      gen(mirgen, node->_for.body, for_scope);
+
+      if (!mirgen->builder.block->hasTerminator()) {
+        injectDefer(mirgen, for_scope, false);
+        mirgen->builder.buildBr(condition_block);
+      }
+
+      // Reset Defer
+      mirgen->defer_stack_len = old_defer_len;
+      mirgen->defer_local_boundary = old_defer_boundary;
     }
 
     // Merge
@@ -425,14 +492,26 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       Node *_case = node->_switch.cases.data.ptr[i];
       Symbol *case_scope = scope->findSymbolByNode(_case);
 
-      // Body
-      MIRBlock *case_block =
-          mirgen->builder.appendBlock(parent_define, str("switch_case"));
-      mirgen->builder.block = case_block;
-      gen(mirgen, _case->_case.body, case_scope);
+      MIRBlock *case_block = nullptr;
+      {
+        // Set Defer
+        size_t old_defer_len = mirgen->defer_stack_len;
+        size_t old_defer_boundary = mirgen->defer_local_boundary;
 
-      if (!mirgen->builder.block->hasTerminator()) {
-        mirgen->builder.buildBr(merge_block);
+        // Body
+        case_block =
+            mirgen->builder.appendBlock(parent_define, str("switch_case"));
+        mirgen->builder.block = case_block;
+        gen(mirgen, _case->_case.body, case_scope);
+
+        if (!mirgen->builder.block->hasTerminator()) {
+          injectDefer(mirgen, case_scope, false);
+          mirgen->builder.buildBr(merge_block);
+        }
+
+        // Reset Defer
+        mirgen->defer_stack_len = old_defer_len;
+        mirgen->defer_local_boundary = old_defer_boundary;
       }
 
       // Add
@@ -442,6 +521,11 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     // Merge
     mirgen->builder.block = merge_block;
+    break;
+  }
+  case NodeKind::Defer: {
+    mirgen->defer_stack[mirgen->defer_stack_len] = node->child;
+    mirgen->defer_stack_len += 1;
     break;
   }
   case NodeKind::Comptime: {
