@@ -1231,7 +1231,7 @@ void MIRPrintInst(MIRValue *inst) {
     if (inst->global_variable.type.isSome()) {
       MIRPrintRef(inst->global_variable.type.get());
     } else {
-      std::cout << "INFERRED\n";
+      std::cout << "INFERRED";
     }
     std::cout << "`, ";
     if (inst->global_variable.constant.isSome()) {

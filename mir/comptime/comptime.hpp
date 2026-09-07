@@ -23,6 +23,13 @@ struct ComptimeStackFrame {
 
   MIRLiteral *add(MIRValue *inst) {
     if (inst != nullptr) {
+      // Second allocation check
+      size_t *cache = this->lookup.get(inst);
+      if (cache != nullptr) {
+        return this->values.getUnchecked(*cache);
+      }
+
+      // Insert
       this->lookup.insert(inst, this->values.length);
     }
 
