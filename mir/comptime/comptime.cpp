@@ -12,7 +12,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
 
   switch (inst->kind) {
-  case MIRValueKind::Alloca: {
+  case MIRValueKind::LocalVariable: {
     // Don't allocate another field
     size_t *ptr_idx = frame->lookup.get(inst);
     if (ptr_idx != nullptr) {
@@ -20,7 +20,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     // Get Type
-    MIRLiteral ty_lit = state->getValue(frame, module, inst->alloca.type);
+    MIRLiteral ty_lit =
+        state->getValue(frame, module, inst->local_variable.type);
 
     // Allocate value
     MIRLiteral *value_lit = frame->add(nullptr);

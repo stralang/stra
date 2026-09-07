@@ -190,11 +190,12 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   switch (inst->kind) {
-  case MIRValueKind::Alloca: {
+  case MIRValueKind::LocalVariable: {
     MIRLiteral type_literal =
-        analyser->comptime_state.execute(module, inst->alloca.type);
+        analyser->comptime_state.execute(module, inst->local_variable.type);
     expect(type_literal.lit_type->kind == TypeKind::TypeId,
-           inst->alloca.type->source_location, "Field type must be a typeid");
+           inst->local_variable.type->source_location,
+           "Field type must be a typeid");
 
     inst->result_type = module->ctx->type_cache->get({
         .kind = TypeKind::Pointer,

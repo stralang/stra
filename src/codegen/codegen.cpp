@@ -36,8 +36,9 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   LLVMValueRef out = nullptr;
 
   switch (inst->kind) {
-  case MIRValueKind::Alloca: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->alloca.type->literal._typeid);
+  case MIRValueKind::LocalVariable: {
+    LLVMTypeRef ty =
+        typeToLLVM(codegen, inst->local_variable.type->literal._typeid);
     out = BuildAlloca(codegen, builder, ty, "");
 
     LLVMSetValueName2(out, (const char *)inst->name.ptr, inst->name.len);

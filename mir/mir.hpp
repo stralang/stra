@@ -19,7 +19,7 @@ enum class MIRValueKind : std::uint16_t {
   Nop,
 
   Instruction = 0x1000,
-  Alloca,
+  LocalVariable, // Allocated once per stack frame
   Load,
   Store,
   Arg,
@@ -38,7 +38,7 @@ enum class MIRValueKind : std::uint16_t {
   Alias,
 
   Global = 0x3000,
-  GlobalVariable,
+  GlobalVariable, // Allocated once per process
   Function,
 
   Constant = 0x4000,
@@ -145,7 +145,7 @@ struct MIRValue {
   union {
     struct {
       MIRValue *type;
-    } alloca;
+    } local_variable;
     struct {
       MIRValue *ptr;
     } load;

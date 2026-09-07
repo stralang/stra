@@ -36,9 +36,9 @@ MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
   return ptr_inst;
 }
 
-MIRValue *MIRBuilder::buildAlloca(MIRValue *type, String name) {
-  MIRValue inst = {.kind = MIRValueKind::Alloca};
-  inst.alloca = {type};
+MIRValue *MIRBuilder::buildLocalVariable(MIRValue *type, String name) {
+  MIRValue inst = {.kind = MIRValueKind::LocalVariable};
+  inst.local_variable = {type};
   return this->insert(inst, false, name);
 }
 

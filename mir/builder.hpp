@@ -12,7 +12,7 @@ struct MIRBuilder {
   MIRValue *insert(MIRValue inst, bool global = false,
                    String name = {.ptr = nullptr});
 
-  MIRValue *buildAlloca(MIRValue *type, String name);
+  MIRValue *buildLocalVariable(MIRValue *type, String name);
   MIRValue *buildLoad(MIRValue *ptr, String name = {.ptr = nullptr});
   MIRValue *buildStore(MIRValue *value, MIRValue *ptr);
 

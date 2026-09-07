@@ -1082,10 +1082,10 @@ void MIRPrintInst(MIRValue *inst) {
   case MIRValueKind::Nop: {
     break;
   }
-  case MIRValueKind::Alloca: {
+  case MIRValueKind::LocalVariable: {
     MIRPrintName(inst);
-    std::cout << " = alloca `";
-    MIRPrintRef(inst->alloca.type);
+    std::cout << " = localvar `";
+    MIRPrintRef(inst->local_variable.type);
     std::cout << "`";
     break;
   }
@@ -1227,7 +1227,7 @@ void MIRPrintInst(MIRValue *inst) {
 
   case MIRValueKind::GlobalVariable: {
     MIRPrintName(inst);
-    std::cout << " = global `";
+    std::cout << " = globalvar `";
     if (inst->global_variable.type.isSome()) {
       MIRPrintRef(inst->global_variable.type.get());
     } else {

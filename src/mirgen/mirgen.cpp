@@ -182,7 +182,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
         type = mirgen->builder.buildTypeOf(initial, {.ptr = nullptr});
       }
 
-      field = mirgen->builder.buildAlloca(type, node->field.name);
+      field = mirgen->builder.buildLocalVariable(type, node->field.name);
       mirgen->node_to_value.insert(node, field);
 
       if (initial != nullptr) {
