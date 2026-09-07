@@ -1,4 +1,5 @@
 #include "builder.hpp"
+#include "mir.hpp"
 
 MIRBlock *MIRBuilder::appendBlock(MIRValue *parent, String name) {
   MIRBlock *block = (MIRBlock *)this->module->arena.alloc(sizeof(MIRBlock));
@@ -84,6 +85,13 @@ MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
 MIRValue *MIRBuilder::buildGEP(MIRValue *ptr, MIRValue *index, String name) {
   MIRValue inst = {.kind = MIRValueKind::GEP};
   inst.gep = {.ptr = ptr, .index = index};
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildRange(MIRValue *ptr, MIRValue *start, MIRValue *end,
+                                 String name) {
+  MIRValue inst = {.kind = MIRValueKind::Range};
+  inst.range = {ptr, start, end};
   return this->insert(inst, false, name);
 }
 

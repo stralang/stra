@@ -264,7 +264,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
   }
   case MIRValueKind::Slice: {
-    Type raw_type = {.kind = TypeKind::Slice, .is_constant = true};
+    Type raw_type = {.kind = TypeKind::Slice, .is_constant = false};
 
     MIRLiteral element = state->getValue(frame, module, inst->slice.element);
     assert(element.lit_type->kind == TypeKind::TypeId);

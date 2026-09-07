@@ -1145,6 +1145,16 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->gep.index);
     break;
   }
+  case MIRValueKind::Range: {
+    MIRPrintName(inst);
+    std::cout << " = range ";
+    MIRPrintRef(inst->range.ptr);
+    std::cout << ", ";
+    MIRPrintRef(inst->range.start);
+    std::cout << " .. ";
+    MIRPrintRef(inst->range.end);
+    break;
+  }
   case MIRValueKind::Call: {
     MIRPrintName(inst);
     std::cout << " = call ";

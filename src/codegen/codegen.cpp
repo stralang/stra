@@ -148,6 +148,74 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     }
     break;
   }
+  case MIRValueKind::Range: {
+    LLVMValueRef slice = getReference(codegen, inst->gep.ptr);
+    Type *slice_type = inst->gep.ptr->result_type->child;
+
+    LLVMValueRef length;
+    LLVMValueRef ptr = slice;
+    LLVMTypeRef elem_type;
+
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+    if (slice_type->kind == TypeKind::Pointer) {
+      // Pointer to slice conversion
+      elem_type = typeToLLVM(codegen, slice_type->child);
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
+    } else if (slice_type->slice.length > 0) {
+      // Array (compile-time length)
+      elem_type = typeToLLVM(codegen, slice_type->slice.type);
+
+      length = LLVMConstInt(
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          slice_type->slice.length, false);
+    } else if (slice_type->slice.length == 0) {
+      // Slice (runtime length)
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+      length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+                             indices, 2, "");
+      length = LLVMBuildLoad2(
+          builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          length, "");
+
+      indices[1] = indices[0];
+      ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+                          indices, 2, "");
+      elem_type = typeToLLVM(codegen, slice_type->slice.type);
+      ptr = LLVMBuildLoad2(builder, LLVMPointerType(elem_type, 0), ptr, "");
+    } else {
+      // Pointer Slice (no length)
+      elem_type = typeToLLVM(codegen, slice_type->slice.type);
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
+    }
+
+    LLVMValueRef start = getReference(codegen, inst->range.start);
+    LLVMValueRef end = getReference(codegen, inst->range.end);
+    indices[0] = start;
+
+    // TODO: Bounds checking
+
+    // Create
+    LLVMValueRef elem_ptr =
+        LLVMBuildGEP2(builder, elem_type, ptr, indices, 1, "");
+
+    // Get new slice length
+    LLVMValueRef new_length = LLVMBuildSub(builder, end, start, "");
+    LLVMTypeRef ptr_ty =
+        LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
+
+    // Create Slice
+    LLVMValueRef constants[2];
+    constants[0] = LLVMConstNull(LLVMTypeOf(elem_ptr));
+    constants[1] = LLVMConstInt(LLVMTypeOf(new_length), 0, false);
+
+    LLVMValueRef new_slice =
+        LLVMConstStructInContext(codegen->ctx, constants, 2, false);
+    new_slice = LLVMBuildInsertValue(builder, new_slice, elem_ptr, 0, "");
+    new_slice = LLVMBuildInsertValue(builder, new_slice, new_length, 1, "");
+    codegen->inst_to_llvm.insert(inst, new_slice);
+    break;
+  }
   case MIRValueKind::Return: {
     if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);

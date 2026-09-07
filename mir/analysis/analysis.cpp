@@ -59,8 +59,8 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   case MIROpcode::And:
   case MIROpcode::LeftShift:
   case MIROpcode::RightShift: {
-    expect(lhs_primitive->kind == TypeKind::Integer, lhs->source_location,
-           "LHS must be an Integer. Got `" << lhs_primitive << "`");
+    // expect(lhs_primitive->kind == TypeKind::Integer, lhs->source_location,
+    //        "LHS must be an Integer. Got `" << lhs_primitive << "`");
     expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
@@ -327,6 +327,46 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
                !index->result_type->integer.is_signed &&
                index->result_type->integer.bits == -1,
            index->source_location, "Index must be of type `usize`");
+    break;
+  }
+  case MIRValueKind::Range: {
+    analyse(analyser, module, inst->range.ptr);
+    analyse(analyser, module, inst->range.start);
+    analyse(analyser, module, inst->range.end);
+
+    // Check Pointer
+    MIRValue *ptr = inst->range.ptr;
+    expect(ptr->result_type->child->kind == TypeKind::Slice ||
+               ptr->result_type->child->kind == TypeKind::Pointer,
+           inst->source_location, "Cannot range into non-slice/pointer");
+
+    // Check Index and Length
+    Type *usize_ty = module->ctx->type_cache->get({
+        .kind = TypeKind::Integer,
+        .integer = {false, false, -1},
+    });
+    fixUntyped(analyser, inst->range.start, usize_ty);
+    fixUntyped(analyser, inst->range.end, usize_ty);
+
+    MIRValue *start = inst->range.start;
+    Type *range_type = start->result_type;
+    expect(range_type->kind == TypeKind::Integer &&
+               !range_type->integer.is_untyped &&
+               !range_type->integer.is_signed &&
+               range_type->integer.bits == -1 &&
+               range_type == inst->range.end->result_type,
+           start->source_location, "Range start and end must both be `usize`");
+
+    // Get Result type
+    Type ty = {.kind = TypeKind::Slice};
+    ty.slice.length = 0;
+    if (ptr->result_type->child->kind == TypeKind::Pointer) {
+      ty.slice.type = ptr->result_type->child->child;
+    } else {
+      ty.slice.type = ptr->result_type->child->slice.type;
+    }
+
+    inst->result_type = module->ctx->type_cache->get(ty);
     break;
   }
   case MIRValueKind::Lookup: {

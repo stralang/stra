@@ -42,9 +42,21 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Index: {
     MIRValue *ptr = addr(mirgen, node->index.slice, scope);
-    MIRValue *index = gen(mirgen, node->index.index, scope);
 
-    MIRValue *out = mirgen->builder.buildGEP(ptr, index);
+    MIRValue *out = nullptr;
+    if (node->index.index->kind == NodeKind::Range) {
+      MIRValue *offset = gen(mirgen, node->index.index->range.min, scope);
+      MIRValue *length = gen(mirgen, node->index.index->range.max, scope);
+      MIRValue *new_slice = mirgen->builder.buildRange(ptr, offset, length);
+
+      MIRValue *ty = mirgen->builder.buildTypeOf(new_slice);
+      out = mirgen->builder.buildLocalVariable(ty, str("tmp_mir_intern"));
+      mirgen->builder.buildStore(new_slice, out);
+    } else {
+      MIRValue *index = gen(mirgen, node->index.index, scope);
+      out = mirgen->builder.buildGEP(ptr, index);
+    }
+
     out->source_location = node->location;
     return out;
   }
@@ -176,7 +188,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
       mirgen->node_to_value.insert(node, field);
 
       if (initial != nullptr) {
-        mirgen->builder.buildStore(initial, field);
+        MIRValue *store_inst = mirgen->builder.buildStore(initial, field);
+        store_inst->source_location = node->location;
       }
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Function) {
@@ -342,6 +355,15 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     return out;
   }
   case NodeKind::Index: {
+    if (node->index.index->kind == NodeKind::Range) {
+      MIRValue *ptr = addr(mirgen, node->index.slice, scope);
+      MIRValue *offset = gen(mirgen, node->index.index->range.min, scope);
+      MIRValue *length = gen(mirgen, node->index.index->range.max, scope);
+
+      MIRValue *out = mirgen->builder.buildRange(ptr, offset, length);
+      out->source_location = node->location;
+      return out;
+    }
     MIRValue *ptr = addr(mirgen, node, scope);
     return mirgen->builder.buildLoad(ptr);
   }

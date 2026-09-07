@@ -29,6 +29,8 @@ struct MIRBuilder {
 
   MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
                      String name = {.ptr = nullptr});
+  MIRValue *buildRange(MIRValue *ptr, MIRValue *start, MIRValue *end,
+                       String name = {.ptr = nullptr});
   MIRValue *buildLookup(MIRValue *ptr, String member,
                         String name = {.ptr = nullptr});
 
