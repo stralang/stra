@@ -99,9 +99,9 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     out = genCall(codegen, builder, inst);
     break;
   }
-  case MIRValueKind::GEP: {
-    LLVMValueRef value = getReference(codegen, inst->gep.ptr);
-    Type *value_type = inst->gep.ptr->result_type->child;
+  case MIRValueKind::Index: {
+    LLVMValueRef value = getReference(codegen, inst->index.ptr);
+    Type *value_type = inst->index.ptr->result_type->child;
 
     if (value_type->kind == TypeKind::Slice) {
       LLVMValueRef slice = value;
@@ -137,7 +137,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
             LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
       }
 
-      indices[0] = getReference(codegen, inst->gep.index);
+      indices[0] = getReference(codegen, inst->index.index);
 
       // Runtime length check is handled by MIR
 
@@ -149,8 +149,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     break;
   }
   case MIRValueKind::Range: {
-    LLVMValueRef slice = getReference(codegen, inst->gep.ptr);
-    Type *slice_type = inst->gep.ptr->result_type->child;
+    LLVMValueRef slice = getReference(codegen, inst->range.ptr);
+    Type *slice_type = inst->range.ptr->result_type->child;
 
     LLVMValueRef length;
     LLVMValueRef ptr = slice;

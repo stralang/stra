@@ -1137,12 +1137,12 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << "\"";
     break;
   }
-  case MIRValueKind::GEP: {
+  case MIRValueKind::Index: {
     MIRPrintName(inst);
-    std::cout << " = gep ";
-    MIRPrintRef(inst->gep.ptr);
+    std::cout << " = index ";
+    MIRPrintRef(inst->index.ptr);
     std::cout << ", ";
-    MIRPrintRef(inst->gep.index);
+    MIRPrintRef(inst->index.index);
     break;
   }
   case MIRValueKind::Range: {

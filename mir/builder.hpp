@@ -27,8 +27,8 @@ struct MIRBuilder {
                       Option<MIRValue *> receiver,
                       String name = {.ptr = nullptr});
 
-  MIRValue *buildGEP(MIRValue *ptr, MIRValue *index,
-                     String name = {.ptr = nullptr});
+  MIRValue *buildIndex(MIRValue *ptr, MIRValue *index,
+                       String name = {.ptr = nullptr});
   MIRValue *buildRange(MIRValue *ptr, MIRValue *start, MIRValue *end,
                        String name = {.ptr = nullptr});
   MIRValue *buildLookup(MIRValue *ptr, String member,

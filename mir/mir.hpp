@@ -26,7 +26,7 @@ enum class MIRValueKind : std::uint16_t {
   BinOp,
   UnaryOp,
   Call,
-  GEP,
+  Index,
   Range,
   Lookup,
   Return,
@@ -175,7 +175,7 @@ struct MIRValue {
     struct {
       MIRValue *ptr;
       MIRValue *index;
-    } gep;
+    } index;
     struct {
       MIRValue *ptr;
       MIRValue *start;

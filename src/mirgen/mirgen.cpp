@@ -54,7 +54,7 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
       mirgen->builder.buildStore(new_slice, out);
     } else {
       MIRValue *index = gen(mirgen, node->index.index, scope);
-      out = mirgen->builder.buildGEP(ptr, index);
+      out = mirgen->builder.buildIndex(ptr, index);
     }
 
     out->source_location = node->location;

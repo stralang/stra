@@ -301,10 +301,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     inst->result_type = fn_type->function.return_type;
     break;
   }
-  case MIRValueKind::GEP: {
+  case MIRValueKind::Index: {
     // Analyse Pointer
-    analyse(analyser, module, inst->gep.ptr);
-    MIRValue *ptr = inst->gep.ptr;
+    analyse(analyser, module, inst->index.ptr);
+    MIRValue *ptr = inst->index.ptr;
     expect(ptr->result_type->child->kind == TypeKind::Slice,
            inst->source_location, "Cannot index into non-slice");
 
@@ -320,8 +320,8 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
     });
 
-    analyse(analyser, module, inst->gep.index);
-    MIRValue *index = inst->gep.index;
+    analyse(analyser, module, inst->index.index);
+    MIRValue *index = inst->index.index;
     fixUntyped(analyser, index, usize_ty);
     expect(index->result_type->kind == TypeKind::Integer &&
                !index->result_type->integer.is_signed &&

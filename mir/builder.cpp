@@ -82,9 +82,9 @@ MIRValue *MIRBuilder::buildCall(MIRValue *callee, Slice<MIRValue *> arguments,
   return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildGEP(MIRValue *ptr, MIRValue *index, String name) {
-  MIRValue inst = {.kind = MIRValueKind::GEP};
-  inst.gep = {.ptr = ptr, .index = index};
+MIRValue *MIRBuilder::buildIndex(MIRValue *ptr, MIRValue *index, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Index};
+  inst.index = {.ptr = ptr, .index = index};
   return this->insert(inst, false, name);
 }
 

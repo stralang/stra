@@ -104,8 +104,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     state->popStack();
     return result;
   }
-  case MIRValueKind::GEP: {
-    // TODO: Implement compile-time GEP
+  case MIRValueKind::Index: {
+    // TODO: Implement compile-time Indexing
     break;
   }
   case MIRValueKind::BinOp: {
