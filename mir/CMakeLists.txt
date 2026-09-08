@@ -6,6 +6,7 @@ add_library(mir STATIC
   builder.cpp
 
   analysis/analysis.cpp
+  analysis/operator.cpp
   analysis/lookup.cpp
   analysis/global.cpp
   analysis/types.cpp

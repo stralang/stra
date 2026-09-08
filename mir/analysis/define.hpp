@@ -18,6 +18,8 @@ void analyseBlock(MIRAnalyser *analyser, MIRModule *module, MIRBlock *block);
 void analyseScope(MIRAnalyser *analyser, MIRModule *module, MIRScope *scope);
 
 void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 
