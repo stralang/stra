@@ -255,9 +255,18 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
         }
       }
     } else if (parent_type->kind == TypeKind::Struct) {
-      // TODO: fields
-      std::cerr << "TODO: Codegen field lookup\n";
-      std::abort();
+      MIRValue *struct_inst = parent_type->_struct.inst;
+      for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
+        MIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
+        if (!field->name.compare(inst->lookup.member)) {
+          continue;
+        }
+
+        indices[1] =
+            LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), i, false);
+        out = LLVMBuildGEP2(builder, parent_llvm, ptr, indices, 2, "");
+        break;
+      }
     } else if (parent_type->kind == TypeKind::Union) {
       // TODO: variants
       // TODO: Check Tag

@@ -42,6 +42,21 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       });
       return;
     }
+  } else if (parent_ty->kind == TypeKind::Struct) {
+    MIRValue *struct_inst = parent_ty->_struct.inst;
+    definitions = struct_inst->_struct.definitions;
+
+    for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
+      MIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
+      if (field->name.compare(inst->lookup.member)) {
+        inst->result_type = module->ctx->type_cache->get({
+            .kind = TypeKind::Pointer,
+            .child = field->type->literal._typeid,
+            .is_constant = true,
+        });
+        return;
+      }
+    }
   } else if (parent_ty->kind == TypeKind::Namespace) {
     definitions = parent_ty->_namespace.inst->_namespace.definitions;
   }
@@ -50,8 +65,8 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   if (definitions != nullptr) {
     for (size_t i = 0; i < definitions->list.length; i++) {
       MIRValue *child = definitions->list.getUnchecked(i);
-      analyse(analyser, module, child);
       if (child->name.compare(inst->lookup.member)) {
+        analyse(analyser, module, child);
         inst->kind = MIRValueKind::Alias;
         inst->alias = child;
         inst->result_type = child->result_type;
