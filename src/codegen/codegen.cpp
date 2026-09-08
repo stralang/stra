@@ -229,10 +229,9 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
       if (inst->lookup.member.compare("ptr")) {
         if (parent_type->slice.length > 0) {
           // Compile-time sized
-          out = LLVMBuildAlloca(builder, LLVMPointerType(parent_llvm, 0), "");
-          LLVMBuildStore(
-              builder, ptr,
-              out); // LLVMBuildLoad2(builder, parent__typetype, ptr, "");
+          out = BuildAlloca(codegen, builder, LLVMPointerType(parent_llvm, 0),
+                            "tmp_intern");
+          LLVMBuildStore(builder, ptr, out);
         } else {
           // Runtime sized
           indices[1] = indices[0];
@@ -243,7 +242,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
           // Compile-time sized
           LLVMTypeRef llvm_usize_ty =
               LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
-          out = LLVMBuildAlloca(builder, llvm_usize_ty, "tmp_intern");
+          out = BuildAlloca(codegen, builder, llvm_usize_ty, "tmp_intern");
           LLVMBuildStore(
               builder,
               LLVMConstInt(llvm_usize_ty, parent_type->slice.length, false),
