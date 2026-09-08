@@ -367,6 +367,24 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     MIRValue *ptr = addr(mirgen, node, scope);
     return mirgen->builder.buildLoad(ptr);
   }
+  case NodeKind::Initializer: {
+    MIRValue *record_type =
+        genComptime(mirgen, node->initializer.record, scope);
+    MIRValue *out =
+        mirgen->builder.buildLocalVariable(record_type, str("tmp_mir_intern"));
+
+    for (size_t i = 0; i < node->initializer.setters.length; i++) {
+      Node *setter = node->initializer.setters.getUnchecked(i);
+      MIRValue *lookup = mirgen->builder.buildLookup(out, setter->member.name);
+      MIRValue *value = gen(mirgen, setter->member.value, scope);
+      mirgen->builder.buildStore(value, lookup);
+
+      lookup->source_location = setter->location;
+    }
+
+    out->source_location = node->location;
+    return mirgen->builder.buildLoad(out);
+  }
   case NodeKind::Return: {
     injectDefer(mirgen, scope, true);
 
