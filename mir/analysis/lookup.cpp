@@ -18,18 +18,49 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   }
 
   MIRScope *definitions = nullptr;
-  if (parent_ty->kind == TypeKind::Namespace) {
+  if (parent_ty->kind == TypeKind::Slice) {
+    Type *sub_type = nullptr;
+    if (inst->lookup.member.compare("ptr")) {
+      sub_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Pointer,
+          .child = parent_ty->slice.type,
+          .is_constant = true,
+      });
+    } else if (inst->lookup.member.compare("len")) {
+      sub_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Integer,
+          .integer = {false, false, -1},
+          .is_constant = true,
+      });
+    }
+
+    if (sub_type != nullptr) {
+      inst->result_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Pointer,
+          .child = sub_type,
+          .is_constant = true,
+      });
+      return;
+    }
+  } else if (parent_ty->kind == TypeKind::Namespace) {
     definitions = parent_ty->_namespace.inst->_namespace.definitions;
   }
 
-  for (size_t i = 0; i < definitions->list.length; i++) {
-    MIRValue *child = definitions->list.getUnchecked(i);
-    analyse(analyser, module, child);
-    if (child->name.compare(inst->lookup.member)) {
-      inst->kind = MIRValueKind::Alias;
-      inst->alias = child;
-      inst->result_type = child->result_type;
-      return;
+  // Definitions
+  if (definitions != nullptr) {
+    for (size_t i = 0; i < definitions->list.length; i++) {
+      MIRValue *child = definitions->list.getUnchecked(i);
+      analyse(analyser, module, child);
+      if (child->name.compare(inst->lookup.member)) {
+        inst->kind = MIRValueKind::Alias;
+        inst->alias = child;
+        inst->result_type = child->result_type;
+        return;
+      }
     }
   }
+
+  // Error
+  expect(false, inst->source_location,
+         "Couldn't find member of name \"" << inst->lookup.member << "\"");
 }
