@@ -48,7 +48,7 @@ MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
     break;
   }
   case UnaryOperator::Dereference: {
-    out = child_value;
+    out = mirgen->builder.buildLoad(child_value);
     break;
   }
   case UnaryOperator::Pointer: {
