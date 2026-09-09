@@ -9,6 +9,7 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
          inst->lookup.parent->source_location,
          "Cannot `lookup` for non-pointer");
 
+  // Get Type
   Type *parent_ty = inst->lookup.parent->result_type->child;
   bool is_typeid = parent_ty->kind == TypeKind::TypeId;
   if (is_typeid) {
@@ -17,6 +18,12 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     parent_ty = ty_lit.pointer->_typeid;
   }
 
+  // Auto dereference
+  if (parent_ty->kind == TypeKind::Pointer) {
+    parent_ty = parent_ty->child;
+  }
+
+  // Search
   MIRScope *definitions = nullptr;
   if (parent_ty->kind == TypeKind::Slice) {
     Type *sub_type = nullptr;

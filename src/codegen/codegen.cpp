@@ -219,6 +219,15 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
   case MIRValueKind::Lookup: {
     LLVMValueRef ptr = getReference(codegen, inst->lookup.parent);
     Type *parent_type = inst->lookup.parent->result_type->child;
+
+    // Auto dereference
+    if (parent_type->kind == TypeKind::Pointer) {
+      parent_type = parent_type->child;
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, parent_type), ptr,
+                           "auto_deref_intern");
+    }
+
+    // Search
     LLVMTypeRef parent_llvm = typeToLLVM(codegen, parent_type);
 
     LLVMValueRef out = nullptr;
