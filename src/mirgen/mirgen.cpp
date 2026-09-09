@@ -228,7 +228,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *arg = node->function.parameters.getUnchecked(i);
-      parameters.ptr[i] = gen(mirgen, arg->field.type, fn_symbol);
+      parameters.ptr[i] = genComptime(mirgen, arg->field.type, fn_symbol);
     }
 
     // Return Type
@@ -243,7 +243,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
       return_type = mirgen->ctx->make(void_ty);
     } else {
-      return_type = gen(mirgen, node->function.return_type, fn_symbol);
+      return_type = genComptime(mirgen, node->function.return_type, fn_symbol);
     }
 
     // Build Function
