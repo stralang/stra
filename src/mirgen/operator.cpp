@@ -51,6 +51,10 @@ MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
     out = child_value;
     break;
   }
+  case UnaryOperator::Pointer: {
+    out = mirgen->builder.buildPointer(child_value, {.ptr = nullptr});
+    break;
+  }
   }
 
   if (out != nullptr) {

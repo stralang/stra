@@ -44,6 +44,7 @@ enum class MIRValueKind : std::uint16_t {
 
   Constant = 0x4000,
   Literal,
+  Pointer,
   Slice,
   Struct,
   Enum,
@@ -219,11 +220,12 @@ struct MIRValue {
     MIRFunction function;
 
     MIRLiteral literal;
+    MIRValue *pointer;
+    MIRSlice slice;
     MIRStruct _struct;
     MIREnum _enum;
     MIRUnion _union;
     MIRNamespace _namespace;
-    MIRSlice slice;
   };
 };
 

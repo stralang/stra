@@ -178,6 +178,19 @@ MIRValue *MIRBuilder::buildFunction(Slice<MIRValue *> parameters,
   return this->insert(inst, true, name);
 }
 
+MIRValue *MIRBuilder::buildPointer(MIRValue *child_type, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Pointer};
+  inst.pointer = child_type;
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildSlice(MIRValue *element, MIRValue *length,
+                                 bool is_pointer, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Slice};
+  inst.slice = {.element = element, .length = length, .is_pointer = is_pointer};
+  return this->insert(inst, false, name);
+}
+
 MIRValue *MIRBuilder::buildStruct(Slice<MIRStruct::Field> fields, String name) {
   MIRValue inst = {.kind = MIRValueKind::Struct};
   inst._struct.fields = fields;
@@ -203,12 +216,5 @@ MIRValue *MIRBuilder::buildUnion(MIRValue *repr_type,
 
 MIRValue *MIRBuilder::buildNamespace(String name) {
   MIRValue inst = {.kind = MIRValueKind::Namespace};
-  return this->insert(inst, false, name);
-}
-
-MIRValue *MIRBuilder::buildSlice(MIRValue *element, MIRValue *length,
-                                 bool is_pointer, String name) {
-  MIRValue inst = {.kind = MIRValueKind::Slice};
-  inst.slice = {.element = element, .length = length, .is_pointer = is_pointer};
   return this->insert(inst, false, name);
 }

@@ -40,6 +40,11 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
     break;
   }
+  case NodeKind::UnaryOperator: {
+    if (node->unary_operator.opcode == UnaryOperator::Dereference) {
+      return gen(mirgen, node->unary_operator.child, scope);
+    }
+  }
   case NodeKind::Index: {
     MIRValue *ptr = addr(mirgen, node->index.slice, scope);
 

@@ -198,6 +198,8 @@ Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
     out->_operator.lhs = tmp_atom;
 
     expectEOF(parser->nextToken());
+
+    // Parse RHS
     out->_operator.rhs = parseExpr(parser, precedence, allow_init);
     expect(out->_operator.rhs != nullptr, out->location,
            "Failed to parse rhs expression");

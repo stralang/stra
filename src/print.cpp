@@ -2,6 +2,7 @@
 #include "ast.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
+#include "operator.hpp"
 #include "token.hpp"
 #include <cstddef>
 #include <ostream>
@@ -105,6 +106,9 @@ std::ostream &operator<<(std::ostream &os, const UnaryOperator &op) {
   }
   case UnaryOperator::Reference: {
     return os << "Reference";
+  }
+  case UnaryOperator::Pointer: {
+    return os << "Pointer";
   }
   case UnaryOperator::Dereference: {
     return os << "Dereference";
@@ -1277,6 +1281,25 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintLiteral(&inst->literal);
     break;
   }
+  case MIRValueKind::Pointer: {
+    MIRPrintName(inst);
+    std::cout << " = pointer ";
+    MIRPrintRef(inst->pointer);
+    break;
+  }
+  case MIRValueKind::Slice: {
+    MIRPrintName(inst);
+    std::cout << " = [";
+    MIRPrintRef(inst->slice.element);
+    if (inst->slice.is_pointer) {
+      std::cout << " *";
+    } else if (inst->slice.length != nullptr) {
+      std::cout << " x ";
+      MIRPrintRef(inst->slice.length);
+    }
+    std::cout << "]";
+    break;
+  }
   case MIRValueKind::Struct: {
     MIRPrintName(inst);
     std::cout << " = struct {\n";
@@ -1337,19 +1360,6 @@ void MIRPrintInst(MIRValue *inst) {
     std::cout << " = namespace {\n";
     MIRPrintScope(inst->_namespace.definitions);
     std::cout << "}";
-    break;
-  }
-  case MIRValueKind::Slice: {
-    MIRPrintName(inst);
-    std::cout << " = [";
-    MIRPrintRef(inst->slice.element);
-    if (inst->slice.is_pointer) {
-      std::cout << " *";
-    } else if (inst->slice.length != nullptr) {
-      std::cout << " x ";
-      MIRPrintRef(inst->slice.length);
-    }
-    std::cout << "]";
     break;
   }
   }

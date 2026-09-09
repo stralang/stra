@@ -174,6 +174,12 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
         ._typeid = module->ctx->type_cache->get(raw_type),
     };
   }
+  case MIRValueKind::Pointer: {
+    MIRLiteral lit = state->getValue(frame, module, inst->pointer);
+    lit._typeid = module->ctx->type_cache->get(
+        {.kind = TypeKind::Pointer, .child = lit._typeid});
+    return lit;
+  }
   case MIRValueKind::Struct: {
     Type raw_type = {
         .kind = TypeKind::Struct,
