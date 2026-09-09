@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mirgen.hpp"
+#include <sstream>
 
 MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope);
@@ -24,3 +25,13 @@ MIRValue *genNamespace(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *genBuiltin(MIRGen *mirgen, String name);
 
 MIRValue *valueToMIR(MIRGen *mirgen, Value *value);
+
+#define expect(ok, srcloc, msg)                                                \
+  if (!(ok)) {                                                                 \
+    std::ostringstream os;                                                     \
+    os << msg;                                                                 \
+    std::string cpp_str = os.str();                                            \
+    String m = {(uint8_t *)cpp_str.data(), cpp_str.size()};                    \
+    mirgen->error_func(srcloc, m);                                             \
+    mirgen->error_count += 1;                                                  \
+  }

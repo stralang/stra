@@ -25,11 +25,18 @@ MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope) {
   switch (node->kind) {
   case NodeKind::Name: {
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
+    if (symbol == nullptr) {
+      expect(false, node->location,
+             "Couldn't find symbol `" << node->text << "`");
+      return nullptr;
+    }
+
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
-      std::cerr << node->location << " Couldn't find value `" << node->text
-                << "`. Aborting...\n";
-      std::abort();
+      expect(false, node->location,
+             " !MIR! Failed to get instruction for symbol `" << node->text
+                                                             << "`");
+      return nullptr;
     }
 
     return *value;
@@ -115,11 +122,18 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     }
 
     Symbol *symbol = scope->findSymbol(&node->text, &node->location);
+    if (symbol == nullptr) {
+      expect(false, node->location,
+             " Couldn't find symbol `" << node->text << "`");
+      return nullptr;
+    }
+
     MIRValue **value = mirgen->node_to_value.get(symbol->node);
     if (value == nullptr) {
-      std::cerr << node->location << " Couldn't find value `" << node->text
-                << "`. Aborting...\n";
-      std::abort();
+      expect(false, node->location,
+             " !MIR! Failed to get instruction for Symbol `" << node->text
+                                                             << "`");
+      return nullptr;
     }
 
     MIRValue *out = mirgen->builder.buildLoad(*value, {.ptr = nullptr});

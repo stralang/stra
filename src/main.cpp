@@ -500,6 +500,8 @@ int main(int argc, const char **argv) {
   ctx.init(&global_allocator);
   ctx.type_cache = &type_cache;
 
+  size_t mirgen_error_count = 0;
+  size_t mirgen_warning_count = 0;
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
     file->mir = MIRGen{
@@ -507,8 +509,22 @@ int main(int argc, const char **argv) {
         .symbol = file->root,
         .allocator = &global_allocator,
         .ctx = &ctx,
+        .error_func = &error_handler,
+        .warning_func = &warning_handler,
     };
     file->mir.generate();
+
+    mirgen_error_count += file->mir.error_count;
+    mirgen_warning_count += file->mir.warning_count;
+  }
+
+  if (mirgen_warning_count > 0) {
+    std::cout << "\e[0;33m" << mirgen_warning_count << "warnings.\e[0m\n";
+  }
+
+  if (mirgen_error_count > 0) {
+    std::cerr << "\e[0;31m" << mirgen_error_count << " errors, exiting.\e[0m\n";
+    return 1;
   }
 
   // Emit MIR
