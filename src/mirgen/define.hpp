@@ -3,6 +3,8 @@
 #include "mirgen.hpp"
 #include <sstream>
 
+MIRValue *genComptime(MIRGen *mirgen, Node *node, Symbol *scope);
+
 MIRValue *addr(MIRGen *mirgen, Node *node, Symbol *scope);
 MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope);
 void injectDefer(MIRGen *mirgen, Symbol *scope, bool is_return);

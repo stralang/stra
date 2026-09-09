@@ -74,8 +74,15 @@ MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
   }
 
   MIRValue *lhs_value = gen(mirgen, node->_operator.lhs, scope);
-  MIRValue *rhs_value = gen(mirgen, node->_operator.rhs, scope);
+  MIRValue *rhs_value;
   MIRValue *out = nullptr;
+
+  if (node->_operator.opcode == Operator::As ||
+      node->_operator.opcode == Operator::Bitcast) {
+    rhs_value = genComptime(mirgen, node->_operator.rhs, scope);
+  } else {
+    rhs_value = gen(mirgen, node->_operator.rhs, scope);
+  }
 
   switch (node->_operator.opcode) {
   case Operator::Add: {
