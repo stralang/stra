@@ -9,6 +9,7 @@ add_library(mir STATIC
   analysis/operator.cpp
   analysis/lookup.cpp
   analysis/global.cpp
+  analysis/aggregate.cpp
   analysis/types.cpp
 
   comptime/comptime.cpp

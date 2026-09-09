@@ -277,6 +277,38 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, MIRValue *inst) {
     codegen->inst_to_llvm.insert(inst, out);
     break;
   }
+  case MIRValueKind::Aggregate: {
+    Type *type = inst->result_type;
+    LLVMTypeRef llvm_type = typeToLLVM(codegen, type);
+
+    LLVMValueRef out = LLVMConstNull(llvm_type);
+    for (size_t i = 0; i < inst->aggregate.values.len; i++) {
+      MIRValue *value = inst->aggregate.values.ptr[i];
+      LLVMValueRef llvm_value = getReference(codegen, value);
+
+      // Get Index
+      size_t index = i;
+      if (type->kind == TypeKind::Struct) {
+        // NOTE: This lookup should probably be replaced during analysis
+        String name = inst->aggregate.names.ptr[i];
+        MIRValue *struct_inst = type->_struct.inst;
+        for (size_t l = 0; l < struct_inst->_struct.fields.len; l++) {
+          MIRStruct::Field *field = struct_inst->_struct.fields.ptr + l;
+          if (!field->name.compare(name)) {
+            continue;
+          }
+
+          index = l;
+        }
+      }
+
+      // Insert Value
+      out = LLVMBuildInsertValue(builder, out, llvm_value, index, "");
+    }
+
+    codegen->inst_to_llvm.insert(inst, out);
+    break;
+  }
   case MIRValueKind::Return: {
     if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);

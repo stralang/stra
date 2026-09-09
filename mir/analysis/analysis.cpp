@@ -188,6 +188,10 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     analyseLookup(analyser, module, inst);
     break;
   }
+  case MIRValueKind::Aggregate: {
+    analyseAggregate(analyser, module, inst);
+    break;
+  }
   case MIRValueKind::Return: {
     if (inst->parent->parent->kind == MIRValueKind::Function) {
       MIRValue *function = inst->parent->parent;

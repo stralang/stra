@@ -390,41 +390,37 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   case NodeKind::Initializer: {
     MIRValue *record_type =
         genComptime(mirgen, node->initializer.record, scope);
-    MIRValue *out =
-        mirgen->builder.buildLocalVariable(record_type, str("tmp_mir_intern"));
+    Slice<MIRValue *> values = {
+        .ptr = (MIRValue **)mirgen->allocator->alloc(
+            sizeof(MIRValue *) * node->initializer.setters.length),
+        .len = node->initializer.setters.length,
+    };
+    Slice<String> names = {.ptr = nullptr, .len = 0};
 
-    if (node->initializer.is_list) {
-      for (size_t i = 0; i < node->initializer.setters.length; i++) {
-        Node *setter = node->initializer.setters.getUnchecked(i);
-        MIRValue *value = gen(mirgen, setter, scope);
-        MIRValue *index_literal = mirgen->ctx->makeLiteral({
-            .lit_type = mirgen->ctx->type_cache->get({
-                .kind = TypeKind::Integer,
-                .integer = {true, false, 0},
-                .is_constant = true,
-            }),
-            .kind = MIRLiteralKind::Typed,
-            ._int = (int64_t)i,
-        });
+    // Prepare Named
+    if (!node->initializer.is_list) {
+      names = {
+          .ptr =
+              (String *)mirgen->allocator->alloc(sizeof(String) * values.len),
+          .len = values.len,
+      };
+    }
 
-        MIRValue *elem_ptr = mirgen->builder.buildIndex(out, index_literal);
-        mirgen->builder.buildStore(value, elem_ptr);
-        elem_ptr->source_location = setter->location;
-      }
-    } else {
-      for (size_t i = 0; i < node->initializer.setters.length; i++) {
-        Node *setter = node->initializer.setters.getUnchecked(i);
-        MIRValue *lookup =
-            mirgen->builder.buildLookup(out, setter->member.name);
-        MIRValue *value = gen(mirgen, setter->member.value, scope);
-        mirgen->builder.buildStore(value, lookup);
-
-        lookup->source_location = setter->location;
+    // Get names and values
+    for (size_t i = 0; i < node->initializer.setters.length; i++) {
+      Node *setter = node->initializer.setters.getUnchecked(i);
+      if (names.ptr != nullptr) {
+        names.ptr[i] = setter->member.name;
+        values.ptr[i] = gen(mirgen, setter->member.value, scope);
+      } else {
+        values.ptr[i] = gen(mirgen, setter, scope);
       }
     }
 
+    // Create instruction
+    MIRValue *out = mirgen->builder.buildAggregate(record_type, names, values);
     out->source_location = node->location;
-    return mirgen->builder.buildLoad(out);
+    return out;
   }
   case NodeKind::Return: {
     injectDefer(mirgen, scope, true);

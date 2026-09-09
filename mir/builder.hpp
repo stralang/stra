@@ -33,6 +33,9 @@ struct MIRBuilder {
                        String name = {.ptr = nullptr});
   MIRValue *buildLookup(MIRValue *ptr, String member,
                         String name = {.ptr = nullptr});
+  MIRValue *buildAggregate(MIRValue *type, Slice<String> names,
+                           Slice<MIRValue *> values,
+                           String name = {.ptr = nullptr});
 
   // If `value` is null then this returns `void`
   MIRValue *buildReturn(Option<MIRValue *> value);

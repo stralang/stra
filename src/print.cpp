@@ -1131,16 +1131,6 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->unaryop.value);
     break;
   }
-  case MIRValueKind::Lookup: {
-    MIRPrintName(inst);
-    std::cout << " = lookup ";
-    MIRPrintRef(inst->lookup.parent);
-    std::cout << " \"";
-    std::cout.write((const char *)inst->lookup.member.ptr,
-                    inst->lookup.member.len);
-    std::cout << "\"";
-    break;
-  }
   case MIRValueKind::Index: {
     MIRPrintName(inst);
     std::cout << " = index ";
@@ -1157,6 +1147,34 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->range.start);
     std::cout << " .. ";
     MIRPrintRef(inst->range.end);
+    break;
+  }
+  case MIRValueKind::Lookup: {
+    MIRPrintName(inst);
+    std::cout << " = lookup ";
+    MIRPrintRef(inst->lookup.parent);
+    std::cout << " \"";
+    std::cout.write((const char *)inst->lookup.member.ptr,
+                    inst->lookup.member.len);
+    std::cout << "\"";
+    break;
+  }
+  case MIRValueKind::Aggregate: {
+    MIRPrintName(inst);
+    std::cout << " = aggregate ";
+    MIRPrintRef(inst->aggregate.type);
+    std::cout << " { ";
+    for (size_t i = 0; i < inst->aggregate.values.len; i++) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+
+      if (inst->aggregate.names.ptr != nullptr) {
+        std::cout << "\"" << inst->aggregate.names.ptr[i] << "\" = ";
+      }
+      MIRPrintRef(inst->aggregate.values.ptr[i]);
+    }
+    std::cout << " }";
     break;
   }
   case MIRValueKind::Call: {

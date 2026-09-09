@@ -29,6 +29,7 @@ enum class MIRValueKind : std::uint16_t {
   Index,
   Range,
   Lookup,
+  Aggregate,
   Return,
   Branch,
   CondBranch,
@@ -186,6 +187,11 @@ struct MIRValue {
       MIRValue *parent;
       String member;
     } lookup;
+    struct {
+      MIRValue *type;
+      Slice<String> names; // `len = 0` is a list/unnamed initializer
+      Slice<MIRValue *> values;
+    } aggregate;
     struct {
       MIRValue *type;
       Option<MIRValue *> value;

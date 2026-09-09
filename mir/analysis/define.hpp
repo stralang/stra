@@ -22,6 +22,7 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
+void analyseAggregate(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst);
 
 bool compareTypes(Type *lhs, Type *rhs);
 void fixUntyped(MIRAnalyser *analyser, MIRValue *inst, Type *real);

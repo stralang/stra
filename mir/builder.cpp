@@ -103,6 +103,13 @@ MIRValue *MIRBuilder::buildLookup(MIRValue *parent, String member,
   return this->insert(inst, false, name);
 }
 
+MIRValue *MIRBuilder::buildAggregate(MIRValue *type, Slice<String> names,
+                                     Slice<MIRValue *> values, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Aggregate};
+  inst.aggregate = {.type = type, .names = names, .values = values};
+  return this->insert(inst, false, name);
+}
+
 // If `value` is null then this returns `void`
 MIRValue *MIRBuilder::buildReturn(Option<MIRValue *> value) {
   MIRValue inst = {.kind = MIRValueKind::Return};
