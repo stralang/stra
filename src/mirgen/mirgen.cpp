@@ -3,6 +3,7 @@
 #include "define.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
+#include <functional>
 #include <iostream>
 
 MIRValue *genComptime(MIRGen *mirgen, Node *child, Symbol *scope) {
@@ -392,13 +393,34 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     MIRValue *out =
         mirgen->builder.buildLocalVariable(record_type, str("tmp_mir_intern"));
 
-    for (size_t i = 0; i < node->initializer.setters.length; i++) {
-      Node *setter = node->initializer.setters.getUnchecked(i);
-      MIRValue *lookup = mirgen->builder.buildLookup(out, setter->member.name);
-      MIRValue *value = gen(mirgen, setter->member.value, scope);
-      mirgen->builder.buildStore(value, lookup);
+    if (node->initializer.is_list) {
+      for (size_t i = 0; i < node->initializer.setters.length; i++) {
+        Node *setter = node->initializer.setters.getUnchecked(i);
+        MIRValue *value = gen(mirgen, setter, scope);
+        MIRValue *index_literal = mirgen->ctx->makeLiteral({
+            .lit_type = mirgen->ctx->type_cache->get({
+                .kind = TypeKind::Integer,
+                .integer = {true, false, 0},
+                .is_constant = true,
+            }),
+            .kind = MIRLiteralKind::Typed,
+            ._int = (int64_t)i,
+        });
 
-      lookup->source_location = setter->location;
+        MIRValue *elem_ptr = mirgen->builder.buildIndex(out, index_literal);
+        mirgen->builder.buildStore(value, elem_ptr);
+        elem_ptr->source_location = setter->location;
+      }
+    } else {
+      for (size_t i = 0; i < node->initializer.setters.length; i++) {
+        Node *setter = node->initializer.setters.getUnchecked(i);
+        MIRValue *lookup =
+            mirgen->builder.buildLookup(out, setter->member.name);
+        MIRValue *value = gen(mirgen, setter->member.value, scope);
+        mirgen->builder.buildStore(value, lookup);
+
+        lookup->source_location = setter->location;
+      }
     }
 
     out->source_location = node->location;
