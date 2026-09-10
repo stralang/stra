@@ -1297,6 +1297,12 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintName(inst);
     std::cout << " = ";
     MIRPrintLiteral(&inst->literal);
+
+    if (inst->literal.lit_type->kind == TypeKind::TypeId &&
+        inst->literal._typeid->kind == TypeKind::Struct) {
+      std::cout << "\n";
+      MIRPrintInst(inst->literal._typeid->_struct.inst);
+    }
     break;
   }
   case MIRValueKind::Pointer: {

@@ -77,13 +77,15 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       MIRValue *receiver_inst = inst->call.receiver.get();
       analyse(analyser, module, receiver_inst);
 
-      if (receiver_inst->result_type->kind != TypeKind::TypeId) {
+      Type *receiver_type = receiver_inst->result_type;
+      if (receiver_type->kind != TypeKind::TypeId &&
+          (receiver_type->kind != TypeKind::Pointer ||
+           receiver_type->child->kind != TypeKind::TypeId)) {
         expect(fn_type->function.arguments.len >= 1,
                receiver_inst->source_location,
                "Receiver expects method with atleast 1 argument");
 
         Type *expected_type = fn_type->function.arguments.ptr[0];
-        Type *receiver_type = receiver_inst->result_type;
         expect(compareTypes(expected_type, receiver_type),
                receiver_inst->source_location,
                "Receiver `" << receiver_type << "` doesn't match `"
