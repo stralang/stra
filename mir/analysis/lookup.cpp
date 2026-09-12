@@ -64,6 +64,19 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         return;
       }
     }
+  } else if (parent_ty->kind == TypeKind::Enum) {
+    MIRValue *enum_inst = parent_ty->_enum.inst;
+    definitions = enum_inst->_enum.definitions;
+
+    for (size_t i = 0; i < enum_inst->_enum.members.len; i++) {
+      MIREnum::Member *member = enum_inst->_enum.members.ptr + i;
+      if (member->name.compare(inst->lookup.member)) {
+        inst->kind = MIRValueKind::Literal;
+        inst->literal = member->constant->literal;
+        inst->result_type = inst->literal.lit_type;
+        return;
+      }
+    }
   } else if (parent_ty->kind == TypeKind::Namespace) {
     definitions = parent_ty->_namespace.inst->_namespace.definitions;
   }

@@ -1,4 +1,5 @@
 #include "define.hpp"
+#include "literal.hpp"
 #include "mir.hpp"
 
 void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
@@ -58,7 +59,20 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
 MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
   Symbol *enum_symbol = scope->findSymbolByNode(node);
 
-  MIRValue *repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
+  MIRValue *repr_type;
+  if (node->_enum.repr_type != nullptr) {
+    repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
+  } else {
+    repr_type = mirgen->ctx->makeLiteral({
+        .lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .kind = MIRLiteralKind::Typed,
+        ._typeid = mirgen->ctx->type_cache->get({
+            .kind = TypeKind::Integer,
+            .integer = {false, false, 32},
+            .is_constant = true,
+        }),
+    });
+  }
 
   // Members
   Slice<MIREnum::Member> members = {
@@ -71,7 +85,11 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
     Node *ast = node->_enum.members.getUnchecked(i);
     MIREnum::Member *mir = members.ptr + i;
     mir->name = ast->member.name;
-    mir->constant = gen(mirgen, ast->member.value, enum_symbol);
+    if (ast->member.value != nullptr) {
+      mir->constant = gen(mirgen, ast->member.value, enum_symbol);
+    } else {
+      mir->constant = nullptr;
+    }
   }
 
   // Build Instruction

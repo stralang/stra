@@ -220,6 +220,27 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     MIRLiteral repr_lit = state->getValue(frame, module, inst->_enum.repr_type);
     enum_type->_enum.repr_type = repr_lit._typeid;
 
+    // Members
+    int64_t next_value = 0;
+    for (size_t i = 0; i < inst->_enum.members.len; i++) {
+      MIREnum::Member *member = inst->_enum.members.ptr + i;
+
+      MIRLiteral result;
+      if (member->constant != nullptr) {
+        result = execute(state, module, member->constant);
+      } else {
+        member->constant = (MIRValue *)module->arena.alloc(sizeof(MIRValue));
+        result.kind = MIRLiteralKind::Typed;
+        result._int = next_value;
+      }
+
+      result.lit_type = repr_lit._typeid;
+      member->constant->literal = result;
+      member->constant->kind = MIRValueKind::Literal;
+      member->constant->result_type = member->constant->literal.lit_type;
+      next_value = member->constant->literal._int + 1;
+    }
+
     return {
         .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
