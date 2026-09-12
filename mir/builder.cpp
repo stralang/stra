@@ -95,9 +95,17 @@ MIRValue *MIRBuilder::buildRange(MIRValue *ptr, MIRValue *start, MIRValue *end,
   return this->insert(inst, false, name);
 }
 
-MIRValue *MIRBuilder::buildLookup(MIRValue *parent, String member,
-                                  String name) {
-  MIRValue inst = {.kind = MIRValueKind::Lookup};
+MIRValue *MIRBuilder::buildLookupPtr(MIRValue *parent, String member,
+                                     String name) {
+  MIRValue inst = {.kind = MIRValueKind::LookupPtr};
+  inst.lookup.parent = parent;
+  inst.lookup.member = member;
+  return this->insert(inst, false, name);
+}
+
+MIRValue *MIRBuilder::buildLookupValue(MIRValue *parent, String member,
+                                       String name) {
+  MIRValue inst = {.kind = MIRValueKind::LookupValue};
   inst.lookup.parent = parent;
   inst.lookup.member = member;
   return this->insert(inst, false, name);

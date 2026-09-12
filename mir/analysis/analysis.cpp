@@ -186,8 +186,12 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     inst->result_type = module->ctx->type_cache->get(ty);
     break;
   }
-  case MIRValueKind::Lookup: {
-    analyseLookup(analyser, module, inst);
+  case MIRValueKind::LookupPtr: {
+    analyseLookupPtr(analyser, module, inst);
+    break;
+  }
+  case MIRValueKind::LookupValue: {
+    analyseLookupValue(analyser, module, inst);
     break;
   }
   case MIRValueKind::Aggregate: {

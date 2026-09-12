@@ -1149,9 +1149,19 @@ void MIRPrintInst(MIRValue *inst) {
     MIRPrintRef(inst->range.end);
     break;
   }
-  case MIRValueKind::Lookup: {
+  case MIRValueKind::LookupPtr: {
     MIRPrintName(inst);
-    std::cout << " = lookup ";
+    std::cout << " = lookup_ptr ";
+    MIRPrintRef(inst->lookup.parent);
+    std::cout << " \"";
+    std::cout.write((const char *)inst->lookup.member.ptr,
+                    inst->lookup.member.len);
+    std::cout << "\"";
+    break;
+  }
+  case MIRValueKind::LookupValue: {
+    MIRPrintName(inst);
+    std::cout << " = lookup_value ";
     MIRPrintRef(inst->lookup.parent);
     std::cout << " \"";
     std::cout.write((const char *)inst->lookup.member.ptr,

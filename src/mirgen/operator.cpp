@@ -5,7 +5,7 @@
 MIRValue *addrMemberAccess(MIRGen *mirgen, Node *node, Symbol *scope) {
   MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
   MIRValue *out =
-      mirgen->builder.buildLookup(record, node->_operator.rhs->text);
+      mirgen->builder.buildLookupPtr(record, node->_operator.rhs->text);
   out->source_location = node->location;
   return out;
 }
@@ -69,8 +69,11 @@ MIRValue *genUnary(MIRGen *mirgen, Node *node, Symbol *scope) {
 
 MIRValue *genBinary(MIRGen *mirgen, Node *node, Symbol *scope) {
   if (node->_operator.opcode == Operator::MemberAccess) {
-    MIRValue *value = addrMemberAccess(mirgen, node, scope);
-    return mirgen->builder.buildLoad(value);
+    MIRValue *record = addr(mirgen, node->_operator.lhs, scope);
+    MIRValue *out =
+        mirgen->builder.buildLookupValue(record, node->_operator.rhs->text);
+    out->source_location = node->location;
+    return out;
   }
 
   MIRValue *lhs_value = gen(mirgen, node->_operator.lhs, scope);

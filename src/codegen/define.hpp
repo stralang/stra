@@ -27,6 +27,9 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
                        MIRValue *inst);
 
+LLVMValueRef genLookupPtr(CodeGenModule *codegen, LLVMBuilderRef builder,
+                          MIRValue *inst);
+
 // Function
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
                      MIRValue *inst);

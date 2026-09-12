@@ -31,8 +31,10 @@ struct MIRBuilder {
                        String name = {.ptr = nullptr});
   MIRValue *buildRange(MIRValue *ptr, MIRValue *start, MIRValue *end,
                        String name = {.ptr = nullptr});
-  MIRValue *buildLookup(MIRValue *ptr, String member,
-                        String name = {.ptr = nullptr});
+  MIRValue *buildLookupPtr(MIRValue *ptr, String member,
+                           String name = {.ptr = nullptr});
+  MIRValue *buildLookupValue(MIRValue *ptr, String member,
+                             String name = {.ptr = nullptr});
   MIRValue *buildAggregate(MIRValue *type, Slice<String> names,
                            Slice<MIRValue *> values,
                            String name = {.ptr = nullptr});

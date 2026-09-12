@@ -28,7 +28,8 @@ enum class MIRValueKind : std::uint16_t {
   Call,
   Index,
   Range,
-  Lookup,
+  LookupPtr,
+  LookupValue, // like `LookupPtr` but with an implicit load
   Aggregate,
   Return,
   Branch,

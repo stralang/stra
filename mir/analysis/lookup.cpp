@@ -3,26 +3,8 @@
 #include "literal.hpp"
 #include "mir.hpp"
 
-void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
-  analyse(analyser, module, inst->lookup.parent);
-  expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
-         inst->lookup.parent->source_location,
-         "Cannot `lookup` for non-pointer");
-
-  // Get Type
-  Type *parent_ty = inst->lookup.parent->result_type->child;
-  bool is_typeid = parent_ty->kind == TypeKind::TypeId;
-  if (is_typeid) {
-    MIRLiteral ty_lit =
-        analyser->comptime_state.execute(module, inst->lookup.parent);
-    parent_ty = ty_lit.pointer->_typeid;
-  }
-
-  // Auto dereference
-  if (parent_ty->kind == TypeKind::Pointer) {
-    parent_ty = parent_ty->child;
-  }
-
+void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst,
+                   Type *parent_ty) {
   // Search
   MIRScope *definitions = nullptr;
   if (parent_ty->kind == TypeKind::Slice) {
@@ -67,16 +49,6 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   } else if (parent_ty->kind == TypeKind::Enum) {
     MIRValue *enum_inst = parent_ty->_enum.inst;
     definitions = enum_inst->_enum.definitions;
-
-    for (size_t i = 0; i < enum_inst->_enum.members.len; i++) {
-      MIREnum::Member *member = enum_inst->_enum.members.ptr + i;
-      if (member->name.compare(inst->lookup.member)) {
-        inst->kind = MIRValueKind::Literal;
-        inst->literal = member->constant->literal;
-        inst->result_type = inst->literal.lit_type;
-        return;
-      }
-    }
   } else if (parent_ty->kind == TypeKind::Namespace) {
     definitions = parent_ty->_namespace.inst->_namespace.definitions;
   }
@@ -98,4 +70,68 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
   // Error
   expect(false, inst->source_location,
          "Couldn't find member of name \"" << inst->lookup.member << "\"");
+}
+
+void analyseLookupPtr(MIRAnalyser *analyser, MIRModule *module,
+                      MIRValue *inst) {
+  analyse(analyser, module, inst->lookup.parent);
+  expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
+         inst->lookup.parent->source_location,
+         "Cannot `lookup` for non-pointer");
+
+  // Get Type
+  Type *parent_ty = inst->lookup.parent->result_type->child;
+  bool is_typeid = parent_ty->kind == TypeKind::TypeId;
+  if (is_typeid) {
+    MIRLiteral ty_lit =
+        analyser->comptime_state.execute(module, inst->lookup.parent);
+    parent_ty = ty_lit.pointer->_typeid;
+  }
+
+  // Auto dereference
+  if (parent_ty->kind == TypeKind::Pointer) {
+    parent_ty = parent_ty->child;
+  }
+
+  analyseLookup(analyser, module, inst, parent_ty);
+}
+
+void analyseLookupValue(MIRAnalyser *analyser, MIRModule *module,
+                        MIRValue *inst) {
+  analyse(analyser, module, inst->lookup.parent);
+  expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
+         inst->lookup.parent->source_location,
+         "Cannot `lookup` for non-pointer");
+
+  // Get Type
+  Type *parent_ty = inst->lookup.parent->result_type->child;
+  bool is_typeid = parent_ty->kind == TypeKind::TypeId;
+  if (is_typeid) {
+    MIRLiteral ty_lit =
+        analyser->comptime_state.execute(module, inst->lookup.parent);
+    parent_ty = ty_lit.pointer->_typeid;
+  }
+
+  // Auto dereference
+  if (parent_ty->kind == TypeKind::Pointer) {
+    parent_ty = parent_ty->child;
+  }
+
+  // Lookup
+  if (parent_ty->kind == TypeKind::Enum) {
+    MIRValue *enum_inst = parent_ty->_enum.inst;
+
+    for (size_t i = 0; i < enum_inst->_enum.members.len; i++) {
+      MIREnum::Member *member = enum_inst->_enum.members.ptr + i;
+      if (member->name.compare(inst->lookup.member)) {
+        inst->kind = MIRValueKind::Literal;
+        inst->literal = member->constant->literal;
+        inst->result_type = inst->literal.lit_type;
+        return;
+      }
+    }
+  }
+
+  analyseLookup(analyser, module, inst, parent_ty);
+  inst->result_type = inst->result_type->child;
 }
