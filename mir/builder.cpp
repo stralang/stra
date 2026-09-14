@@ -2,28 +2,33 @@
 #include "mir.hpp"
 
 MIRBlock *MIRBuilder::appendBlock(MIRValue *parent, String name) {
-  MIRBlock *block = (MIRBlock *)this->module->arena.alloc(sizeof(MIRBlock));
-  block->id = this->module->next_id;
-  block->name = name;
-  block->parent = parent;
-  this->module->next_id += 1;
+  size_t idx = this->module->blocks.len();
+  MIRBlock raw_block = {
+      .id = idx,
+      .name = name,
+      .parent = parent,
+  };
+  raw_block.instructions.init(this->module->allocator, 32);
 
-  block->instructions.init(this->module->arena.allocator, 32);
+  this->module->blocks.push(raw_block);
+  MIRBlock *block = this->module->blocks.getPtrUnchecked(idx);
+
   if (parent->kind == MIRValueKind::Function) {
     parent->function.blocks.push(block);
   } else if (parent->kind == MIRValueKind::Comptime) {
     parent->comptime.blocks.push(block);
   }
-
   return block;
 }
 
 MIRValue *MIRBuilder::insert(MIRValue inst, bool global, String name) {
-  inst.id = this->module->next_id;
+  size_t idx = this->module->instructions.len();
+  inst.id = idx;
   inst.name = name;
-  this->module->next_id += 1;
 
-  MIRValue *ptr_inst = (MIRValue *)this->module->arena.alloc(sizeof(MIRValue));
+  this->module->instructions.push(inst);
+  MIRValue *ptr_inst = this->module->instructions.getPtrUnchecked(idx);
+
   *ptr_inst = inst;
   if (this->block != nullptr) {
     ptr_inst->parent = this->block;
@@ -144,8 +149,8 @@ MIRValue *MIRBuilder::buildSwitch(MIRValue *value, MIRBlock *default_block,
   inst._switch.condition = value;
   inst._switch.default_block = default_block;
 
-  uint8_t *onval_ptr = this->module->arena.alloc(sizeof(void *) * cases);
-  uint8_t *blocks_ptr = this->module->arena.alloc(sizeof(void *) * cases);
+  uint8_t *onval_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
+  uint8_t *blocks_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
   inst._switch.onvals = {.ptr = (MIRValue **)onval_ptr, .len = cases};
   inst._switch.blocks = {.ptr = (MIRBlock **)blocks_ptr, .len = cases};
   inst._switch.slots = 0;

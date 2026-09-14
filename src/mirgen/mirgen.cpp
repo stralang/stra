@@ -3,8 +3,6 @@
 #include "define.hpp"
 #include "literal.hpp"
 #include "mir.hpp"
-#include <functional>
-#include <iostream>
 
 MIRValue *genComptime(MIRGen *mirgen, Node *child, Symbol *scope) {
   MIRValue *value = mirgen->builder.buildComptime(str("comptime"));
@@ -276,10 +274,9 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Body
     value->function.undefined = node->function.undefined;
     if (node->function.body != nullptr) {
-      MIRScope *globals =
-          (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
-      globals->owner = value;
-      globals->list.init(mirgen->builder.module->arena.allocator, 32);
+      mirgen->module.scopes.push({.owner = value});
+      MIRScope *globals = mirgen->module.scopes.back();
+      globals->list.init(mirgen->builder.module->allocator, 32);
       value->function.globals = globals;
 
       value->function.blocks.init(mirgen->allocator, 32);
@@ -500,7 +497,7 @@ void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope) {
 void MIRGen::generate() {
   this->node_to_value.init(this->allocator, 32);
   this->symbol_to_scope.init(this->allocator, 32);
-  this->module.init(this->allocator);
+  this->module.init(this->allocator, this->allocator);
   this->module.ctx = this->ctx;
   this->builder.module = &this->module;
   this->builder.scope = this->module.definitions;

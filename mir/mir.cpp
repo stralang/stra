@@ -1,7 +1,6 @@
 #include "mir.hpp"
 #include "allocator.hpp"
 #include <cstdlib>
-#include <iostream>
 
 void MIRContext::init(Allocator *allocator) {
   this->allocator = allocator;
@@ -10,15 +9,24 @@ void MIRContext::init(Allocator *allocator) {
 
 void MIRContext::deinit() { this->arena.deinit(); }
 
-void MIRModule::init(Allocator *allocator) {
-  this->arena.init(allocator, 1024 * 1024 * 8);
-  this->definitions = (MIRScope *)this->arena.alloc(sizeof(MIRScope));
+void MIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
+  this->allocator = allocator;
+
+  this->instructions.init(allocator, arena_allocator, 1024 * 1024 * 8);
+  this->blocks.init(allocator, arena_allocator, 1024 * 1024);
+  this->scopes.init(allocator, arena_allocator, 1024 * 1024);
+
+  this->scopes.push({});
+
+  this->definitions = this->scopes.getPtrUnchecked(0);
   this->definitions->list.init(allocator, 32);
   this->definitions->owner = nullptr;
 }
 
 void MIRModule::deinit() {
-  this->arena.deinit();
+  this->instructions.deinit();
+  this->blocks.deinit();
+  this->scopes.deinit();
   this->definitions->list.deinit();
 }
 

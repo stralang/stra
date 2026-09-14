@@ -4,7 +4,7 @@
 
 void genList(MIRGen *mirgen, ArrayList<Node *> *list, Symbol *scope,
              MIRScope *out) {
-  out->list.init(mirgen->module.arena.allocator, list->length);
+  out->list.init(mirgen->module.allocator, list->length);
 
   MIRBlock *prev_block = mirgen->builder.block;
   MIRScope *prev_scope = mirgen->builder.scope;
@@ -30,7 +30,7 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Fields
   Slice<MIRStruct::Field> fields = {
-      .ptr = (MIRStruct::Field *)mirgen->module.arena.alloc(
+      .ptr = (MIRStruct::Field *)mirgen->module.allocator->alloc(
           sizeof(MIRStruct::Field) * node->_struct.fields.length),
       .len = node->_struct.fields.length,
   };
@@ -48,7 +48,7 @@ MIRValue *genStruct(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Definitions
   value->_struct.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
+      (MIRScope *)mirgen->module.allocator->alloc(sizeof(MIRScope));
   mirgen->symbol_to_scope.insert(struct_symbol, value->_struct.definitions);
   genList(mirgen, &node->_struct.body, struct_symbol,
           value->_struct.definitions);
@@ -76,7 +76,7 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Members
   Slice<MIREnum::Member> members = {
-      .ptr = (MIREnum::Member *)mirgen->module.arena.alloc(
+      .ptr = (MIREnum::Member *)mirgen->module.allocator->alloc(
           sizeof(MIREnum::Member) * node->_enum.members.length),
       .len = node->_enum.members.length,
   };
@@ -99,7 +99,7 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Definitions
   value->_enum.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
+      (MIRScope *)mirgen->module.allocator->alloc(sizeof(MIRScope));
   mirgen->symbol_to_scope.insert(enum_symbol, value->_enum.definitions);
   genList(mirgen, &node->_enum.body, enum_symbol, value->_enum.definitions);
 
@@ -113,7 +113,7 @@ MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Variants
   Slice<MIRStruct::Field> variants = {
-      .ptr = (MIRStruct::Field *)mirgen->module.arena.alloc(
+      .ptr = (MIRStruct::Field *)mirgen->module.allocator->alloc(
           sizeof(MIRStruct::Field) * node->_union.variants.length),
       .len = node->_union.variants.length,
   };
@@ -132,7 +132,7 @@ MIRValue *genUnion(MIRGen *mirgen, Node *node, Symbol *scope) {
 
   // Definitions
   value->_union.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
+      (MIRScope *)mirgen->module.allocator->alloc(sizeof(MIRScope));
   mirgen->symbol_to_scope.insert(union_symbol, value->_union.definitions);
   genList(mirgen, &node->_union.body, union_symbol, value->_union.definitions);
 
@@ -145,7 +145,7 @@ MIRValue *genNamespace(MIRGen *mirgen, Node *node, Symbol *scope) {
   MIRValue *value = mirgen->builder.buildNamespace({.ptr = nullptr});
   value->source_location = node->location;
   value->_namespace.definitions =
-      (MIRScope *)mirgen->module.arena.alloc(sizeof(MIRScope));
+      (MIRScope *)mirgen->module.allocator->alloc(sizeof(MIRScope));
   mirgen->symbol_to_scope.insert(namespace_symbol,
                                  value->_namespace.definitions);
 

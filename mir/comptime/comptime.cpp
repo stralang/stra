@@ -229,7 +229,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
       if (member->constant != nullptr) {
         result = execute(state, module, member->constant);
       } else {
-        member->constant = (MIRValue *)module->arena.alloc(sizeof(MIRValue));
+        module->instructions.push({});
+        member->constant = module->instructions.back();
         result.kind = MIRLiteralKind::Typed;
         result._int = next_value;
       }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "arenalist.hpp"
 #include "containers.hpp"
 #include "literal.hpp"
 #include "optional.hpp"
@@ -266,9 +267,13 @@ struct MIRModule {
   size_t next_id = 0;
   MIRScope *definitions;
 
-  DynamicArena arena; // Memory that stores `MIRValue`
+  ArenaList<MIRValue> instructions;
+  ArenaList<MIRBlock> blocks;
+  ArenaList<MIRScope> scopes;
+
+  Allocator *allocator;
   MIRContext *ctx;
 
-  void init(Allocator *allocator);
+  void init(Allocator *allocator, Allocator *arena_allocator);
   void deinit();
 };
