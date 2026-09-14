@@ -144,7 +144,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
     // Parse text
-    uint8_t *real_text = (uint8_t *)mirgen->allocator->alloc(node->text.len);
+    uint8_t *real_text = (uint8_t *)mirgen->allocator->allocZeroed(node->text.len);
     size_t len = 0;
     bool escape = false;
     for (size_t i = 0; i < node->text.len; i++) {
@@ -234,7 +234,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     // Parameter Types
     Slice<MIRValue *> parameters = {
-        .ptr = (MIRValue **)mirgen->allocator->alloc(
+        .ptr = (MIRValue **)mirgen->allocator->allocZeroed(
             sizeof(MIRValue *) * node->function.parameters.length),
         .len = node->function.parameters.length,
     };
@@ -349,7 +349,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
   case NodeKind::Call: {
     MIRValue *callee = addr(mirgen, node->call.callee, scope);
     Slice<MIRValue *> arguments = {
-        .ptr = (MIRValue **)mirgen->allocator->alloc(
+        .ptr = (MIRValue **)mirgen->allocator->allocZeroed(
             sizeof(MIRValue *) * node->call.arguments.length),
         .len = node->call.arguments.length,
     };
@@ -388,7 +388,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     MIRValue *record_type =
         genComptime(mirgen, node->initializer.record, scope);
     Slice<MIRValue *> values = {
-        .ptr = (MIRValue **)mirgen->allocator->alloc(
+        .ptr = (MIRValue **)mirgen->allocator->allocZeroed(
             sizeof(MIRValue *) * node->initializer.setters.length),
         .len = node->initializer.setters.length,
     };
@@ -398,7 +398,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     if (!node->initializer.is_list) {
       names = {
           .ptr =
-              (String *)mirgen->allocator->alloc(sizeof(String) * values.len),
+              (String *)mirgen->allocator->allocZeroed(sizeof(String) * values.len),
           .len = values.len,
       };
     }

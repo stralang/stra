@@ -27,7 +27,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
   for (size_t i = 0; i < inst->function.blocks.length; i++) {
     MIRBlock *block = inst->function.blocks.getUnchecked(i);
 
-    char *name = (char *)codegen->allocator->alloc(block->name.len + 1);
+    char *name = (char *)codegen->allocator->allocZeroed(block->name.len + 1);
     memcpy(name, block->name.ptr, block->name.len);
     LLVMBasicBlockRef llvm_block =
         LLVMAppendBasicBlockInContext(codegen->ctx, func, name);

@@ -149,8 +149,8 @@ MIRValue *MIRBuilder::buildSwitch(MIRValue *value, MIRBlock *default_block,
   inst._switch.condition = value;
   inst._switch.default_block = default_block;
 
-  uint8_t *onval_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
-  uint8_t *blocks_ptr = this->module->allocator->alloc(sizeof(void *) * cases);
+  uint8_t *onval_ptr = this->module->allocator->allocZeroed(sizeof(void *) * cases);
+  uint8_t *blocks_ptr = this->module->allocator->allocZeroed(sizeof(void *) * cases);
   inst._switch.onvals = {.ptr = (MIRValue **)onval_ptr, .len = cases};
   inst._switch.blocks = {.ptr = (MIRBlock **)blocks_ptr, .len = cases};
   inst._switch.slots = 0;

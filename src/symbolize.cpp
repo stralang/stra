@@ -16,7 +16,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Block: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, parent->location_aware, parent);
     symbol->node = node;
 
@@ -31,7 +31,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Field: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
     symbol->name = &node->field.name;
@@ -41,7 +41,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Function: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, true, parent);
     symbol->node = node;
 
@@ -54,7 +54,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Struct: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
 
@@ -68,7 +68,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Enum: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
 
@@ -83,7 +83,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Union: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
 
@@ -98,7 +98,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Namespace: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
 
@@ -108,7 +108,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Member: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
     symbol->name = &node->member.name;
@@ -175,7 +175,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::If: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, true, parent);
     symbol->node = node;
 
@@ -185,7 +185,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     if (node->_if._else != nullptr) {
       Symbol *else_symbol = parent;
       if (node->_if._else->kind == NodeKind::Compound) {
-        else_symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+        else_symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
         else_symbol->init(allocator, true, parent);
         else_symbol->node = node->_if._else;
       }
@@ -195,7 +195,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::For: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, true, parent);
     symbol->node = node;
 
@@ -204,7 +204,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::In: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, false, parent);
     symbol->node = node;
     symbol->name = &node->in.name;
@@ -219,7 +219,7 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
     break;
   }
   case NodeKind::Case: {
-    Symbol *symbol = (Symbol *)allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)allocator->allocZeroed(sizeof(Symbol));
     symbol->init(allocator, true, parent);
     symbol->node = node;
 

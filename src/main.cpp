@@ -173,7 +173,7 @@ struct SourceFiles {
 
     this->indices.insert(hasher.state, this->list.length);
 
-    Symbol *symbol = (Symbol *)this->allocator->alloc(sizeof(Symbol));
+    Symbol *symbol = (Symbol *)this->allocator->allocZeroed(sizeof(Symbol));
     symbol->parent = nullptr;
     symbol->children.init(allocator, 8);
 
@@ -306,8 +306,8 @@ int main(int argc, const char **argv) {
 
       String name = {.len = name_cpp.length()};
       String path = {.len = path_str.length()};
-      name.ptr = global_allocator.alloc(name.len);
-      path.ptr = global_allocator.alloc(path.len);
+      name.ptr = global_allocator.allocZeroed(name.len);
+      path.ptr = global_allocator.allocZeroed(path.len);
       memcpy(name.ptr, name_cpp.data(), name.len);
       memcpy(path.ptr, path_str.data(), path.len);
 
@@ -370,7 +370,7 @@ int main(int argc, const char **argv) {
 
     std::string cpp_fullpath_str = cpp_fullpath.string();
     String out = {
-        global_allocator.alloc(cpp_fullpath_str.length() * sizeof(char)),
+        global_allocator.allocZeroed(cpp_fullpath_str.length() * sizeof(char)),
         cpp_fullpath_str.length(),
     };
     memcpy(out.ptr, cpp_fullpath_str.data(),
@@ -398,7 +398,7 @@ int main(int argc, const char **argv) {
     cpp_filename = replaceAll(cpp_filename, ":", "-");
 
     file->filename = {
-        global_allocator.alloc(cpp_filename.length() * sizeof(char)),
+        global_allocator.allocZeroed(cpp_filename.length() * sizeof(char)),
         cpp_filename.length()};
     memcpy(file->filename.ptr, cpp_filename.data(),
            cpp_filename.length() * sizeof(char));
@@ -435,7 +435,7 @@ int main(int argc, const char **argv) {
       std::string len_str = std::to_string(file->filename.len);
       file->root->mangled_name.len = len_str.size() + file->filename.len;
       file->root->mangled_name.ptr =
-          (uint8_t *)global_allocator.alloc(file->root->mangled_name.len);
+          (uint8_t *)global_allocator.allocZeroed(file->root->mangled_name.len);
       memcpy(file->root->mangled_name.ptr, len_str.data(), len_str.size());
       memcpy(file->root->mangled_name.ptr + len_str.size(), file->filename.ptr,
              file->filename.len);
@@ -465,7 +465,7 @@ int main(int argc, const char **argv) {
 
       // Add new file
       String out = {
-          global_allocator.alloc(fullpath_str.length() * sizeof(char)),
+          global_allocator.allocZeroed(fullpath_str.length() * sizeof(char)),
           fullpath_str.length(),
       };
       memcpy(out.ptr, fullpath_str.data(),
@@ -594,7 +594,7 @@ int main(int argc, const char **argv) {
     std::string cpp_name = name_path.string();
 
     String out_name = {
-        .ptr = (uint8_t *)global_allocator.alloc(cpp_name.size()),
+        .ptr = (uint8_t *)global_allocator.allocZeroed(cpp_name.size()),
         .len = cpp_name.size(),
     };
     memcpy(out_name.ptr, cpp_name.data(), cpp_name.size());

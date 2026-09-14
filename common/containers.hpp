@@ -151,7 +151,7 @@ template <typename T> struct ArrayList {
     return this->data.ptr + this->length - 1;
   }
 
-  Slice<T> slice() { return this->data.range(0, this->length); }
+  Slice<T> slice() { return this->data.range(0, this->length - 1); }
 };
 
 struct DynamicArena {

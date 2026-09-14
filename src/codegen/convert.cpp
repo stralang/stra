@@ -61,7 +61,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
       out = LLVMPointerType(elem, 0);
     } else {
       LLVMTypeRef *types =
-          (LLVMTypeRef *)codegen->allocator->alloc(sizeof(LLVMTypeRef) * 2);
+          (LLVMTypeRef *)codegen->allocator->allocZeroed(sizeof(LLVMTypeRef) * 2);
       types[0] = LLVMPointerType(elem, 0);
       types[1] = LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
       out = LLVMStructTypeInContext(codegen->ctx, types, 2, false);
@@ -96,7 +96,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
 
     // Parameters
     abi_cache.args.len = type->function.arguments.len;
-    abi_cache.args.ptr = (ABIArg *)codegen->allocator->alloc(
+    abi_cache.args.ptr = (ABIArg *)codegen->allocator->allocZeroed(
         sizeof(ABIArg) * abi_cache.args.len);
 
     for (size_t i = 0; i < type->function.arguments.len; i++) {
@@ -119,7 +119,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     break;
   }
   case TypeKind::Struct: {
-    LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->alloc(
+    LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->allocZeroed(
         sizeof(LLVMTypeRef) * type->_struct.fields.len);
     for (size_t i = 0; i < type->_struct.fields.len; i++) {
       field_types[i] = typeToLLVM(codegen, type->_struct.fields.ptr[i]);

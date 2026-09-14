@@ -371,7 +371,7 @@ void genDeclaration(CodeGenModule *codegen, MIRValue *inst) {
       }
 
       if (real_type) {
-        char *name = (char *)codegen->allocator->alloc(inst->name.len + 1);
+        char *name = (char *)codegen->allocator->allocZeroed(inst->name.len + 1);
         memcpy(name, inst->name.ptr, inst->name.len);
         name[inst->name.len] = 0;
         typeToLLVM(codegen, inst->global_variable.constant.get()->result_type,
@@ -406,7 +406,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
                              bool emit_asm, Optimization opt) {
   // Setup State
   char *name =
-      (char *)allocator->alloc(sizeof(char) * this->module_name.len + 1);
+      (char *)allocator->allocZeroed(sizeof(char) * this->module_name.len + 1);
   memcpy(name, this->module_name.ptr, this->module_name.len);
   *(name + this->module_name.len) = 0;
 
@@ -464,7 +464,7 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
 
   // Cleanup
   char *output_path =
-      (char *)allocator->alloc(sizeof(char) * this->output_path.len + 1);
+      (char *)allocator->allocZeroed(sizeof(char) * this->output_path.len + 1);
   memcpy(output_path, this->output_path.ptr, this->output_path.len);
   *(output_path + this->output_path.len) = 0;
   char *error = nullptr;
