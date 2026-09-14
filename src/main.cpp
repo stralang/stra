@@ -4,13 +4,13 @@
 #include "containers.hpp"
 #include "environment.hpp"
 #include "helper.hpp"
-#include "mir.hpp"
-#include "mirgen/mirgen.hpp"
 #include "parser.hpp"
 #include "print.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
+#include "uir.hpp"
+#include "uirgen/uirgen.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -30,8 +30,8 @@ enum class EmitMode {
   Assembly,
   LLVM,
   AST,
-  MIR,
-  AnalysedMIR,
+  UIR,
+  AnalysedUIR,
 };
 
 enum class Linker {
@@ -154,7 +154,7 @@ struct SourceFile {
 
   Symbol *root;
   ASTParser parser;
-  MIRGen mir;
+  UIRGen uir;
 };
 struct SourceFiles {
   ArrayList<SourceFile> list;
@@ -237,9 +237,9 @@ int main(int argc, const char **argv) {
       } else if (strcmp(argv[i], "ast") == 0) {
         args.emit_mode = EmitMode::AST;
       } else if (strcmp(argv[i], "analysed") == 0) {
-        args.emit_mode = EmitMode::AnalysedMIR;
-      } else if (strcmp(argv[i], "mir") == 0) {
-        args.emit_mode = EmitMode::MIR;
+        args.emit_mode = EmitMode::AnalysedUIR;
+      } else if (strcmp(argv[i], "uir") == 0) {
+        args.emit_mode = EmitMode::UIR;
       }
     } else if (strcmp(argv[i], "--linker") == 0) {
       i += 1;
@@ -332,7 +332,7 @@ int main(int argc, const char **argv) {
     std::cout << "      `asm`        Emit assembly files\n";
     std::cout << "      `ir`         Emit LLVM IR files\n";
     std::cout << "      `ast`        Prints AST\n";
-    std::cout << "      `mir`        Prints Mid-Level IRs\n";
+    std::cout << "      `uir`        Prints Mid-Level IRs\n";
     std::cout << "      `analysed`   Prints analysed Mid-Level IRs\n";
     std::cout << "  `--linker`\n";
     std::cout << "      `clang` Uses clang for linking [default]\n";
@@ -495,16 +495,16 @@ int main(int argc, const char **argv) {
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);
 
-  // MIR
-  MIRContext ctx;
+  // UIR
+  UIRContext ctx;
   ctx.init(&global_allocator, &global_allocator);
   ctx.type_cache = &type_cache;
 
-  size_t mirgen_error_count = 0;
-  size_t mirgen_warning_count = 0;
+  size_t uirgen_error_count = 0;
+  size_t uirgen_warning_count = 0;
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    file->mir = MIRGen{
+    file->uir = UIRGen{
         .ast = file->parser.ast,
         .symbol = file->root,
         .allocator = &global_allocator,
@@ -512,33 +512,33 @@ int main(int argc, const char **argv) {
         .error_func = &error_handler,
         .warning_func = &warning_handler,
     };
-    file->mir.generate();
+    file->uir.generate();
 
-    mirgen_error_count += file->mir.error_count;
-    mirgen_warning_count += file->mir.warning_count;
+    uirgen_error_count += file->uir.error_count;
+    uirgen_warning_count += file->uir.warning_count;
   }
 
-  if (mirgen_warning_count > 0) {
-    std::cout << "\e[0;33m" << mirgen_warning_count << "warnings.\e[0m\n";
+  if (uirgen_warning_count > 0) {
+    std::cout << "\e[0;33m" << uirgen_warning_count << "warnings.\e[0m\n";
   }
 
-  if (mirgen_error_count > 0) {
-    std::cerr << "\e[0;31m" << mirgen_error_count << " errors, exiting.\e[0m\n";
+  if (uirgen_error_count > 0) {
+    std::cerr << "\e[0;31m" << uirgen_error_count << " errors, exiting.\e[0m\n";
     return 1;
   }
 
-  // Emit MIR
-  if (args.emit_mode == EmitMode::MIR) {
+  // Emit UIR
+  if (args.emit_mode == EmitMode::UIR) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printMIRModule(file->mir.module);
+      printUIRModule(file->uir.module);
     }
     return 0;
   }
 
   // Analysis
-  MIRAnalyser analyser = {
+  UIRAnalyser analyser = {
       .ctx = &ctx,
       .error_func = &error_handler,
       .warning_func = &warning_handler,
@@ -546,7 +546,7 @@ int main(int argc, const char **argv) {
   analyser.init(&global_allocator);
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    analyser.analyse(file->mir.module);
+    analyser.analyse(file->uir.module);
   }
 
   if (analyser.warning_count > 0) {
@@ -559,12 +559,12 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  // Emit Analysed MIR
-  if (args.emit_mode == EmitMode::AnalysedMIR) {
+  // Emit Analysed UIR
+  if (args.emit_mode == EmitMode::AnalysedUIR) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printMIRModule(file->mir.module);
+      printUIRModule(file->uir.module);
     }
     return 0;
   }
@@ -609,7 +609,7 @@ int main(int argc, const char **argv) {
     CodeGenModule codegen = {
         .module_name = module_name,
         .source_path_hashcode = file->hashcode,
-        .mir_module = file->mir.module,
+        .uir_module = file->uir.module,
         .allocator = &global_allocator,
     };
     codegen.output_path = out_name;

@@ -10,12 +10,12 @@ add_executable(stra
   src/parser.cpp
   src/symbolize.cpp
 
-  src/mirgen/mirgen.cpp
-  src/mirgen/operator.cpp
-  src/mirgen/flow.cpp
-  src/mirgen/record.cpp
-  src/mirgen/convert.cpp
-  src/mirgen/builtin.cpp
+  src/uirgen/uirgen.cpp
+  src/uirgen/operator.cpp
+  src/uirgen/flow.cpp
+  src/uirgen/record.cpp
+  src/uirgen/convert.cpp
+  src/uirgen/builtin.cpp
 
   src/codegen/codegen.cpp
   src/codegen/convert.cpp
@@ -37,9 +37,9 @@ add_executable(stra
 add_subdirectory(./common)
 target_link_libraries(stra common)
 
-# Get MIR
-add_subdirectory(./mir)
-target_link_libraries(stra mir)
+# Get UIR
+add_subdirectory(./uir)
+target_link_libraries(stra uir)
 
 # Get LLVM
 find_program(LLVM_CONFIG llvm-config)

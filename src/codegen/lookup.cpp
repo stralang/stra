@@ -1,7 +1,7 @@
 #include "define.hpp"
 
 LLVMValueRef genLookupPtr(CodeGenModule *codegen, LLVMBuilderRef builder,
-                          MIRValue *inst) {
+                          UIRValue *inst) {
   LLVMValueRef ptr = getReference(codegen, inst->lookup.parent);
   Type *parent_type = inst->lookup.parent->result_type->child;
 
@@ -48,9 +48,9 @@ LLVMValueRef genLookupPtr(CodeGenModule *codegen, LLVMBuilderRef builder,
       }
     }
   } else if (parent_type->kind == TypeKind::Struct) {
-    MIRValue *struct_inst = parent_type->_struct.inst;
+    UIRValue *struct_inst = parent_type->_struct.inst;
     for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
-      MIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
+      UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
       if (!field->name.compare(inst->lookup.member)) {
         continue;
       }

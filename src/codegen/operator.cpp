@@ -1,13 +1,13 @@
 #include "../print.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
-#include "mir.hpp"
+#include "uir.hpp"
 #include "llvm-c/Types.h"
 #include <iostream>
 #include <llvm-c/Core.h>
 
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                      MIRValue *inst) {
+                      UIRValue *inst) {
   Type *child_type = inst->unaryop.value->result_type;
   if (child_type->kind == TypeKind::SIMD) {
     child_type = child_type->slice.type;
@@ -16,7 +16,7 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
   LLVMValueRef value = getReference(codegen, inst->unaryop.value);
 
   switch (inst->unaryop.opcode) {
-  case MIROpcode::Minus: {
+  case UIROpcode::Minus: {
     if (child_type->kind == TypeKind::Integer) {
       return LLVMBuildNeg(builder, value, "");
     } else if (child_type->kind == TypeKind::Float) {
@@ -25,7 +25,7 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
     break;
   }
-  case MIROpcode::LogicalNot: {
+  case UIROpcode::LogicalNot: {
     if (child_type->kind == TypeKind::Bool) {
       return LLVMBuildNot(builder, value, "");
     } else if (child_type->kind == TypeKind::Integer) {
@@ -38,7 +38,7 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::BitwiseNot: {
+  case UIROpcode::BitwiseNot: {
     if (child_type->kind == TypeKind::Integer) {
       return LLVMBuildNot(builder, value, "");
     }
@@ -50,7 +50,7 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 }
 
 LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
-                       MIRValue *inst) {
+                       UIRValue *inst) {
   Type *src_type = inst->binop.lhs->result_type;
   Type *dst_type = inst->result_type;
   LLVMTypeRef dst_llvm_type = typeToLLVM(codegen, dst_type);
@@ -132,15 +132,15 @@ LLVMValueRef genCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
 }
 
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                       MIRValue *inst) {
+                       UIRValue *inst) {
 
   Type *lhs_type = inst->binop.lhs->result_type;
   Type *rhs_type = inst->binop.rhs->result_type;
 
   // Cast
-  if (inst->binop.opcode == MIROpcode::As) {
+  if (inst->binop.opcode == UIROpcode::As) {
     return genCastAs(codegen, builder, inst);
-  } else if (inst->binop.opcode == MIROpcode::Bitcast) {
+  } else if (inst->binop.opcode == UIROpcode::Bitcast) {
     LLVMValueRef lhs_value = getReference(codegen, inst->binop.lhs);
     LLVMTypeRef dest_ty = typeToLLVM(codegen, inst->binop.rhs->literal._typeid);
     return LLVMBuildBitCast(builder, lhs_value, dest_ty, "");
@@ -154,7 +154,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
   LLVMValueRef rhs_value = getReference(codegen, inst->binop.rhs);
 
   switch (inst->binop.opcode) {
-  case MIROpcode::Add: {
+  case UIROpcode::Add: {
     if (lhs_type->kind == TypeKind::Integer ||
         lhs_type->kind == TypeKind::Pointer) {
       return LLVMBuildAdd(builder, lhs_value, rhs_value, "");
@@ -163,7 +163,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::Sub: {
+  case UIROpcode::Sub: {
     if (lhs_type->kind == TypeKind::Integer ||
         lhs_type->kind == TypeKind::Pointer) {
       return LLVMBuildSub(builder, lhs_value, rhs_value, "");
@@ -172,7 +172,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::Mul: {
+  case UIROpcode::Mul: {
     if (lhs_type->kind == TypeKind::Integer) {
       return LLVMBuildMul(builder, lhs_value, rhs_value, "");
     } else if (lhs_type->kind == TypeKind::Float) {
@@ -180,7 +180,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::Div: {
+  case UIROpcode::Div: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildSDiv(builder, lhs_value, rhs_value, "");
@@ -192,7 +192,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::Mod: {
+  case UIROpcode::Mod: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildSRem(builder, lhs_value, rhs_value, "");
@@ -204,28 +204,28 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::Or: {
+  case UIROpcode::Or: {
     return LLVMBuildOr(builder, lhs_value, rhs_value, "");
     break;
   }
-  case MIROpcode::Xor: {
+  case UIROpcode::Xor: {
     return LLVMBuildXor(builder, lhs_value, rhs_value, "");
 
     break;
   }
-  case MIROpcode::And: {
+  case UIROpcode::And: {
     return LLVMBuildAnd(builder, lhs_value, rhs_value, "");
     break;
   }
-  case MIROpcode::LeftShift: {
+  case UIROpcode::LeftShift: {
     return LLVMBuildShl(builder, lhs_value, rhs_value, "");
     break;
   }
-  case MIROpcode::RightShift: {
+  case UIROpcode::RightShift: {
     return LLVMBuildLShr(builder, lhs_value, rhs_value, "");
     break;
   }
-  case MIROpcode::EqualTo: {
+  case UIROpcode::EqualTo: {
     if (lhs_type->kind == TypeKind::Bool ||
         lhs_type->kind == TypeKind::Integer ||
         lhs_type->kind == TypeKind::Pointer) {
@@ -235,7 +235,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::NotEqualTo: {
+  case UIROpcode::NotEqualTo: {
     if (lhs_type->kind == TypeKind::Bool ||
         lhs_type->kind == TypeKind::Integer ||
         lhs_type->kind == TypeKind::Pointer) {
@@ -245,7 +245,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::LessThen: {
+  case UIROpcode::LessThen: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildICmp(builder, LLVMIntSLT, lhs_value, rhs_value, "");
@@ -257,7 +257,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::GreaterThen: {
+  case UIROpcode::GreaterThen: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildICmp(builder, LLVMIntSGT, lhs_value, rhs_value, "");
@@ -269,7 +269,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::LessThenOrEqualTo: {
+  case UIROpcode::LessThenOrEqualTo: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildICmp(builder, LLVMIntSLE, lhs_value, rhs_value, "");
@@ -281,7 +281,7 @@ LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
     break;
   }
-  case MIROpcode::GreaterThenOrEqualTo: {
+  case UIROpcode::GreaterThenOrEqualTo: {
     if (lhs_type->kind == TypeKind::Integer) {
       if (lhs_type->integer.is_signed) {
         return LLVMBuildICmp(builder, LLVMIntSGE, lhs_value, rhs_value, "");
