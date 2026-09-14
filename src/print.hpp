@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
-#include "mir.hpp"
+#include "uir.hpp"
 #include "operator.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
@@ -24,5 +24,5 @@ std::ostream &operator<<(std::ostream &os, const Symbol &symbol);
 std::ostream &operator<<(std::ostream &os, const TypeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Type &type);
 
-void MIRPrintInst(MIRValue *inst);
-void printMIRModule(MIRModule *mod);
+void UIRPrintInst(UIRValue *inst);
+void printUIRModule(UIRModule *mod);

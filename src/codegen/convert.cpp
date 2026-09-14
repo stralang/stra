@@ -158,7 +158,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
   return out;
 }
 
-LLVMValueRef literalToLLVM(CodeGenModule *codegen, MIRLiteral *literal) {
+LLVMValueRef literalToLLVM(CodeGenModule *codegen, UIRLiteral *literal) {
   switch (literal->lit_type->kind) {
   case TypeKind::Bool: {
     return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), literal->_bool,

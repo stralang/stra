@@ -1,0 +1,137 @@
+#include "../../src/print.hpp"
+#include "define.hpp"
+#include "literal.hpp"
+#include "uir.hpp"
+
+void analyseLookup(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst,
+                   Type *parent_ty) {
+  // Search
+  UIRScope *definitions = nullptr;
+  if (parent_ty->kind == TypeKind::Slice) {
+    Type *sub_type = nullptr;
+    if (inst->lookup.member.compare("ptr")) {
+      sub_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Pointer,
+          .child = parent_ty->slice.type,
+          .is_constant = true,
+      });
+    } else if (inst->lookup.member.compare("len")) {
+      sub_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Integer,
+          .integer = {false, false, -1},
+          .is_constant = true,
+      });
+    }
+
+    if (sub_type != nullptr) {
+      inst->result_type = module->ctx->type_cache->get({
+          .kind = TypeKind::Pointer,
+          .child = sub_type,
+          .is_constant = true,
+      });
+      return;
+    }
+  } else if (parent_ty->kind == TypeKind::Struct) {
+    UIRValue *struct_inst = parent_ty->_struct.inst;
+    definitions = struct_inst->_struct.definitions;
+
+    for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
+      UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
+      if (field->name.compare(inst->lookup.member)) {
+        inst->result_type = module->ctx->type_cache->get({
+            .kind = TypeKind::Pointer,
+            .child = field->type->literal._typeid,
+            .is_constant = true,
+        });
+        return;
+      }
+    }
+  } else if (parent_ty->kind == TypeKind::Enum) {
+    UIRValue *enum_inst = parent_ty->_enum.inst;
+    definitions = enum_inst->_enum.definitions;
+  } else if (parent_ty->kind == TypeKind::Namespace) {
+    definitions = parent_ty->_namespace.inst->_namespace.definitions;
+  }
+
+  // Definitions
+  if (definitions != nullptr) {
+    for (size_t i = 0; i < definitions->list.length; i++) {
+      UIRValue *child = definitions->list.getUnchecked(i);
+      if (child->name.compare(inst->lookup.member)) {
+        analyse(analyser, module, child);
+        inst->kind = UIRValueKind::Alias;
+        inst->alias = child;
+        inst->result_type = child->result_type;
+        return;
+      }
+    }
+  }
+
+  // Error
+  expect(false, inst->source_location,
+         "Couldn't find member of name \"" << inst->lookup.member << "\"");
+}
+
+void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
+                      UIRValue *inst) {
+  analyse(analyser, module, inst->lookup.parent);
+  expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
+         inst->lookup.parent->source_location,
+         "Cannot `lookup` for non-pointer");
+
+  // Get Type
+  Type *parent_ty = inst->lookup.parent->result_type->child;
+  bool is_typeid = parent_ty->kind == TypeKind::TypeId;
+  if (is_typeid) {
+    UIRLiteral ty_lit =
+        analyser->comptime_state.execute(module, inst->lookup.parent);
+    parent_ty = ty_lit.pointer->_typeid;
+  }
+
+  // Auto dereference
+  if (parent_ty->kind == TypeKind::Pointer) {
+    parent_ty = parent_ty->child;
+  }
+
+  analyseLookup(analyser, module, inst, parent_ty);
+}
+
+void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
+                        UIRValue *inst) {
+  analyse(analyser, module, inst->lookup.parent);
+  expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
+         inst->lookup.parent->source_location,
+         "Cannot `lookup` for non-pointer");
+
+  // Get Type
+  Type *parent_ty = inst->lookup.parent->result_type->child;
+  bool is_typeid = parent_ty->kind == TypeKind::TypeId;
+  if (is_typeid) {
+    UIRLiteral ty_lit =
+        analyser->comptime_state.execute(module, inst->lookup.parent);
+    parent_ty = ty_lit.pointer->_typeid;
+  }
+
+  // Auto dereference
+  if (parent_ty->kind == TypeKind::Pointer) {
+    parent_ty = parent_ty->child;
+  }
+
+  // Lookup
+  if (parent_ty->kind == TypeKind::Enum) {
+    UIRValue *enum_inst = parent_ty->_enum.inst;
+
+    for (size_t i = 0; i < enum_inst->_enum.members.len; i++) {
+      UIREnum::Member *member = enum_inst->_enum.members.ptr + i;
+      if (member->name.compare(inst->lookup.member)) {
+        inst->kind = UIRValueKind::Literal;
+        inst->literal = member->constant->literal;
+        inst->result_type = inst->literal.lit_type;
+        return;
+      }
+    }
+  }
+
+  analyseLookup(analyser, module, inst, parent_ty);
+  inst->result_type = inst->result_type->child;
+}

@@ -6,7 +6,7 @@
 #include "abi/general.hpp"
 #include "allocator.hpp"
 #include "containers.hpp"
-#include "mir.hpp"
+#include "uir.hpp"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"
@@ -50,11 +50,11 @@ struct CodeGenModule {
   uint64_t source_path_hashcode;
 
   String output_path;
-  MIRModule *mir_module;
+  UIRModule *uir_module;
   Allocator *allocator;
 
-  HashMap<MIRValue *, LLVMValueRef> inst_to_llvm;
-  HashMap<MIRBlock *, LLVMBasicBlockRef> block_to_llvm;
+  HashMap<UIRValue *, LLVMValueRef> inst_to_llvm;
+  HashMap<UIRBlock *, LLVMBasicBlockRef> block_to_llvm;
   HashMap<Type *, LLVMTypeRef> type_to_llvm;
   HashMap<LLVMTypeRef, FnABICache> fn_abi_cache;
   LLVMBasicBlockRef define_block = nullptr;

@@ -3,13 +3,13 @@
 #include "abi/general.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
-#include "mir.hpp"
+#include "uir.hpp"
 #include "llvm-c/Types.h"
 #include <cstring>
 #include <llvm-c/Core.h>
 
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
-                     MIRValue *inst) {
+                     UIRValue *inst) {
   if (inst->function.undefined) {
     return;
   }
@@ -25,7 +25,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
       LLVMAppendBasicBlockInContext(codegen->ctx, func, "defines");
 
   for (size_t i = 0; i < inst->function.blocks.length; i++) {
-    MIRBlock *block = inst->function.blocks.getUnchecked(i);
+    UIRBlock *block = inst->function.blocks.getUnchecked(i);
 
     char *name = (char *)codegen->allocator->allocZeroed(block->name.len + 1);
     memcpy(name, block->name.ptr, block->name.len);
@@ -43,7 +43,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   // Code
   for (size_t i = 0; i < inst->function.blocks.length; i++) {
-    MIRBlock *block = inst->function.blocks.getUnchecked(i);
+    UIRBlock *block = inst->function.blocks.getUnchecked(i);
     LLVMBasicBlockRef llvm_block = *codegen->block_to_llvm.get(block);
     LLVMPositionBuilderAtEnd(builder, llvm_block);
 
@@ -59,7 +59,7 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
 }
 
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
-                     MIRValue *inst) {
+                     UIRValue *inst) {
   Type *callee_type = inst->call.callee->result_type;
   bool needs_dereference = false;
   if (callee_type->kind == TypeKind::Pointer) {
