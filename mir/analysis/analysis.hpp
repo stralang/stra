@@ -6,6 +6,7 @@
 #include "containers.hpp"
 
 struct MIRAnalyser {
+  MIRContext *ctx;
   MIRComptime comptime_state;
 
   DynamicArena arena;

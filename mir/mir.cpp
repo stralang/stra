@@ -2,19 +2,19 @@
 #include "allocator.hpp"
 #include <cstdlib>
 
-void MIRContext::init(Allocator *allocator) {
+void MIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
-  this->arena.init(allocator, 1024 * 1024 * 8);
+  this->modules.init(allocator, arena_allocator, sizeof(MIRModule) * 32);
 }
 
-void MIRContext::deinit() { this->arena.deinit(); }
+void MIRContext::deinit() { this->modules.deinit(); }
 
 void MIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
 
-  this->instructions.init(allocator, arena_allocator, 1024 * 1024 * 8);
-  this->blocks.init(allocator, arena_allocator, 1024 * 1024);
-  this->scopes.init(allocator, arena_allocator, 1024 * 1024);
+  this->instructions.init(allocator, arena_allocator, sizeof(MIRValue) * 65535);
+  this->blocks.init(allocator, arena_allocator, sizeof(MIRBlock) * 1024);
+  this->scopes.init(allocator, arena_allocator, sizeof(MIRScope) * 256);
 
   this->scopes.push({});
 

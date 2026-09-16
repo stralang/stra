@@ -497,7 +497,7 @@ int main(int argc, const char **argv) {
 
   // MIR
   MIRContext ctx;
-  ctx.init(&global_allocator);
+  ctx.init(&global_allocator, &global_allocator);
   ctx.type_cache = &type_cache;
 
   size_t mirgen_error_count = 0;
@@ -532,20 +532,21 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printMIRModule(&file->mir.module);
+      printMIRModule(file->mir.module);
     }
     return 0;
   }
 
   // Analysis
   MIRAnalyser analyser = {
+      .ctx = &ctx,
       .error_func = &error_handler,
       .warning_func = &warning_handler,
   };
   analyser.init(&global_allocator);
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    analyser.analyse(&file->mir.module);
+    analyser.analyse(file->mir.module);
   }
 
   if (analyser.warning_count > 0) {
@@ -563,7 +564,7 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printMIRModule(&file->mir.module);
+      printMIRModule(file->mir.module);
     }
     return 0;
   }
@@ -608,7 +609,7 @@ int main(int argc, const char **argv) {
     CodeGenModule codegen = {
         .module_name = module_name,
         .source_path_hashcode = file->hashcode,
-        .mir_module = &file->mir.module,
+        .mir_module = file->mir.module,
         .allocator = &global_allocator,
     };
     codegen.output_path = out_name;

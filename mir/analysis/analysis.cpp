@@ -12,7 +12,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
            inst->local_variable.type->source_location,
            "Field type must be a typeid");
 
-    inst->result_type = module->ctx->type_cache->get({
+    inst->result_type = analyser->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
         .child = type_literal._typeid,
         .is_constant = false,
@@ -40,7 +40,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     MIRLiteral arg_literal =
         analyser->comptime_state.execute(module, inst->arg.type);
 
-    inst->result_type = module->ctx->type_cache->get({
+    inst->result_type = analyser->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
         .child = arg_literal._typeid,
         .is_constant = true,
@@ -125,14 +125,14 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     expect(ptr->result_type->child->kind == TypeKind::Slice,
            inst->source_location, "Cannot index into non-slice");
 
-    inst->result_type = module->ctx->type_cache->get({
+    inst->result_type = analyser->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
         .child = ptr->result_type->child->slice.type,
         .is_constant = true,
     });
 
     // Analyse Index
-    Type *usize_ty = module->ctx->type_cache->get({
+    Type *usize_ty = analyser->ctx->type_cache->get({
         .kind = TypeKind::Integer,
         .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
     });
@@ -158,7 +158,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
            inst->source_location, "Cannot range into non-slice/pointer");
 
     // Check Index and Length
-    Type *usize_ty = module->ctx->type_cache->get({
+    Type *usize_ty = analyser->ctx->type_cache->get({
         .kind = TypeKind::Integer,
         .integer = {false, false, -1},
     });
@@ -183,7 +183,7 @@ void analyse(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       ty.slice.type = ptr->result_type->child->slice.type;
     }
 
-    inst->result_type = module->ctx->type_cache->get(ty);
+    inst->result_type = analyser->ctx->type_cache->get(ty);
     break;
   }
   case MIRValueKind::LookupPtr: {
@@ -309,6 +309,7 @@ void MIRAnalyser::init(Allocator *allocator) {
   this->arena.init(allocator, 1024 * 1024 * 8);
 
   this->comptime_state.init(allocator, &this->arena);
+  this->comptime_state.ctx = this->ctx;
   this->comptime_state.analyser = this;
 }
 

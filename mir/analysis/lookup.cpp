@@ -10,13 +10,13 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst,
   if (parent_ty->kind == TypeKind::Slice) {
     Type *sub_type = nullptr;
     if (inst->lookup.member.compare("ptr")) {
-      sub_type = module->ctx->type_cache->get({
+      sub_type = analyser->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
           .child = parent_ty->slice.type,
           .is_constant = true,
       });
     } else if (inst->lookup.member.compare("len")) {
-      sub_type = module->ctx->type_cache->get({
+      sub_type = analyser->ctx->type_cache->get({
           .kind = TypeKind::Integer,
           .integer = {false, false, -1},
           .is_constant = true,
@@ -24,7 +24,7 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst,
     }
 
     if (sub_type != nullptr) {
-      inst->result_type = module->ctx->type_cache->get({
+      inst->result_type = analyser->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
           .child = sub_type,
           .is_constant = true,
@@ -38,7 +38,7 @@ void analyseLookup(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst,
     for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
       MIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
       if (field->name.compare(inst->lookup.member)) {
-        inst->result_type = module->ctx->type_cache->get({
+        inst->result_type = analyser->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = field->type->literal._typeid,
             .is_constant = true,

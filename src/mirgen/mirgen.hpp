@@ -19,7 +19,6 @@ struct MIRGen {
 
   // Caches
   HashMap<Node *, MIRValue *> node_to_value;
-  HashMap<Symbol *, MIRScope *> symbol_to_scope;
 
   // Defer
   Node *defer_stack[64];
@@ -29,7 +28,7 @@ struct MIRGen {
   // MIR
   MIRBlock block;
   MIRBuilder builder;
-  MIRModule module;
+  MIRModule *module;
   MIRContext *ctx;
 
   // Errors

@@ -31,7 +31,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
 
     // Create pointer
     return {
-        .lit_type = module->ctx->type_cache->get({
+        .lit_type = state->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = ty_lit._typeid,
             .is_constant = true,
@@ -57,7 +57,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     *ptr.pointer = value;
 
     return MIRLiteral{
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Void}),
         .kind = MIRLiteralKind::Typed,
     };
   }
@@ -69,7 +69,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     frame->arg_count += 1;
 
     return {
-        .lit_type = module->ctx->type_cache->get({
+        .lit_type = state->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = ty_lit._typeid,
             .is_constant = true,
@@ -116,7 +116,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     if (inst->ret.value.isSome()) {
       result = state->getValue(frame, module, inst->ret.value.get());
     } else {
-      result.lit_type = module->ctx->type_cache->get({.kind = TypeKind::Void});
+      result.lit_type = state->ctx->type_cache->get({.kind = TypeKind::Void});
       result.kind = MIRLiteralKind::Typed;
     }
     return result;
@@ -133,7 +133,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
   }
   case MIRValueKind::TypeOf: {
     return MIRLiteral{
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = inst->_typeof->result_type,
     };
@@ -170,13 +170,13 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
 
     // Get final type
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-        ._typeid = module->ctx->type_cache->get(raw_type),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        ._typeid = state->ctx->type_cache->get(raw_type),
     };
   }
   case MIRValueKind::Pointer: {
     MIRLiteral lit = state->getValue(frame, module, inst->pointer);
-    lit._typeid = module->ctx->type_cache->get(
+    lit._typeid = state->ctx->type_cache->get(
         {.kind = TypeKind::Pointer, .child = lit._typeid});
     return lit;
   }
@@ -187,7 +187,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
     raw_type._struct.inst = inst;
 
-    Type *struct_type = module->ctx->type_cache->get(raw_type);
+    Type *struct_type = state->ctx->type_cache->get(raw_type);
 
     // Fields
     struct_type->_struct.fields = {
@@ -202,7 +202,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = struct_type,
     };
@@ -214,7 +214,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
     raw_type._enum.inst = inst;
 
-    Type *enum_type = module->ctx->type_cache->get(raw_type);
+    Type *enum_type = state->ctx->type_cache->get(raw_type);
 
     // Represent Type
     MIRLiteral repr_lit = state->getValue(frame, module, inst->_enum.repr_type);
@@ -243,7 +243,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = enum_type,
     };
@@ -255,7 +255,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     };
     raw_type._union.inst = inst;
 
-    Type *union_type = module->ctx->type_cache->get(raw_type);
+    Type *union_type = state->ctx->type_cache->get(raw_type);
 
     // Represent Type
     MIRLiteral repr_lit =
@@ -275,7 +275,7 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = union_type,
     };
@@ -284,9 +284,9 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     Type raw_type = {.kind = TypeKind::Namespace};
     raw_type._namespace.inst = inst;
 
-    Type *namespace_type = module->ctx->type_cache->get(raw_type);
+    Type *namespace_type = state->ctx->type_cache->get(raw_type);
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = namespace_type,
     };
@@ -312,8 +312,8 @@ MIRLiteral execute(MIRComptime *state, MIRModule *module, MIRValue *inst) {
     }
 
     return {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-        ._typeid = module->ctx->type_cache->get(raw_type),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+        ._typeid = state->ctx->type_cache->get(raw_type),
     };
   }
   }
@@ -409,8 +409,8 @@ MIRLiteral MIRComptime::getValue(ComptimeStackFrame *frame, MIRModule *module,
     Type vtype = *constant->result_type;
     vtype.is_constant = true;
 
-    Type *real_vtype = module->ctx->type_cache->get(vtype);
-    Type *ptr_type = module->ctx->type_cache->get({
+    Type *real_vtype = this->ctx->type_cache->get(vtype);
+    Type *ptr_type = this->ctx->type_cache->get({
         .kind = TypeKind::Pointer,
         .child = real_vtype,
         .is_constant = true,

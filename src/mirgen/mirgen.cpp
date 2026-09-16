@@ -273,8 +273,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Body
     value->function.undefined = node->function.undefined;
     if (node->function.body != nullptr) {
-      mirgen->module.scopes.push({.owner = value});
-      MIRScope *globals = mirgen->module.scopes.back();
+      mirgen->module->scopes.push({.owner = value});
+      MIRScope *globals = mirgen->module->scopes.back();
       globals->list.init(mirgen->builder.module->allocator, 32);
       value->function.globals = globals;
 
@@ -494,20 +494,17 @@ void genDeclaration(MIRGen *mirgen, Node *node, Symbol *scope) {
 }
 
 void MIRGen::generate() {
+  this->ctx->modules.push({});
+  this->module = this->ctx->modules.back();
+  this->module->init(this->allocator, this->allocator);
+
   this->node_to_value.init(this->allocator, 32);
-  this->symbol_to_scope.init(this->allocator, 32);
-  this->module.init(this->allocator, this->allocator);
-  this->module.ctx = this->ctx;
-  this->builder.module = &this->module;
-  this->builder.scope = this->module.definitions;
+  this->builder.module = this->module;
+  this->builder.scope = this->module->definitions;
   this->builder.block = nullptr;
 
-  this->symbol_to_scope.insert(this->symbol, this->module.definitions);
   genDeclaration(this, this->ast, this->symbol);
   gen(this, this->ast, this->symbol);
 }
 
-void MIRGen::deinit() {
-  this->node_to_value.deinit();
-  this->module.deinit();
-}
+void MIRGen::deinit() { this->node_to_value.deinit(); }

@@ -13,7 +13,7 @@ void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
       expect(type_literal.lit_type->kind == TypeKind::TypeId,
              type_inst->source_location, "Field type must be a typeid");
 
-      inst->result_type = module->ctx->type_cache->get({
+      inst->result_type = analyser->ctx->type_cache->get({
           .kind = TypeKind::Pointer,
           .child = type_literal._typeid,
           .is_constant = false,
@@ -37,7 +37,7 @@ void analyseGlobal(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
 
       // Check
       if (inst->global_variable.type.isNone()) {
-        inst->result_type = module->ctx->type_cache->get({
+        inst->result_type = analyser->ctx->type_cache->get({
             .kind = TypeKind::Pointer,
             .child = type,
             .is_constant = false,

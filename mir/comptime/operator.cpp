@@ -136,7 +136,7 @@ MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
   case MIROpcode::NotEqualTo: {
     // TODO: `compareTypes`
     MIRLiteral result = {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
         .kind = MIRLiteralKind::Typed,
     };
 
@@ -167,7 +167,7 @@ MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
   case MIROpcode::LessThen: {
     // TODO: `compareTypes`
     MIRLiteral result = {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
         .kind = MIRLiteralKind::Typed,
     };
 
@@ -184,7 +184,7 @@ MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
   case MIROpcode::GreaterThen: {
     // TODO: `compareTypes`
     MIRLiteral result = {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
         .kind = MIRLiteralKind::Typed,
     };
 
@@ -201,7 +201,7 @@ MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
   case MIROpcode::LessThenOrEqualTo: {
     // TODO: `compareTypes`
     MIRLiteral result = {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
         .kind = MIRLiteralKind::Typed,
     };
 
@@ -218,7 +218,7 @@ MIRLiteral executeBinary(MIRComptime *state, MIRModule *module,
   case MIROpcode::GreaterThenOrEqualTo: {
     // TODO: `compareTypes`
     MIRLiteral result = {
-        .lit_type = module->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
         .kind = MIRLiteralKind::Typed,
     };
 

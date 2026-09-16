@@ -11,6 +11,7 @@
 #include <cstdint>
 
 // Forward declarations
+struct MIRContext;
 struct MIRValue;
 struct MIRBlock;
 struct MIRScope;
@@ -251,15 +252,6 @@ struct MIRScope {
   ArrayList<MIRValue *> list;
 };
 
-struct MIRContext {
-  TypeCache *type_cache;
-  DynamicArena arena;
-  Allocator *allocator;
-
-  void init(Allocator *allocator);
-  void deinit();
-};
-
 struct MIRModule {
   size_t next_id = 0;
   MIRScope *definitions;
@@ -269,7 +261,15 @@ struct MIRModule {
   ArenaList<MIRScope> scopes;
 
   Allocator *allocator;
-  MIRContext *ctx;
+
+  void init(Allocator *allocator, Allocator *arena_allocator);
+  void deinit();
+};
+
+struct MIRContext {
+  TypeCache *type_cache;
+  ArenaList<MIRModule> modules;
+  Allocator *allocator;
 
   void init(Allocator *allocator, Allocator *arena_allocator);
   void deinit();

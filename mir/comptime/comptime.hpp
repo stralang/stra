@@ -45,6 +45,7 @@ struct MIRComptime {
   DynamicArena *arena;
   Allocator *allocator;
   MIRAnalyser *analyser;
+  MIRContext *ctx;
 
   MIRLiteral execute(MIRModule *module, MIRValue *inst);
 

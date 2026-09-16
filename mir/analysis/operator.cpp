@@ -82,7 +82,8 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
-    inst->result_type = module->ctx->type_cache->get({.kind = TypeKind::Bool});
+    inst->result_type =
+        analyser->ctx->type_cache->get({.kind = TypeKind::Bool});
     break;
   }
   case MIROpcode::LessThen:
@@ -99,7 +100,8 @@ void analyseBinary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
     expect(compareTypes(lhs_primitive, rhs_primitive), rhs->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
-    inst->result_type = module->ctx->type_cache->get({.kind = TypeKind::Bool});
+    inst->result_type =
+        analyser->ctx->type_cache->get({.kind = TypeKind::Bool});
     break;
   }
   case MIROpcode::As:
@@ -173,7 +175,7 @@ void analyseUnary(MIRAnalyser *analyser, MIRModule *module, MIRValue *inst) {
         !child_primitive->integer.is_signed) {
       Type ty = *child_primitive;
       ty.integer.is_signed = true;
-      inst->result_type = module->ctx->type_cache->get(ty);
+      inst->result_type = analyser->ctx->type_cache->get(ty);
     } else {
       inst->result_type = child_primitive;
     }
