@@ -25,3 +25,4 @@ set_target_properties(uir PROPERTIES
 )
 
 target_link_libraries(uir PRIVATE common)
+target_link_libraries(uir PRIVATE rir)

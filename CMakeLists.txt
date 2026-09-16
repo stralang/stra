@@ -41,6 +41,10 @@ target_link_libraries(stra common)
 add_subdirectory(./uir)
 target_link_libraries(stra uir)
 
+# Get RIR
+add_subdirectory(./rir)
+target_link_libraries(stra rir)
+
 # Get LLVM
 find_program(LLVM_CONFIG llvm-config)
 if(NOT LLVM_CONFIG)
