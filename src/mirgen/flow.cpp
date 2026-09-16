@@ -91,15 +91,15 @@ void genLoop(MIRGen *mirgen, Node *node, Symbol *scope) {
         gen(mirgen, node->_for.conditional->in.range->range.min, for_scope);
     MIRValue *type;
     if (initial->kind == MIRValueKind::Literal) {
-      type = mirgen->ctx->makeLiteral({
+      MIRLiteral literal = {
           .lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
           .kind = MIRLiteralKind::Typed,
           ._typeid = mirgen->ctx->type_cache->get({
               .kind = TypeKind::Integer,
               .integer = {false, false, -1},
               .is_constant = true,
-          }),
-      });
+          })};
+      type = mirgen->builder.buildLiteral(literal);
     } else {
       type = mirgen->builder.buildTypeOf(initial);
     }
@@ -154,7 +154,7 @@ void genLoop(MIRGen *mirgen, Node *node, Symbol *scope) {
 
     MIRValue *ptr = *mirgen->node_to_value.get(node->_for.conditional);
     MIRValue *idx = mirgen->builder.buildLoad(ptr);
-    MIRValue *one = mirgen->ctx->makeLiteral(
+    MIRValue *one = mirgen->builder.buildLiteral(
         {.lit_type = ptr->local_variable.type->literal._typeid,
          .kind = MIRLiteralKind::Typed,
          ._int = 1});

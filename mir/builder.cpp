@@ -149,8 +149,10 @@ MIRValue *MIRBuilder::buildSwitch(MIRValue *value, MIRBlock *default_block,
   inst._switch.condition = value;
   inst._switch.default_block = default_block;
 
-  uint8_t *onval_ptr = this->module->allocator->allocZeroed(sizeof(void *) * cases);
-  uint8_t *blocks_ptr = this->module->allocator->allocZeroed(sizeof(void *) * cases);
+  uint8_t *onval_ptr =
+      this->module->allocator->allocZeroed(sizeof(void *) * cases);
+  uint8_t *blocks_ptr =
+      this->module->allocator->allocZeroed(sizeof(void *) * cases);
   inst._switch.onvals = {.ptr = (MIRValue **)onval_ptr, .len = cases};
   inst._switch.blocks = {.ptr = (MIRBlock **)blocks_ptr, .len = cases};
   inst._switch.slots = 0;
@@ -196,6 +198,11 @@ MIRValue *MIRBuilder::buildFunction(Slice<MIRValue *> parameters,
       .return_type = return_type,
   };
   return this->insert(inst, true, name);
+}
+
+MIRValue *MIRBuilder::buildLiteral(MIRLiteral literal, String name) {
+  MIRValue inst = {.kind = MIRValueKind::Literal, .literal = literal};
+  return this->insert(inst, false, name);
 }
 
 MIRValue *MIRBuilder::buildPointer(MIRValue *child_type, String name) {

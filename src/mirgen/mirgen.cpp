@@ -144,7 +144,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
     // Parse text
-    uint8_t *real_text = (uint8_t *)mirgen->allocator->allocZeroed(node->text.len);
+    uint8_t *real_text =
+        (uint8_t *)mirgen->allocator->allocZeroed(node->text.len);
     size_t len = 0;
     bool escape = false;
     for (size_t i = 0; i < node->text.len; i++) {
@@ -177,7 +178,7 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
         .kind = MIRLiteralKind::Typed,
     };
     slice_lit.inline_data = real_text; // Length is stored in the type
-    return mirgen->ctx->makeLiteral(slice_lit);
+    return mirgen->builder.buildLiteral(slice_lit);
   }
   case NodeKind::Value: {
     return valueToMIR(mirgen, &node->value);
@@ -247,14 +248,12 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Return Type
     MIRValue *return_type = nullptr;
     if (node->function.return_type == nullptr) {
-      MIRValue void_ty = {.kind = MIRValueKind::Literal};
-      void_ty.literal.lit_type =
-          mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId});
-      void_ty.literal._typeid =
-          mirgen->ctx->type_cache->get({.kind = TypeKind::Void});
-      void_ty.result_type = void_ty.literal.lit_type;
+      MIRLiteral literal = {
+          .lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+          ._typeid = mirgen->ctx->type_cache->get({.kind = TypeKind::Void}),
+      };
 
-      return_type = mirgen->ctx->make(void_ty);
+      return_type = mirgen->builder.buildLiteral(literal);
     } else {
       return_type = genComptime(mirgen, node->function.return_type, fn_symbol);
     }
@@ -397,8 +396,8 @@ MIRValue *gen(MIRGen *mirgen, Node *node, Symbol *scope) {
     // Prepare Named
     if (!node->initializer.is_list) {
       names = {
-          .ptr =
-              (String *)mirgen->allocator->allocZeroed(sizeof(String) * values.len),
+          .ptr = (String *)mirgen->allocator->allocZeroed(sizeof(String) *
+                                                          values.len),
           .len = values.len,
       };
     }

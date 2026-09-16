@@ -258,9 +258,6 @@ struct MIRContext {
 
   void init(Allocator *allocator);
   void deinit();
-
-  MIRValue *make(MIRValue value);
-  MIRValue *makeLiteral(MIRLiteral literal);
 };
 
 struct MIRModule {

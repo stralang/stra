@@ -39,5 +39,5 @@ MIRValue *valueToMIR(MIRGen *mirgen, Value *value) {
   }
   }
 
-  return mirgen->ctx->makeLiteral(literal);
+  return mirgen->builder.buildLiteral(literal);
 }

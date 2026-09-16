@@ -67,7 +67,5 @@ MIRValue *genBuiltin(MIRGen *mirgen, String name) {
     return nullptr;
   }
 
-  MIRValue value = {.kind = MIRValueKind::Literal};
-  value.literal = literal;
-  return mirgen->ctx->make(value);
+  return mirgen->builder.buildLiteral(literal);
 }

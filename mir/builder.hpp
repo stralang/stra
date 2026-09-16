@@ -1,5 +1,6 @@
 #pragma once
 
+#include "literal.hpp"
 #include "mir.hpp"
 
 struct MIRBuilder {
@@ -55,6 +56,8 @@ struct MIRBuilder {
                                 Option<MIRValue *> constant, String name);
   MIRValue *buildFunction(Slice<MIRValue *> parameters, MIRValue *return_type,
                           String name);
+
+  MIRValue *buildLiteral(MIRLiteral literal, String name = {.ptr = nullptr});
 
   MIRValue *buildPointer(MIRValue *child_type, String name);
   MIRValue *buildSlice(MIRValue *element, MIRValue *length, bool is_pointer,

@@ -30,18 +30,6 @@ void MIRModule::deinit() {
   this->definitions->list.deinit();
 }
 
-MIRValue *MIRContext::make(MIRValue value) {
-  MIRValue *ptr = (MIRValue *)this->arena.alloc(sizeof(MIRValue));
-  *ptr = value;
-  return ptr;
-}
-
-MIRValue *MIRContext::makeLiteral(MIRLiteral lit) {
-  MIRValue inst = {.kind = MIRValueKind::Literal};
-  inst.literal = lit;
-  return this->make(inst);
-}
-
 bool MIRBlock::hasTerminator() {
   size_t i = this->instructions.length;
   while (i > 0) {

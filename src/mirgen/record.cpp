@@ -63,15 +63,15 @@ MIRValue *genEnum(MIRGen *mirgen, Node *node, Symbol *scope) {
   if (node->_enum.repr_type != nullptr) {
     repr_type = gen(mirgen, node->_enum.repr_type, enum_symbol);
   } else {
-    repr_type = mirgen->ctx->makeLiteral({
+    MIRLiteral literal = {
         .lit_type = mirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
         .kind = MIRLiteralKind::Typed,
         ._typeid = mirgen->ctx->type_cache->get({
             .kind = TypeKind::Integer,
             .integer = {false, false, 32},
             .is_constant = true,
-        }),
-    });
+        })};
+    repr_type = mirgen->builder.buildLiteral(literal);
   }
 
   // Members
