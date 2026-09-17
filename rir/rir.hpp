@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 
-struct RIRType;  // TODO: RIR Type
+struct UIRType;
 struct RIRBlock; // Forward Declaration
 
 struct RIRId {
@@ -37,13 +37,8 @@ enum class RIRValueKind : std::uint16_t {
 
   GlobalVariable,
   Function,
-  Struct,
-  Enum,
-  Union,
 
-  Literal,
-  Pointer,
-  Slice,
+  Constant,
 };
 
 enum class RIROpcode : uint8_t {
@@ -79,8 +74,6 @@ enum class RIROpcode : uint8_t {
 
 struct RIRValue {
   RIRValueId id;
-  String name;
-  SrcLoc source_location;
 
   RIRTypeId result_type;
   RIRValueKind kind;
@@ -140,24 +133,20 @@ struct RIRValue {
       Option<RIRValueId> constant; // null for undefined
     } global_variable;
     struct {
-      Slice<RIRTypeId> parameter_types;
-      RIRTypeId return_type;
+      RIRTypeId type;
       ArrayList<RIRBlockId> blocks;
       bool undefined;
     } function;
+
     struct {
-      Slice<RIRTypeId> fields;
-    } _struct;
-    struct {
-      RIRTypeId tag_type;
-      Slice<RIRTypeId> variants;
-    } _union;
+      RIRTypeId type;
+      // TODO: constant data
+    } constant;
   };
 };
 
 struct RIRBlock {
   RIRBlockId id;
-  String name;
   RIRValueId function;
   ArrayList<RIRValueId> instructions;
 };
@@ -176,7 +165,6 @@ struct RIRModule {
 };
 
 struct RIRContext {
-  ArenaList<RIRType> types;
   ArenaList<RIRModule> modules;
 
   Allocator *allocator;
