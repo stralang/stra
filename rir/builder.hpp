@@ -1,20 +1,20 @@
 #pragma once
 
 #include "rir.hpp"
+#include "srcloc.hpp"
 
 struct RIRBuilder {
   Option<RIRBlock *> block;
   RIRModule *module;
 
-  RIRValue *build(RIRValue inst) {
-    size_t idx = this->module->instructions.len();
-    inst.id = idx;
-    this->module->instructions.push(inst);
-    return this->module->instructions.getPtrUnchecked(idx);
-  }
+  RIRValueId build(RIRValue inst);
+  RIRValueId buildDeclare(RIRValue inst);
+  RIRValueId buildInst(RIRValue inst);
 
-  // RIRValue *buildLocalVariable(RIRType *type, Option<String> name = {});
-  // RIRValue *buildLoad(RIRValue *ptr, Option<String> name = {});
-  // RIRValue *buildStore(RIRValue *ptr, RIRValue *value,
-  //                      Option<String> name = {});
+  RIRValueId buildLocalVariable(RIRTypeId type);
+  RIRValueId buildLoad(RIRValueId ptr);
+  RIRValueId buildStore(RIRValueId ptr, RIRValueId value);
+
+  void addDebugLocation(RIRValueId inst, SrcLoc location);
+  void addDebugName(RIRValueId inst, String name);
 };
