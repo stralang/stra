@@ -1,8 +1,8 @@
 #pragma once
 
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "comptime.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 
 void executeProgram(UIRComptime *state, UIRModule *module,
                     UIRBlock *entrypoint);

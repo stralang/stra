@@ -3,7 +3,7 @@
 #include "ast.hpp"
 #include "containers.hpp"
 #include "tokenizer.hpp"
-#include "types.hpp"
+#include "uir/types.hpp"
 #include <cstddef>
 
 struct ASTParser {

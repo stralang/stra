@@ -1,5 +1,5 @@
 #include "define.hpp"
-#include "uir.hpp"
+#include "uir/uir.hpp"
 #include "uirgen.hpp"
 
 UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope) {

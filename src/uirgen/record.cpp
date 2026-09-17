@@ -1,6 +1,6 @@
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
+#include "uir/literal.hpp"
+#include "uir/uir.hpp"
 
 void genList(UIRGen *uirgen, ArrayList<Node *> *list, Symbol *scope,
              UIRScope *out) {

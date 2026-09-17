@@ -3,7 +3,7 @@
 #include "abi/general.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
-#include "uir.hpp"
+#include "uir/uir.hpp"
 #include "llvm-c/Types.h"
 #include <cstring>
 #include <llvm-c/Core.h>

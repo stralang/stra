@@ -1,9 +1,9 @@
 #pragma once
 
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "allocator.hpp"
 #include "containers.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 
 struct UIRAnalyser; // Forward Declaration
 struct UIRComptime; // Forward Declaration

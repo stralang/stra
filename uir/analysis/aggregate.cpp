@@ -1,6 +1,6 @@
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 
 Type *getFieldType(UIRValue *_struct, String name) {
   for (size_t i = 0; i < _struct->_struct.fields.len; i++) {

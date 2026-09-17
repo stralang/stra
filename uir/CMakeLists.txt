@@ -17,7 +17,7 @@ add_library(uir STATIC
   #comptime/global.cpp
 )
 
-target_include_directories(uir PUBLIC ./)
+target_include_directories(uir PUBLIC ../)
 
 set_target_properties(uir PROPERTIES
   VERSION ${PROJECT_VERSION}

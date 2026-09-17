@@ -1,6 +1,6 @@
 #include "codegen.hpp"
 #include "define.hpp"
-#include "literal.hpp"
+#include "uir/literal.hpp"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
@@ -60,8 +60,8 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     } else if (type->slice.length < 0) {
       out = LLVMPointerType(elem, 0);
     } else {
-      LLVMTypeRef *types =
-          (LLVMTypeRef *)codegen->allocator->allocZeroed(sizeof(LLVMTypeRef) * 2);
+      LLVMTypeRef *types = (LLVMTypeRef *)codegen->allocator->allocZeroed(
+          sizeof(LLVMTypeRef) * 2);
       types[0] = LLVMPointerType(elem, 0);
       types[1] = LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
       out = LLVMStructTypeInContext(codegen->ctx, types, 2, false);

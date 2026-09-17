@@ -1,6 +1,6 @@
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 #include <cmath>
 #include <iostream>
 

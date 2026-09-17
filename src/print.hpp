@@ -1,11 +1,11 @@
 #pragma once
 
 #include "ast.hpp"
-#include "uir.hpp"
 #include "operator.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
-#include "types.hpp"
+#include "uir/types.hpp"
+#include "uir/uir.hpp"
 #include <ostream>
 
 std::ostream &operator<<(std::ostream &os, const String &str);

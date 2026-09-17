@@ -1,7 +1,7 @@
 #include "analysis.hpp"
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 
 void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   switch (inst->kind) {

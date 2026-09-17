@@ -6,7 +6,7 @@
 #include "abi/general.hpp"
 #include "allocator.hpp"
 #include "containers.hpp"
-#include "uir.hpp"
+#include "uir/uir.hpp"
 #include "llvm-c/Target.h"
 #include "llvm-c/TargetMachine.h"
 #include "llvm-c/Types.h"

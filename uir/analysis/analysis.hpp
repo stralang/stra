@@ -1,8 +1,8 @@
 #pragma once
 
+#include "../comptime/comptime.hpp"
 #include "../uir.hpp"
 #include "allocator.hpp"
-#include "comptime/comptime.hpp"
 #include "containers.hpp"
 
 struct UIRAnalyser {

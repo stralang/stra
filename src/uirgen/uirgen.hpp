@@ -3,8 +3,8 @@
 #include "../ast.hpp"
 #include "../symbol.hpp"
 #include "allocator.hpp"
-#include "builder.hpp"
-#include "uir.hpp"
+#include "uir/builder.hpp"
+#include "uir/uir.hpp"
 
 struct DeferBranch {
   UIRBlock *_return; // Exit function (e.g. `return`, or end of function scope)

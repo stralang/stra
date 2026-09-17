@@ -4,10 +4,10 @@
 #include "abi/general.hpp"
 #include "containers.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 #include "passes.hpp"
-#include "types.hpp"
+#include "uir/literal.hpp"
+#include "uir/types.hpp"
+#include "uir/uir.hpp"
 #include "llvm-c/Core.h"
 #include "llvm-c/Error.h"
 #include "llvm-c/Target.h"
@@ -371,7 +371,8 @@ void genDeclaration(CodeGenModule *codegen, UIRValue *inst) {
       }
 
       if (real_type) {
-        char *name = (char *)codegen->allocator->allocZeroed(inst->name.len + 1);
+        char *name =
+            (char *)codegen->allocator->allocZeroed(inst->name.len + 1);
         memcpy(name, inst->name.ptr, inst->name.len);
         name[inst->name.len] = 0;
         typeToLLVM(codegen, inst->global_variable.constant.get()->result_type,

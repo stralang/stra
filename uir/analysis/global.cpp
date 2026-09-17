@@ -1,5 +1,5 @@
+#include "../uir.hpp"
 #include "define.hpp"
-#include "uir.hpp"
 
 void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   switch (inst->kind) {

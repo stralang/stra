@@ -1,6 +1,6 @@
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
+#include "uir/literal.hpp"
+#include "uir/uir.hpp"
 
 void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
   Symbol *if_scope = scope->findSymbolByNode(node);

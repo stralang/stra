@@ -1,8 +1,8 @@
 #pragma once
 
 #include "codegen.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
+#include "uir/literal.hpp"
+#include "uir/uir.hpp"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 

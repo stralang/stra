@@ -1,10 +1,10 @@
 #include "comptime.hpp"
-#include "analysis/define.hpp"
+#include "../analysis/define.hpp"
+#include "../literal.hpp"
+#include "../types.hpp"
+#include "../uir.hpp"
 #include "containers.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "types.hpp"
-#include "uir.hpp"
 #include <cstdlib>
 #include <iostream>
 

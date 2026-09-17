@@ -4,7 +4,7 @@
 #include "containers.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
-#include "types.hpp"
+#include "uir/types.hpp"
 #include <cstdint>
 
 struct Node;

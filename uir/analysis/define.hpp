@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../uir.hpp"
 #include "analysis.hpp"
-#include "uir.hpp"
 #include <sstream>
 
 #define expect(ok, srcloc, msg)                                                \

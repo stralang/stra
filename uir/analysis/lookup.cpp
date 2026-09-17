@@ -1,7 +1,7 @@
 #include "../../src/print.hpp"
+#include "../literal.hpp"
+#include "../uir.hpp"
 #include "define.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 
 void analyseLookup(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst,
                    Type *parent_ty) {

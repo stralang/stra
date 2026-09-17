@@ -1,9 +1,9 @@
 #include "print.hpp"
 #include "ast.hpp"
-#include "literal.hpp"
-#include "uir.hpp"
 #include "operator.hpp"
 #include "token.hpp"
+#include "uir/literal.hpp"
+#include "uir/uir.hpp"
 #include <cstddef>
 #include <ostream>
 #include <string>

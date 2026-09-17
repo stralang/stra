@@ -6,7 +6,7 @@ add_library(rir STATIC
   builder.cpp
 )
 
-target_include_directories(rir PUBLIC ./)
+target_include_directories(rir PUBLIC ../)
 
 set_target_properties(rir PROPERTIES
   VERSION ${PROJECT_VERSION}

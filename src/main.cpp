@@ -1,5 +1,4 @@
 #include "allocator.hpp"
-#include "analysis/analysis.hpp"
 #include "codegen/codegen.hpp"
 #include "containers.hpp"
 #include "environment.hpp"
@@ -9,7 +8,8 @@
 #include "symbol.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
-#include "uir.hpp"
+#include "uir/analysis/analysis.hpp"
+#include "uir/uir.hpp"
 #include "uirgen/uirgen.hpp"
 #include <cstddef>
 #include <cstdint>

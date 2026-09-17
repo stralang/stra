@@ -1,6 +1,6 @@
-#include "analysis/analysis.hpp"
+#include "../uir.hpp"
+#include "analysis.hpp"
 #include "define.hpp"
-#include "uir.hpp"
 
 bool compareTypes(Type *lhs, Type *rhs) {
   if (lhs->kind != rhs->kind) {
