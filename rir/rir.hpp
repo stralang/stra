@@ -5,10 +5,10 @@
 #include "containers.hpp"
 #include "optional.hpp"
 #include "srcloc.hpp"
+#include "type.hpp"
 #include <cstddef>
 #include <cstdint>
 
-struct UIRType;
 struct RIRBlock; // Forward Declaration
 
 struct RIRId {
@@ -17,7 +17,6 @@ struct RIRId {
 };
 using RIRValueId = RIRId;
 using RIRBlockId = RIRId;
-using RIRTypeId = uint32_t;
 
 enum class RIRValueKind : std::uint16_t {
   Nop,
@@ -165,6 +164,7 @@ struct RIRModule {
 };
 
 struct RIRContext {
+  ArenaList<RIRType> types;
   ArenaList<RIRModule> modules;
 
   Allocator *allocator;
