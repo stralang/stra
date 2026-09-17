@@ -8,8 +8,16 @@
 #include <cstddef>
 #include <cstdint>
 
-struct RIRType;
-struct RIRBlock;
+struct RIRType;  // TODO: RIR Type
+struct RIRBlock; // Forward Declaration
+
+struct RIRId {
+  uint32_t module;
+  uint32_t local;
+};
+using RIRValueId = RIRId;
+using RIRBlockId = RIRId;
+using RIRTypeId = uint32_t;
 
 enum class RIRValueKind : std::uint16_t {
   Nop,
@@ -70,57 +78,57 @@ enum class RIROpcode : uint8_t {
 };
 
 struct RIRValue {
-  size_t id;
+  RIRValueId id;
   String name;
   SrcLoc source_location;
 
-  RIRType *result_type;
+  RIRTypeId result_type;
   RIRValueKind kind;
   union {
     struct {
-      RIRType *type;
+      RIRTypeId type;
     } local;
     struct {
-      RIRValue *ptr;
+      RIRValueId ptr;
     } load;
     struct {
-      RIRValue *ptr;
-      RIRValue *value;
+      RIRValueId ptr;
+      RIRValueId value;
     } store;
     struct {
-      RIRType *type;
+      RIRTypeId type;
     } arg;
     struct {
       RIROpcode opcode;
-      RIRValue *lhs;
-      RIRValue *rhs;
+      RIRValueId lhs;
+      RIRValueId rhs;
     } binop;
     struct {
       RIROpcode opcode;
-      RIRValue *value;
+      RIRValueId value;
     } unaryop;
     struct {
-      RIRValue *callee;
-      Slice<RIRValue *> arguments;
+      RIRValueId callee;
+      Slice<RIRValueId> arguments;
     } call;
     struct {
-      RIRValue *ptr;
-      RIRValue *index;
+      RIRValueId ptr;
+      RIRValueId index;
     } gep;
     struct {
-      Option<RIRValue *> value;
+      Option<RIRValueId> value;
     } ret;
-    RIRBlock *branch;
+    RIRBlockId branch;
     struct {
-      RIRValue *condition;
-      RIRBlock *then;
-      RIRBlock *_else;
+      RIRValueId condition;
+      RIRBlockId then;
+      RIRBlockId _else;
     } cond_branch;
     struct {
-      RIRValue *condition;
-      RIRBlock *default_block;
-      Slice<RIRValue *> onvals;
-      Slice<RIRBlock *> blocks;
+      RIRValueId condition;
+      RIRBlockId default_block;
+      Slice<RIRValueId> onvals;
+      Slice<RIRBlockId> blocks;
       size_t slots;
     } _switch;
     struct {
@@ -128,38 +136,48 @@ struct RIRValue {
     } assembly;
 
     struct {
-      RIRType *type;
-      Option<RIRValue *> constant; // null for undefined
+      RIRTypeId type;
+      Option<RIRValueId> constant; // null for undefined
     } global_variable;
     struct {
-      Slice<RIRType *> parameter_types;
-      RIRType *return_type;
-      ArrayList<RIRBlock *> blocks;
+      Slice<RIRTypeId> parameter_types;
+      RIRTypeId return_type;
+      ArrayList<RIRBlockId> blocks;
       bool undefined;
     } function;
     struct {
-      Slice<RIRType *> fields;
+      Slice<RIRTypeId> fields;
     } _struct;
     struct {
-      RIRType *tag_type;
-      Slice<RIRType *> variants;
+      RIRTypeId tag_type;
+      Slice<RIRTypeId> variants;
     } _union;
   };
 };
 
 struct RIRBlock {
-  size_t id;
+  RIRBlockId id;
   String name;
-  RIRValue *function;
-  ArrayList<RIRValue *> instructions;
+  RIRValueId function;
+  ArrayList<RIRValueId> instructions;
 };
 
 struct RIRModule {
-  size_t id;
+  uint32_t id;
   ArenaList<RIRValue> instructions;
   ArenaList<RIRBlock> blocks;
 
-  ArrayList<RIRValue *> roots;
+  ArrayList<RIRValueId> roots;
+
+  Allocator *allocator;
+
+  void init(Allocator *allocator, Allocator *arena_allocator);
+  void deinit();
+};
+
+struct RIRContext {
+  ArenaList<RIRType> types;
+  ArenaList<RIRModule> modules;
 
   Allocator *allocator;
 
