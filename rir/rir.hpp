@@ -4,6 +4,7 @@
 #include "arenalist.hpp"
 #include "containers.hpp"
 #include "optional.hpp"
+#include "rir/constant.hpp"
 #include "srcloc.hpp"
 #include "type.hpp"
 #include <cstddef>
@@ -140,7 +141,7 @@ struct RIRValue {
 
     struct {
       RIRTypeId type;
-      // TODO: constant data
+      RIRConstant value;
     } constant;
   };
 };

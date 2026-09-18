@@ -136,9 +136,9 @@ RIRValueId RIRBuilder::buildFunction(RIRTypeId type, bool undefined) {
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildConstant(RIRTypeId type, void *constant) {
+RIRValueId RIRBuilder::buildConstant(RIRTypeId type, RIRConstant constant) {
   RIRValue inst = {.kind = RIRValueKind::Constant, .result = type};
-  inst.constant = {.type = type}; // TODO: Constant Value
+  inst.constant = {.type = type, .value = constant};
   return this->build(inst);
 }
 

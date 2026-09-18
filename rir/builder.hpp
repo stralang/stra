@@ -36,7 +36,7 @@ struct RIRBuilder {
                                  RIRTypeId result);
   RIRValueId buildFunction(RIRTypeId type, bool undefined);
 
-  RIRValueId buildConstant(RIRTypeId type, void *constant);
+  RIRValueId buildConstant(RIRTypeId type, RIRConstant constant);
 
   void addDebugLocation(RIRValueId inst, SrcLoc location);
   void addDebugName(RIRValueId inst, String name);
