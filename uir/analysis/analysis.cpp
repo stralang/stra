@@ -2,6 +2,7 @@
 #include "../literal.hpp"
 #include "../uir.hpp"
 #include "define.hpp"
+#include "rir/rir.hpp"
 
 void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   switch (inst->kind) {
@@ -300,8 +301,15 @@ void analyseScope(UIRAnalyser *analyser, UIRModule *module, UIRScope *scope) {
   }
 }
 
-void UIRAnalyser::analyse(UIRModule *module) {
-  analyseScope(this, module, module->definitions);
+RIRContext *UIRAnalyser::analyse() {
+  for (size_t i = 0; i < this->ctx->modules.len(); i++) {
+    UIRModule *uir_mod = this->ctx->modules.getPtrUnchecked(i);
+    RIRModule *rir_mod = this->rir_ctx->modules.getPtrUnchecked(i);
+    this->builder.module = rir_mod;
+
+    analyseScope(this, uir_mod, uir_mod->definitions);
+  }
+  return this->rir_ctx;
 }
 
 void UIRAnalyser::init(Allocator *allocator) {
@@ -311,6 +319,21 @@ void UIRAnalyser::init(Allocator *allocator) {
   this->comptime_state.init(allocator, &this->arena);
   this->comptime_state.ctx = this->ctx;
   this->comptime_state.analyser = this;
+
+  // RIR
+  this->uir_to_rir.init(allocator, 4096);
+
+  this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
+  this->rir_ctx->init(allocator, allocator);
+
+  for (size_t i = 0; i < this->ctx->modules.len(); i++) {
+    RIRModule mod = {.id = (uint32_t)i};
+    mod.init(this->rir_ctx->allocator, this->rir_ctx->allocator);
+    this->rir_ctx->modules.push(mod);
+  }
 }
 
-void UIRAnalyser::deinit() { this->arena.deinit(); }
+void UIRAnalyser::deinit() {
+  this->arena.deinit();
+  this->uir_to_rir.deinit();
+}

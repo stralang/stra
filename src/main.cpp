@@ -5,6 +5,7 @@
 #include "helper.hpp"
 #include "parser.hpp"
 #include "print.hpp"
+#include "rir/rir.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
@@ -544,10 +545,8 @@ int main(int argc, const char **argv) {
       .warning_func = &warning_handler,
   };
   analyser.init(&global_allocator);
-  for (size_t i = 0; i < files.len(); i++) {
-    SourceFile *file = files.getPtrUnchecked(i);
-    analyser.analyse(file->uir.module);
-  }
+
+  RIRContext *rir = analyser.analyse();
 
   if (analyser.warning_count > 0) {
     std::cout << "\e[0;33m" << analyser.warning_count << "warnings.\e[0m\n";
