@@ -171,4 +171,8 @@ struct RIRContext {
 
   void init(Allocator *allocator, Allocator *arena_allocator);
   void deinit();
+
+  RIRValue *getInst(RIRValueId id);
+  RIRBlock *getBlock(RIRBlockId id);
+  RIRType *getType(RIRTypeId id);
 };
