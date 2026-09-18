@@ -11,12 +11,14 @@
 
 struct RIRBlock; // Forward Declaration
 
-struct RIRId {
+struct RIRValueId {
   uint32_t module;
   uint32_t local;
 };
-using RIRValueId = RIRId;
-using RIRBlockId = RIRId;
+struct RIRBlockId {
+  uint32_t module;
+  uint32_t local;
+};
 
 enum class RIRValueKind : std::uint16_t {
   Nop,

@@ -4,6 +4,8 @@ project(rir VERSION 0.1.0 LANGUAGES CXX)
 add_library(rir STATIC
   rir.cpp
   builder.cpp
+
+  debug.cpp
 )
 
 target_include_directories(rir PUBLIC ../)
