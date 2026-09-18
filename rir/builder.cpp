@@ -22,20 +22,21 @@ RIRValueId RIRBuilder::buildInst(RIRValue inst) {
   return id;
 }
 
-RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type) {
-  RIRValue inst = {.kind = RIRValueKind::LocalVariable};
+RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type, RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::LocalVariable, .result = result};
   inst.local = {.type = type};
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildLoad(RIRValueId ptr) {
-  RIRValue inst = {.kind = RIRValueKind::Load};
+RIRValueId RIRBuilder::buildLoad(RIRValueId ptr, RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::Load, .result = result};
   inst.load = {.ptr = ptr};
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value) {
-  RIRValue inst = {.kind = RIRValueKind::Store};
+RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value,
+                                  RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::Store, .result = result};
   inst.store = {.ptr = ptr, .value = value};
   return this->buildInst(inst);
 }

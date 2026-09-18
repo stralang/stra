@@ -11,9 +11,9 @@ struct RIRBuilder {
   RIRValueId buildDeclare(RIRValue inst);
   RIRValueId buildInst(RIRValue inst);
 
-  RIRValueId buildLocalVariable(RIRTypeId type);
-  RIRValueId buildLoad(RIRValueId ptr);
-  RIRValueId buildStore(RIRValueId ptr, RIRValueId value);
+  RIRValueId buildLocalVariable(RIRTypeId type, RIRTypeId result);
+  RIRValueId buildLoad(RIRValueId ptr, RIRTypeId result);
+  RIRValueId buildStore(RIRValueId ptr, RIRValueId value, RIRTypeId result);
 
   void addDebugLocation(RIRValueId inst, SrcLoc location);
   void addDebugName(RIRValueId inst, String name);

@@ -76,8 +76,8 @@ enum class RIROpcode : uint8_t {
 struct RIRValue {
   RIRValueId id;
 
-  RIRTypeId result_type;
   RIRValueKind kind;
+  RIRTypeId result;
   union {
     struct {
       RIRTypeId type;
