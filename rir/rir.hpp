@@ -123,7 +123,6 @@ struct RIRValue {
       RIRBlockId default_block;
       Slice<RIRValueId> onvals;
       Slice<RIRBlockId> blocks;
-      size_t slots;
     } _switch;
     struct {
       // TODO: Assembly in RIR
