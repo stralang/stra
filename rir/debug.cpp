@@ -195,7 +195,7 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     break;
   }
   case RIRValueKind::GlobalVariable: {
-    os << "global " << inst->global_variable.type;
+    os << "global #" << inst->global_variable.type;
     if (inst->global_variable.constant.isSome()) {
       os << ", " << inst->global_variable.constant.get();
     }

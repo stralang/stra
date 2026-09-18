@@ -122,18 +122,18 @@ void RIRBuilder::addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
 RIRValueId RIRBuilder::buildGlobalVariable(RIRTypeId type,
                                            Option<RIRValueId> constant,
                                            RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::Load, .result = result};
+  RIRValue inst = {.kind = RIRValueKind::GlobalVariable, .result = result};
   inst.global_variable = {.type = type, .constant = constant};
-  return this->buildInst(inst);
+  return this->buildDeclare(inst);
 }
 
 RIRValueId RIRBuilder::buildFunction(RIRTypeId type, bool undefined) {
-  RIRValue inst = {.kind = RIRValueKind::Load, .result = type};
+  RIRValue inst = {.kind = RIRValueKind::Function, .result = type};
   inst.function = {.type = type, .undefined = undefined};
   if (!undefined) {
     inst.function.blocks.init(this->module->allocator, 32);
   }
-  return this->buildInst(inst);
+  return this->buildDeclare(inst);
 }
 
 RIRValueId RIRBuilder::buildConstant(RIRTypeId type, RIRConstant constant) {
