@@ -142,6 +142,23 @@ RIRValueId RIRBuilder::buildConstant(RIRTypeId type, RIRConstant constant) {
   return this->build(inst);
 }
 
+RIRBlockId RIRBuilder::appendBlock(RIRValueId function) {
+  RIRBlockId id = {
+      .module = this->module->id,
+      .local = (uint32_t)this->module->blocks.len(),
+  };
+  RIRBlock block = {.id = id, .function = function};
+  block.instructions.init(this->module->allocator, 32);
+
+  this->module->blocks.push(block);
+
+  // Add to function
+  RIRValue *function_ptr = this->ctx->getInst(function);
+  function_ptr->function.blocks.push(id);
+
+  return id;
+}
+
 void RIRBuilder::addDebugLocation(RIRValueId inst, SrcLoc location) {
   std::cerr << "TODO: Implement debug information. This is not a crash\n";
   // TODO: Implement debug information

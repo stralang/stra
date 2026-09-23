@@ -38,6 +38,8 @@ struct RIRBuilder {
 
   RIRValueId buildConstant(RIRTypeId type, RIRConstant constant);
 
+  RIRBlockId appendBlock(RIRValueId function);
+
   void addDebugLocation(RIRValueId inst, SrcLoc location);
   void addDebugName(RIRValueId inst, String name);
 };
