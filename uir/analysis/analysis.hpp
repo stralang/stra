@@ -5,7 +5,23 @@
 #include "allocator.hpp"
 #include "containers.hpp"
 #include "rir/builder.hpp"
+#include "rir/constant.hpp"
 #include "rir/rir.hpp"
+#include "rir/type.hpp"
+#include "uir/literal.hpp"
+
+enum class UIRResolvedKind {
+  Inst,
+  Literal,
+};
+
+struct UIRResolved {
+  UIRResolvedKind kind;
+  union {
+    RIRValueId inst;
+    UIRLiteral literal;
+  };
+};
 
 struct UIRAnalyser {
   // UIR
@@ -16,7 +32,7 @@ struct UIRAnalyser {
   RIRContext *rir_ctx;
   RIRBuilder builder;
 
-  HashMap<UIRValue *, RIRValueId> uir_to_rir;
+  HashMap<UIRValue *, UIRResolved> resolved_mapping;
 
   // Misc
   DynamicArena arena;

@@ -321,10 +321,11 @@ void UIRAnalyser::init(Allocator *allocator) {
   this->comptime_state.analyser = this;
 
   // RIR
-  this->uir_to_rir.init(allocator, 4096);
+  this->resolved_mapping.init(allocator, 4096);
 
   this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
   this->rir_ctx->init(allocator, allocator);
+  this->builder.ctx = this->rir_ctx;
 
   for (size_t i = 0; i < this->ctx->modules.len(); i++) {
     RIRModule mod = {.id = (uint32_t)i};
@@ -335,5 +336,5 @@ void UIRAnalyser::init(Allocator *allocator) {
 
 void UIRAnalyser::deinit() {
   this->arena.deinit();
-  this->uir_to_rir.deinit();
+  this->resolved_mapping.deinit();
 }
