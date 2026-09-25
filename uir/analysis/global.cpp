@@ -1,23 +1,25 @@
 #include "../uir.hpp"
 #include "define.hpp"
+#include "rir/constant.hpp"
+#include "rir/rir.hpp"
+#include "rir/type.hpp"
+#include "uir/analysis/analysis.hpp"
+#include "uir/literal.hpp"
 
 void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   switch (inst->kind) {
   case UIRValueKind::GlobalVariable: {
     // Type
+    Option<RIRTypeId> typeId = {};
     if (inst->global_variable.type.isSome()) {
       // Get Type
       UIRValue *type_inst = inst->global_variable.type.get();
       UIRLiteral type_literal =
           analyser->comptime_state.execute(module, type_inst);
-      expect(type_literal.lit_type->kind == TypeKind::TypeId,
-             type_inst->source_location, "Field type must be a typeid");
+      typeId.setSome(type_literal._typeid);
 
-      inst->result_type = analyser->ctx->type_cache->get({
-          .kind = TypeKind::Pointer,
-          .child = type_literal._typeid,
-          .is_constant = false,
-      });
+      expect(type_literal.kind == UIRLiteralKind::TypeId,
+             type_inst->source_location, "Field type must be a typeid");
     }
 
     // Analyse Constant
@@ -26,72 +28,114 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRValue *const_inst = inst->global_variable.constant.get();
       UIRLiteral const_literal =
           analyser->comptime_state.execute(module, const_inst);
-      Type *type = const_literal.lit_type;
-      expect(type != nullptr, const_inst->source_location,
-             "Couldn't determine type of constant");
 
-      // Set data
-      const_inst->kind = UIRValueKind::Literal;
-      const_inst->literal = const_literal;
-      const_inst->result_type = const_literal.lit_type;
-
-      // Check
-      if (inst->global_variable.type.isNone()) {
-        inst->result_type = analyser->ctx->type_cache->get({
-            .kind = TypeKind::Pointer,
-            .child = type,
-            .is_constant = false,
-        });
+      if (const_literal.kind == UIRLiteralKind::TypeId) {
+        // FIXME: Pointer literal
+        analyser->resolved_mapping.insert(
+            inst, {.kind = UIRResolvedKind::Literal, .literal = const_literal});
       } else {
-        if (type->kind == TypeKind::Integer && type->integer.is_untyped) {
-          const_literal.lit_type = inst->result_type->child;
-          type = inst->result_type->child;
+        RIRType *type = analyser->rir_ctx->getType(const_literal.lit_type);
+        expect(type != nullptr, const_inst->source_location,
+               "Couldn't determine type of constant");
+
+        if (typeId.isNone()) {
+          typeId.setSome(const_literal.lit_type);
+        } else {
+          // FIXME:
+          // autoCast(analyser, const_inst, inst->result_type->child);
+          // expect(compareTypes(inst->result_type->child,
+          // const_inst->result_type),
+          //        const_inst->source_location,
+          //        "Field initial doesn't match type. Field Type: `"
+          //            << inst->result_type << "` Initial Type: `"
+          //            << const_inst->result_type << "`\n");
         }
 
-        autoCast(analyser, const_inst, inst->result_type->child);
-        expect(compareTypes(inst->result_type->child, const_inst->result_type),
-               const_inst->source_location,
-               "Field initial doesn't match type. Field Type: `"
-                   << inst->result_type << "` Initial Type: `"
-                   << const_inst->result_type << "`\n");
+        // Create Instruction
+        RIRConstant constant;
+        switch (type->kind) {
+        case RIRTypeKind::Bool: {
+          constant.kind = RIRConstantKind::Bool;
+          constant._bool = const_literal._bool;
+          break;
+        }
+        case RIRTypeKind::Integer: {
+          constant.kind = RIRConstantKind::Integer;
+          constant.integer = const_literal._int;
+          break;
+        }
+        case RIRTypeKind::Float: {
+          constant.kind = RIRConstantKind::Float;
+          constant._float = const_literal._float;
+          break;
+        }
+        }
+
+        RIRValueId out_id =
+            analyser->builder.buildGlobalVariable(typeId.get(), constant);
+        analyser->resolved_mapping.insert(
+            inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
+    } else {
+      RIRValueId out_id =
+          analyser->builder.buildGlobalVariable(typeId.get(), {});
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     }
 
     // Analyse Definitions
-    if (inst->result_type->child->kind == TypeKind::TypeId) {
-      Type *child = inst->result_type->child;
-      switch (child->kind) {
-      case TypeKind::Struct: {
-        analyseScope(analyser, module,
-                     child->_struct.inst->_struct.definitions);
-        break;
-      }
-      case TypeKind::Enum: {
-        analyseScope(analyser, module, child->_enum.inst->_enum.definitions);
-        break;
-      }
-      case TypeKind::Union: {
-        analyseScope(analyser, module, child->_union.inst->_union.definitions);
-        break;
-      }
-      case TypeKind::Namespace: {
-        analyseScope(analyser, module,
-                     child->_namespace.inst->_namespace.definitions);
-        break;
-      }
+    UIRResolved *resolved = analyser->resolved_mapping.get(inst);
+    if (resolved->kind == UIRResolvedKind::Literal) {
+      if (resolved->literal.pointer->kind == UIRLiteralKind::TypeId) {
+        RIRType *child_type =
+            analyser->rir_ctx->getType(resolved->literal.pointer->_typeid);
+        switch (child_type->kind) {
+        case RIRTypeKind::Struct: {
+          UIRValue *_struct =
+              reinterpret_cast<UIRValue *>(child_type->_struct.unique);
+          analyseScope(analyser, module, _struct->_struct.definitions);
+          break;
+        }
+        case RIRTypeKind::Enum: {
+          UIRValue *_enum =
+              reinterpret_cast<UIRValue *>(child_type->_enum.unique);
+          analyseScope(analyser, module, _enum->_enum.definitions);
+          break;
+        }
+        case RIRTypeKind::Union: {
+          UIRValue *_union =
+              reinterpret_cast<UIRValue *>(child_type->_union.unique);
+          analyseScope(analyser, module, _union->_union.definitions);
+          break;
+        }
+        }
+      } else if (resolved->literal.pointer->kind == UIRLiteralKind::Namespace) {
+        analyseScope(
+            analyser, module,
+            resolved->literal.pointer->_namespace->_namespace.definitions);
       }
     }
     break;
   }
   case UIRValueKind::Function: {
     UIRLiteral type = analyser->comptime_state.execute(module, inst);
-    inst->result_type = type._typeid;
+
+    RIRValueId fn_inst_id =
+        analyser->builder.buildFunction(type._typeid, inst->function.undefined);
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 
     // Analyse Body
     if (inst->function.globals != nullptr) {
       analyseScope(analyser, module, inst->function.globals);
+
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        analyseBlock(analyser, module, inst->function.blocks.getUnchecked(i));
+        UIRBlock *uir_block = inst->function.blocks.getUnchecked(i);
+        RIRBlockId rir_block = analyser->builder.appendBlock(fn_inst_id);
+        analyser->resolved_block_mapping.insert(uir_block, rir_block);
+        analyser->builder.block.setSome(analyser->rir_ctx->getBlock(rir_block));
+
+        analyseBlock(analyser, module, uir_block);
       }
     }
     break;

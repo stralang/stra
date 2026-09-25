@@ -5,6 +5,7 @@
 #include "helper.hpp"
 #include "parser.hpp"
 #include "print.hpp"
+#include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
@@ -563,7 +564,7 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printUIRModule(file->uir.module);
+      printModule(std::cout, rir, rir->modules.getPtr(i));
     }
     return 0;
   }

@@ -131,7 +131,7 @@ struct RIRValue {
 
     struct {
       RIRTypeId type;
-      Option<RIRValueId> constant; // null for undefined
+      Option<RIRConstant> constant; // null for undefined
     } global_variable;
     struct {
       RIRTypeId type;
@@ -166,7 +166,7 @@ struct RIRModule {
 };
 
 struct RIRContext {
-  ArenaList<RIRType> types;
+  RIRTypeCache types;
   ArenaList<RIRModule> modules;
 
   Allocator *allocator;

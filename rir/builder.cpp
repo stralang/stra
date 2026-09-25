@@ -1,5 +1,7 @@
 #include "builder.hpp"
 #include "rir.hpp"
+#include "rir/constant.hpp"
+#include "rir/type.hpp"
 #include <iostream>
 
 RIRValueId RIRBuilder::build(RIRValue inst) {
@@ -22,28 +24,41 @@ RIRValueId RIRBuilder::buildInst(RIRValue inst) {
   return id;
 }
 
-RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type, RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::LocalVariable, .result = result};
-  inst.local = {.type = type};
+RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type) {
+  RIRValue inst = {
+      .kind = RIRValueKind::LocalVariable,
+      .result =
+          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .local = {.type = type},
+  };
   return this->buildInst(inst);
 }
 
 RIRValueId RIRBuilder::buildLoad(RIRValueId ptr, RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::Load, .result = result};
-  inst.load = {.ptr = ptr};
+  RIRValue inst = {
+      .kind = RIRValueKind::Load,
+      .result = result,
+      .load = {.ptr = ptr},
+  };
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value,
-                                  RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::Store, .result = result};
-  inst.store = {.ptr = ptr, .value = value};
+RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value) {
+  RIRValue inst = {
+      .kind = RIRValueKind::Store,
+      .result = this->ctx->types.push({.kind = RIRTypeKind::Void}),
+      .store = {.ptr = ptr, .value = value},
+  };
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildArg(RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::Arg, .result = result};
-  inst.arg = {.type = result};
+RIRValueId RIRBuilder::buildArg(RIRTypeId type) {
+  RIRValue inst = {
+      .kind = RIRValueKind::Arg,
+      .result =
+          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .arg = {.type = type},
+  };
   return this->buildInst(inst);
 }
 
@@ -120,10 +135,13 @@ void RIRBuilder::addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
 }
 
 RIRValueId RIRBuilder::buildGlobalVariable(RIRTypeId type,
-                                           Option<RIRValueId> constant,
-                                           RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::GlobalVariable, .result = result};
-  inst.global_variable = {.type = type, .constant = constant};
+                                           Option<RIRConstant> constant) {
+  RIRValue inst = {
+      .kind = RIRValueKind::GlobalVariable,
+      .result =
+          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .global_variable = {.type = type, .constant = constant},
+  };
   return this->buildDeclare(inst);
 }
 

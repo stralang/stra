@@ -11,7 +11,7 @@ void RIRModule::deinit() {}
 
 void RIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
-  this->types.init(allocator, arena_allocator, sizeof(RIRType) * 256);
+  this->types.init(allocator, arena_allocator);
   this->modules.init(allocator, arena_allocator, sizeof(RIRModule) * 32);
 }
 

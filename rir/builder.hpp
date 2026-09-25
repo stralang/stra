@@ -13,10 +13,10 @@ struct RIRBuilder {
   RIRValueId buildDeclare(RIRValue inst);
   RIRValueId buildInst(RIRValue inst);
 
-  RIRValueId buildLocalVariable(RIRTypeId type, RIRTypeId result);
+  RIRValueId buildLocalVariable(RIRTypeId type);
   RIRValueId buildLoad(RIRValueId ptr, RIRTypeId result);
-  RIRValueId buildStore(RIRValueId ptr, RIRValueId value, RIRTypeId result);
-  RIRValueId buildArg(RIRTypeId result);
+  RIRValueId buildStore(RIRValueId ptr, RIRValueId value);
+  RIRValueId buildArg(RIRTypeId type);
   RIRValueId buildBinOp(RIROpcode opcode, RIRValueId lhs, RIRValueId rhs,
                         RIRTypeId result);
   RIRValueId buildUnaryOp(RIROpcode opcode, RIRValueId child, RIRTypeId result);
@@ -32,8 +32,7 @@ struct RIRBuilder {
   void addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
                size_t _case);
 
-  RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRValueId> value,
-                                 RIRTypeId result);
+  RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRConstant> value);
   RIRValueId buildFunction(RIRTypeId type, bool undefined);
 
   RIRValueId buildConstant(RIRTypeId type, RIRConstant constant);

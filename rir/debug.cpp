@@ -197,7 +197,7 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
   case RIRValueKind::GlobalVariable: {
     os << "global #" << inst->global_variable.type;
     if (inst->global_variable.constant.isSome()) {
-      os << ", " << inst->global_variable.constant.get();
+      // FIXME: os << ", " << inst->global_variable.constant.get();
     }
     break;
   }
@@ -247,7 +247,7 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
     break;
   }
   case RIRTypeKind::Float: {
-    os << 'f' << type->float_bits;
+    os << 'f' << type->_float.bits;
     break;
   }
   case RIRTypeKind::Pointer: {

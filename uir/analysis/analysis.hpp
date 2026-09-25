@@ -33,6 +33,7 @@ struct UIRAnalyser {
   RIRBuilder builder;
 
   HashMap<UIRValue *, UIRResolved> resolved_mapping;
+  HashMap<UIRBlock *, RIRBlockId> resolved_block_mapping;
 
   // Misc
   DynamicArena arena;

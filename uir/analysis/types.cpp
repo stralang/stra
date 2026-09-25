@@ -90,38 +90,40 @@ Type *autoConvert(UIRAnalyser *analyser, Type *src, Type *dst) {
 }
 
 void fixUntyped(UIRAnalyser *analyser, UIRValue *inst, Type *real) {
-  if (!(inst->result_type->kind == TypeKind::Integer &&
-        inst->result_type->integer.is_untyped) &&
-      !(inst->result_type->kind == TypeKind::Float &&
-        inst->result_type->_float.is_untyped)) {
-    return;
-  }
-
-  inst->result_type = real;
-  switch (inst->kind) {
-  case UIRValueKind::BinOp: {
-    fixUntyped(analyser, inst->binop.lhs, real);
-    fixUntyped(analyser, inst->binop.rhs, real);
-    break;
-  }
-  case UIRValueKind::UnaryOp: {
-    fixUntyped(analyser, inst->unaryop.value, real);
-    break;
-  }
-  case UIRValueKind::Literal: {
-    inst->literal.lit_type = real;
-    break;
-  }
-  }
+  // FIXME:
+  // if (!(inst->result_type->kind == TypeKind::Integer &&
+  //       inst->result_type->integer.is_untyped) &&
+  //     !(inst->result_type->kind == TypeKind::Float &&
+  //       inst->result_type->_float.is_untyped)) {
+  //   return;
+  // }
+  //
+  // inst->result_type = real;
+  // switch (inst->kind) {
+  // case UIRValueKind::BinOp: {
+  //   fixUntyped(analyser, inst->binop.lhs, real);
+  //   fixUntyped(analyser, inst->binop.rhs, real);
+  //   break;
+  // }
+  // case UIRValueKind::UnaryOp: {
+  //   fixUntyped(analyser, inst->unaryop.value, real);
+  //   break;
+  // }
+  // case UIRValueKind::Literal: {
+  //   inst->literal.lit_type = real;
+  //   break;
+  // }
+  // }
 }
 
 void autoCast(UIRAnalyser *analyser, UIRValue *src, Type *dst) {
-  if ((src->result_type->kind == TypeKind::Integer &&
-       src->result_type->integer.is_untyped) ||
-      (src->result_type->kind == TypeKind::Float &&
-       src->result_type->_float.is_untyped)) {
-    fixUntyped(analyser, src, dst);
-  }
-
-  src->result_type = autoConvert(analyser, src->result_type, dst);
+  // FIXME:
+  // if ((src->result_type->kind == TypeKind::Integer &&
+  //      src->result_type->integer.is_untyped) ||
+  //     (src->result_type->kind == TypeKind::Float &&
+  //      src->result_type->_float.is_untyped)) {
+  //   fixUntyped(analyser, src, dst);
+  // }
+  //
+  // src->result_type = autoConvert(analyser, src->result_type, dst);
 }

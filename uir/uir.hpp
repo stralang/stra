@@ -5,6 +5,7 @@
 #include "containers.hpp"
 #include "literal.hpp"
 #include "optional.hpp"
+#include "rir/type.hpp"
 #include "srcloc.hpp"
 #include "types.hpp"
 #include <cassert>
@@ -40,7 +41,6 @@ enum class UIRValueKind : std::uint16_t {
 
   Comptime = 0x2000,
   TypeOf,
-  Alias,
 
   Global = 0x3000,
   GlobalVariable, // Allocated once per process
@@ -146,7 +146,6 @@ struct UIRValue {
 
   UIRValueKind kind = UIRValueKind::Nop;
   UIRBlock *parent = nullptr;
-  Type *result_type = nullptr;
 
   union {
     struct {

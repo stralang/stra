@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rir/type.hpp"
 #include "types.hpp"
 #include <cstdint>
 
@@ -9,6 +10,8 @@ struct UIRValue;   // Forward declaration
 enum class UIRLiteralKind {
   Null,
   Typed,
+  TypeId,
+  Namespace,
   Instruction, // Only allowed for Pointer Literals
 };
 
@@ -18,7 +21,7 @@ struct SliceLiteral {
 };
 
 struct UIRLiteral {
-  Type *lit_type;
+  RIRTypeId lit_type;
   UIRLiteralKind kind = UIRLiteralKind::Typed;
   union {
     bool _bool;
@@ -26,7 +29,8 @@ struct UIRLiteral {
     double _float;
     UIRLiteral *pointer;
     SliceLiteral slice;
-    Type *_typeid;
+    RIRTypeId _typeid;
+    UIRValue *_namespace;
     Slice<UIRLiteral> values;
     UIRValue *instruction;
     uint8_t *inline_data;
