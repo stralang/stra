@@ -11,8 +11,11 @@ private:
 public:
   Option() : m_some(false) {}
   Option(T value) : m_value(value) {
-    this->m_some =
-        !std::is_pointer_v<T> || value != nullptr; // convert `nullptr` to none
+    if constexpr (std::is_pointer_v<T>) {
+      this->m_some = value != nullptr; // convert `nullptr` to none
+    } else {
+      this->m_some = true;
+    }
   }
 
   inline bool isSome() { return this->m_some; }

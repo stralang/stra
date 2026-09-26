@@ -1,3 +1,4 @@
+#include "../analysis/analysis.hpp"
 #include "../literal.hpp"
 #include "../uir.hpp"
 #include "define.hpp"
@@ -9,15 +10,18 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   UIRLiteral lhs = state->getValue(frame, module, inst->binop.lhs);
   UIRLiteral rhs = state->getValue(frame, module, inst->binop.rhs);
 
+  RIRType *lhs_type = state->analyser->rir_ctx->getType(lhs.lit_type);
+  RIRType *rhs_type = state->analyser->rir_ctx->getType(rhs.lit_type);
+
   switch (inst->binop.opcode) {
   case UIROpcode::Add: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int += rhs._int;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       lhs._float += rhs._float;
       return lhs;
     }
@@ -25,12 +29,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Sub: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int -= rhs._int;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       lhs._float -= rhs._float;
       return lhs;
     }
@@ -38,12 +42,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Mul: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int *= rhs._int;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       lhs._float *= rhs._float;
       return lhs;
     }
@@ -51,12 +55,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Div: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int /= rhs._int;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       lhs._float /= rhs._float;
       return lhs;
     }
@@ -64,12 +68,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Mod: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int %= rhs._int;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       lhs._float = std::fmod(lhs._float, rhs._float);
       return lhs;
     }
@@ -77,12 +81,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Or: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Bool &&
-        rhs.lit_type->kind == TypeKind::Bool) {
+    if (lhs_type->kind == RIRTypeKind::Bool &&
+        rhs_type->kind == RIRTypeKind::Bool) {
       lhs._bool |= rhs._bool;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Integer &&
-               rhs.lit_type->kind == TypeKind::Integer) {
+    } else if (lhs_type->kind == RIRTypeKind::Integer &&
+               rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int |= rhs._int;
       return lhs;
     }
@@ -90,12 +94,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::Xor: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Bool &&
-        rhs.lit_type->kind == TypeKind::Bool) {
+    if (lhs_type->kind == RIRTypeKind::Bool &&
+        rhs_type->kind == RIRTypeKind::Bool) {
       lhs._bool ^= rhs._bool;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Integer &&
-               rhs.lit_type->kind == TypeKind::Integer) {
+    } else if (lhs_type->kind == RIRTypeKind::Integer &&
+               rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int ^= rhs._int;
       return lhs;
     }
@@ -103,12 +107,12 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::And: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Bool &&
-        rhs.lit_type->kind == TypeKind::Bool) {
+    if (lhs_type->kind == RIRTypeKind::Bool &&
+        rhs_type->kind == RIRTypeKind::Bool) {
       lhs._bool &= rhs._bool;
       return lhs;
-    } else if (lhs.lit_type->kind == TypeKind::Integer &&
-               rhs.lit_type->kind == TypeKind::Integer) {
+    } else if (lhs_type->kind == RIRTypeKind::Integer &&
+               rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int &= rhs._int;
       return lhs;
     }
@@ -116,8 +120,8 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::LeftShift: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int <<= rhs._int;
       return lhs;
     }
@@ -125,8 +129,8 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::RightShift: {
     // TODO: `compareTypes`
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       lhs._int >>= rhs._int;
       return lhs;
     }
@@ -136,24 +140,25 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::NotEqualTo: {
     // TODO: `compareTypes`
     UIRLiteral result = {
-        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type =
+            state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool}),
         .kind = UIRLiteralKind::Typed,
     };
 
-    if (lhs.lit_type->kind == TypeKind::Bool &&
-        rhs.lit_type->kind == TypeKind::Bool) {
+    if (lhs_type->kind == RIRTypeKind::Bool &&
+        rhs_type->kind == RIRTypeKind::Bool) {
       result._bool = lhs._bool == rhs._bool;
-    } else if (lhs.lit_type->kind == TypeKind::Integer &&
-               rhs.lit_type->kind == TypeKind::Integer) {
+    } else if (lhs_type->kind == RIRTypeKind::Integer &&
+               rhs_type->kind == RIRTypeKind::Integer) {
       result._bool = lhs._int == rhs._int;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       result._bool = lhs._float == rhs._float;
-    } else if (lhs.lit_type->kind == TypeKind::Pointer &&
-               rhs.lit_type->kind == TypeKind::Pointer) {
+    } else if (lhs_type->kind == RIRTypeKind::Pointer &&
+               rhs_type->kind == RIRTypeKind::Pointer) {
       result._bool = lhs.pointer == rhs.pointer;
-    } else if (lhs.lit_type->kind == TypeKind::Enum &&
-               rhs.lit_type->kind == TypeKind::Enum) {
+    } else if (lhs_type->kind == RIRTypeKind::Enum &&
+               rhs_type->kind == RIRTypeKind::Enum) {
       result._bool = lhs._int == rhs._int;
     } else {
       break;
@@ -167,16 +172,17 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::LessThen: {
     // TODO: `compareTypes`
     UIRLiteral result = {
-        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type =
+            state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool}),
         .kind = UIRLiteralKind::Typed,
     };
 
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       result._bool = lhs._int < rhs._int;
       return result;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       result._bool = lhs._float < rhs._float;
       return result;
     }
@@ -184,16 +190,17 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::GreaterThen: {
     // TODO: `compareTypes`
     UIRLiteral result = {
-        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type =
+            state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool}),
         .kind = UIRLiteralKind::Typed,
     };
 
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       result._bool = lhs._int > rhs._int;
       return result;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       result._bool = lhs._float > rhs._float;
       return result;
     }
@@ -201,16 +208,17 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::LessThenOrEqualTo: {
     // TODO: `compareTypes`
     UIRLiteral result = {
-        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type =
+            state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool}),
         .kind = UIRLiteralKind::Typed,
     };
 
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       result._bool = lhs._int <= rhs._int;
       return result;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       result._bool = lhs._float <= rhs._float;
       return result;
     }
@@ -218,16 +226,17 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::GreaterThenOrEqualTo: {
     // TODO: `compareTypes`
     UIRLiteral result = {
-        .lit_type = state->ctx->type_cache->get({.kind = TypeKind::Bool}),
+        .lit_type =
+            state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool}),
         .kind = UIRLiteralKind::Typed,
     };
 
-    if (lhs.lit_type->kind == TypeKind::Integer &&
-        rhs.lit_type->kind == TypeKind::Integer) {
+    if (lhs_type->kind == RIRTypeKind::Integer &&
+        rhs_type->kind == RIRTypeKind::Integer) {
       result._bool = lhs._int >= rhs._int;
       return result;
-    } else if (lhs.lit_type->kind == TypeKind::Float &&
-               rhs.lit_type->kind == TypeKind::Float) {
+    } else if (lhs_type->kind == RIRTypeKind::Float &&
+               rhs_type->kind == RIRTypeKind::Float) {
       result._bool = lhs._float >= rhs._float;
       return result;
     }
@@ -235,7 +244,7 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
 
   std::cerr << "Opcode `" << (uint16_t)inst->binop.opcode
-            << "` cannot operate on `" << lhs.lit_type << "` and `"
-            << rhs.lit_type << "`\n";
+            << "` cannot operate on `" << lhs_type << "` and `" << rhs_type
+            << "`\n";
   std::abort();
 }

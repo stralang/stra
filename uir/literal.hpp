@@ -8,11 +8,9 @@ struct UIRLiteral; // Forward declaration
 struct UIRValue;   // Forward declaration
 
 enum class UIRLiteralKind {
-  Null,
   Typed,
   TypeId,
   Namespace,
-  Instruction, // Only allowed for Pointer Literals
 };
 
 struct SliceLiteral {
