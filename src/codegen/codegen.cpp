@@ -356,8 +356,8 @@ void genDeclaration(CodeGenModule *codegen, RIRValueId inst_id) {
     LLVMValueRef global = LLVMAddGlobal(codegen->mod, ty, "");
     codegen->inst_to_llvm.insert(inst_id, global);
 
-    // FIXME: LLVMSetValueName2(global, (const char *)inst->name.ptr,
-    // inst->name.len);
+    LLVMSetValueName2(global, (const char *)inst->global_variable.link_name.ptr,
+                      inst->global_variable.link_name.len);
     break;
   }
   case RIRValueKind::Function: {
@@ -365,8 +365,8 @@ void genDeclaration(CodeGenModule *codegen, RIRValueId inst_id) {
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", ty);
     codegen->inst_to_llvm.insert(inst_id, func);
 
-    // FIXME: LLVMSetValueName2(func, (const char *)inst->name.ptr,
-    // inst->name.len);
+    LLVMSetValueName2(func, (const char *)inst->function.link_name.ptr,
+                      inst->function.link_name.len);
     break;
   }
   }

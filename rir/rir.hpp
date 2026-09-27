@@ -137,11 +137,13 @@ struct RIRValue {
     struct {
       RIRTypeId type;
       Option<RIRConstant> constant; // null for undefined
+      String link_name;
     } global_variable;
     struct {
       RIRTypeId type;
       ArrayList<RIRBlockId> blocks;
       bool undefined;
+      String link_name;
     } function;
 
     struct {

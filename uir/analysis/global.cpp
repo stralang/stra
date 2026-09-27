@@ -72,14 +72,14 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         }
         }
 
-        RIRValueId out_id =
-            analyser->builder.buildGlobalVariable(typeId.get(), constant);
+        RIRValueId out_id = analyser->builder.buildGlobalVariable(
+            typeId.get(), constant, inst->name);
         analyser->resolved_mapping.insert(
             inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
     } else {
       RIRValueId out_id =
-          analyser->builder.buildGlobalVariable(typeId.get(), {});
+          analyser->builder.buildGlobalVariable(typeId.get(), {}, inst->name);
       analyser->resolved_mapping.insert(
           inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     }
@@ -124,7 +124,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     UIRLiteral type = analyser->comptime_state.execute(module, inst);
 
     RIRValueId fn_inst_id = analyser->builder.buildFunction(
-        type.data._typeid, inst->function.undefined);
+        type.data._typeid, inst->function.undefined, inst->name);
     analyser->resolved_mapping.insert(
         inst, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 

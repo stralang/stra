@@ -33,8 +33,9 @@ struct RIRBuilder {
   void addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
                size_t _case);
 
-  RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRConstant> value);
-  RIRValueId buildFunction(RIRTypeId type, bool undefined);
+  RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRConstant> value,
+                                 String link_name);
+  RIRValueId buildFunction(RIRTypeId type, bool undefined, String link_name);
 
   RIRValueId buildConstant(RIRTypeId type, RIRConstant constant);
 
