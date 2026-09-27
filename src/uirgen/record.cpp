@@ -62,14 +62,15 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
   if (node->_enum.repr_type != nullptr) {
     repr_type = gen(uirgen, node->_enum.repr_type, enum_symbol);
   } else {
-    UIRLiteral literal = {
-        .lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-        .kind = UIRLiteralKind::Typed,
+    UIRLiteral literal;
+    literal.data = UIRRawData{
+        .kind = UIRRawDataKind::TypeId,
         ._typeid = uirgen->ctx->type_cache->get({
             .kind = TypeKind::Integer,
             .integer = {false, false, 32},
             .is_constant = true,
-        })};
+        }),
+    };
     repr_type = uirgen->builder.buildLiteral(literal);
   }
 

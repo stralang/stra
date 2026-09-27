@@ -927,48 +927,76 @@ void UIRPrintInst(UIRValue *inst);   // Forward Declaration
 void UIRPrintBlock(UIRBlock *block); // Forward Declaration
 void UIRPrintScope(UIRScope *scope); // Forward Declaration
 
+// Returns whether the data can be typed or not
+bool UIRPrintRawData(UIRRawData data) {
+  switch (data.kind) {
+  case UIRRawDataKind::Bool: {
+    std::cout << data._bool;
+    return true;
+  }
+  case UIRRawDataKind::Int: {
+    std::cout << data._int;
+    return true;
+  }
+  case UIRRawDataKind::Float: {
+    std::cout << data._float;
+    return true;
+  }
+  case UIRRawDataKind::Pointer: {
+    // TODO: std::cout << literal->data._float;
+    return true;
+  }
+  case UIRRawDataKind::Slice: {
+    std::cout << "{";
+    for (size_t i = 0; i < data.values.len; i++) {
+      UIRPrintRawData(data.values.ptr[i]);
+    }
+    return true;
+  }
+  case UIRRawDataKind::TypeId: {
+    std::cout << '@' << data._typeid << "\n";
+    return false;
+  }
+  case UIRRawDataKind::Namespace: {
+    std::cout << "NS" << data._namespace << "\n";
+    return false;
+  }
+  }
+}
+
 void UIRPrintLiteral(UIRLiteral *literal) {
-  switch (literal->kind) {
-  case UIRLiteralKind::Null: {
-    std::cout << "null";
+  if (!UIRPrintRawData(literal->data)) {
     return;
-  }
-  case UIRLiteralKind::Typed: {
-    break;
-  }
-  case UIRLiteralKind::Instruction: {
-    std::cout << literal->instruction << "\n";
-    return;
-  }
   }
 
-  switch (literal->lit_type->kind) {
-  case TypeKind::Bool: {
-    std::cout << literal->_bool;
-    break;
-  }
-  case TypeKind::Integer: {
-    std::cout << literal->_int;
-    break;
-  }
-  case TypeKind::Float: {
-    std::cout << literal->_float;
-    break;
-  }
-  case TypeKind::Pointer: {
-    std::cout << literal->pointer;
-    break;
-  }
-  case TypeKind::Slice:
-  case TypeKind::SIMD: {
-    std::cout << "[" << literal->slice.len << "]" << literal->slice.pointer;
-    break;
-  }
-  case TypeKind::TypeId: {
-    std::cout << *literal->_typeid;
-    break;
-  }
-  }
+  // FIXME:
+  // switch (literal->lit_type->kind) {
+  // case TypeKind::Bool: {
+  //   std::cout << literal->_bool;
+  //   break;
+  // }
+  // case TypeKind::Integer: {
+  //   std::cout << literal->_int;
+  //   break;
+  // }
+  // case TypeKind::Float: {
+  //   std::cout << literal->_float;
+  //   break;
+  // }
+  // case TypeKind::Pointer: {
+  //   std::cout << literal->pointer;
+  //   break;
+  // }
+  // case TypeKind::Slice:
+  // case TypeKind::SIMD: {
+  //   std::cout << "[" << literal->slice.len << "]" << literal->slice.pointer;
+  //   break;
+  // }
+  // case TypeKind::TypeId: {
+  //   std::cout << *literal->_typeid;
+  //   break;
+  // }
+  // }
 }
 
 void UIRPrintOpcode(UIROpcode opcode) {
@@ -1260,12 +1288,6 @@ void UIRPrintInst(UIRValue *inst) {
     UIRPrintRef(inst->_typeof);
     break;
   }
-  case UIRValueKind::Alias: {
-    UIRPrintName(inst);
-    std::cout << " = alias ";
-    UIRPrintRef(inst->alias);
-    break;
-  }
 
   case UIRValueKind::GlobalVariable: {
     UIRPrintName(inst);
@@ -1307,12 +1329,6 @@ void UIRPrintInst(UIRValue *inst) {
     UIRPrintName(inst);
     std::cout << " = ";
     UIRPrintLiteral(&inst->literal);
-
-    if (inst->literal.lit_type->kind == TypeKind::TypeId &&
-        inst->literal._typeid->kind == TypeKind::Struct) {
-      std::cout << "\n";
-      UIRPrintInst(inst->literal._typeid->_struct.inst);
-    }
     break;
   }
   case UIRValueKind::Pointer: {

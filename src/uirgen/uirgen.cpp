@@ -146,9 +146,11 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
 
     // Parse text
-    uint8_t *real_text =
-        (uint8_t *)uirgen->allocator->allocZeroed(node->text.len);
-    size_t len = 0;
+    Slice<UIRRawData> real_text = {
+        .ptr = (UIRRawData *)uirgen->allocator->alloc(sizeof(UIRRawData) *
+                                                      node->text.len),
+        .len = 0,
+    };
     bool escape = false;
     for (size_t i = 0; i < node->text.len; i++) {
       uint8_t c = node->text.ptr[i];
@@ -164,22 +166,19 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
         continue;
       }
 
-      real_text[len] = c;
-      len += 1;
+      real_text[real_text.len] = {.kind = UIRRawDataKind::Int, ._int = c};
+      real_text.len += 1;
     }
 
     // Set Value
     Type slice_t = {.kind = TypeKind::Slice};
     slice_t.slice = SliceType{
-        .length = (int64_t)len,
+        .length = (int64_t)real_text.len,
         .type = uirgen->ctx->type_cache->get(int_t),
     };
 
-    UIRLiteral slice_lit = {
-        .lit_type = uirgen->ctx->type_cache->get(slice_t),
-        .kind = UIRLiteralKind::Typed,
-    };
-    slice_lit.inline_data = real_text; // Length is stored in the type
+    UIRLiteral slice_lit = {.lit_type = uirgen->ctx->type_cache->get(slice_t)};
+    slice_lit.data = {.kind = UIRRawDataKind::Slice, .values = real_text};
     return uirgen->builder.buildLiteral(slice_lit);
   }
   case NodeKind::Value: {
@@ -250,8 +249,9 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Return Type
     UIRValue *return_type = nullptr;
     if (node->function.return_type == nullptr) {
-      UIRLiteral literal = {
-          .lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
+      UIRLiteral literal;
+      literal.data = UIRRawData{
+          .kind = UIRRawDataKind::TypeId,
           ._typeid = uirgen->ctx->type_cache->get({.kind = TypeKind::Void}),
       };
 

@@ -5,11 +5,35 @@
 #include "../uir.hpp"
 #include "containers.hpp"
 #include "define.hpp"
+#include "rir/constant.hpp"
 #include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
+#include <cassert>
 #include <cinttypes>
 #include <cstdlib>
 #include <iostream>
+
+UIRRawData convertRIRConstant(RIRConstant constant) {
+  UIRRawData data_out;
+  switch (constant.kind) {
+  case RIRConstantKind::Bool: {
+    data_out.kind = UIRRawDataKind::Bool;
+    data_out._bool = constant._bool;
+    break;
+  }
+  case RIRConstantKind::Integer: {
+    data_out.kind = UIRRawDataKind::Int;
+    data_out._int = constant.integer;
+    break;
+  }
+  case RIRConstantKind::Float: {
+    data_out.kind = UIRRawDataKind::Float;
+    data_out._float = constant._float;
+    break;
+  }
+  }
+  return data_out;
+}
 
 void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
   ComptimeStackFrame *frame = state->currentStack();
@@ -29,26 +53,64 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
 
     // Allocate value
     UIRLiteral *value_lit = frame->add(nullptr);
-    value_lit->lit_type = ty_lit._typeid;
-    value_lit->kind = UIRLiteralKind::Typed;
+    value_lit->lit_type = ty_lit.data._typeid;
+
+    RIRType *real_type = state->analyser->rir_ctx->getType(ty_lit.data._typeid);
+    switch (real_type->kind) {
+    case RIRTypeKind::Bool: {
+      value_lit->data.kind = UIRRawDataKind::Bool;
+      break;
+    }
+    case RIRTypeKind::Integer: {
+      value_lit->data.kind = UIRRawDataKind::Int;
+      break;
+    }
+    case RIRTypeKind::Float: {
+      value_lit->data.kind = UIRRawDataKind::Float;
+      break;
+    }
+    case RIRTypeKind::Pointer: {
+      value_lit->data.kind = UIRRawDataKind::Pointer;
+      break;
+    }
+    case RIRTypeKind::Slice: {
+      value_lit->data.kind = UIRRawDataKind::Slice;
+      break;
+    }
+    }
     // TODO: Default
 
     // Create pointer
     UIRLiteral *lit_out = frame->add(inst);
     lit_out->lit_type = state->analyser->rir_ctx->types.push({
         .kind = RIRTypeKind::Pointer,
-        .child = ty_lit._typeid,
+        .child = ty_lit.data._typeid,
         // TODO: Readd constant types
     });
-    lit_out->kind = UIRLiteralKind::Typed;
-    lit_out->pointer = value_lit;
+    lit_out->data.kind = UIRRawDataKind::Pointer;
+    lit_out->data.ptr = {.kind = UIRPlaceKind::Raw, .data = &value_lit->data};
     return;
   }
   case UIRValueKind::Load: {
     UIRLiteral ptr = state->getValue(frame, module, inst->load.ptr);
+    assert(ptr.data.kind == UIRRawDataKind::Pointer);
 
+    // Create result
     UIRLiteral *lit_out = frame->add(inst);
-    *lit_out = *ptr.pointer;
+    if (ptr.lit_type.isSome()) {
+      RIRType *real_type =
+          state->analyser->rir_ctx->getType(ptr.lit_type.get());
+      lit_out->lit_type = real_type->child;
+    }
+
+    if (ptr.data.ptr.kind == UIRPlaceKind::Inst) {
+      RIRValue *rir_inst = state->analyser->rir_ctx->getInst(ptr.data.ptr.inst);
+      assert(rir_inst->global_variable.constant.isSome());
+      lit_out->data =
+          convertRIRConstant(rir_inst->global_variable.constant.get());
+    } else if (ptr.data.ptr.kind == UIRPlaceKind::Raw) {
+      lit_out->data = *ptr.data.ptr.data;
+    }
     return;
   }
   case UIRValueKind::Store: {
@@ -65,7 +127,8 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     // }
     // TODO: Compare types
 
-    *ptr.pointer = value;
+    assert(ptr.data.ptr.kind == UIRPlaceKind::Raw);
+    *ptr.data.ptr.data = value.data;
     return;
   }
   case UIRValueKind::Arg: {
@@ -79,11 +142,14 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     UIRLiteral *lit_out = frame->add(inst);
     lit_out->lit_type = state->analyser->rir_ctx->types.push({
         .kind = RIRTypeKind::Pointer,
-        .child = ty_lit._typeid,
+        .child = ty_lit.data._typeid,
         // TODO: Readd constant types
     });
-    lit_out->kind = UIRLiteralKind::Typed;
-    lit_out->pointer = arg_value;
+    lit_out->data.kind = UIRRawDataKind::Pointer;
+    lit_out->data.ptr = {
+        .kind = UIRPlaceKind::Raw,
+        .data = &arg_value->data,
+    };
     return;
   }
   case UIRValueKind::Call: {
@@ -130,7 +196,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     } else {
       result.lit_type =
           state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Void});
-      result.kind = UIRLiteralKind::Typed;
+      result.data.kind = UIRRawDataKind::Void;
     }
 
     *(frame->add(inst)) = result;
@@ -150,14 +216,14 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
   }
   case UIRValueKind::TypeOf: {
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
+    lit_out->data.kind = UIRRawDataKind::TypeId;
 
     UIRResolved *resolved_inst =
         state->analyser->resolved_mapping.get(inst->_typeof);
     if (resolved_inst == nullptr) {
       UIRLiteral comptime_result =
           state->getValue(frame, module, inst->_typeof);
-      lit_out->_typeid = comptime_result.lit_type;
+      lit_out->data._typeid = comptime_result.lit_type.get();
       return;
     }
 
@@ -165,11 +231,11 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     case UIRResolvedKind::Inst: {
       RIRValue *rir_inst =
           state->analyser->rir_ctx->getInst(resolved_inst->inst);
-      lit_out->_typeid = rir_inst->result;
+      lit_out->data._typeid = rir_inst->result;
       break;
     }
     case UIRResolvedKind::Literal: {
-      lit_out->_typeid = resolved_inst->literal.lit_type;
+      lit_out->data._typeid = resolved_inst->literal.lit_type.get();
       break;
     }
     }
@@ -200,27 +266,28 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
       UIRValue *param = inst->function.parameter_types.ptr[i];
 
       UIRLiteral *param_literal = *executeGetReturn(state, module, param);
-      raw_type.function.arguments.ptr[i] = param_literal->_typeid;
+      assert(param_literal->data.kind == UIRRawDataKind::TypeId);
+      raw_type.function.arguments.ptr[i] = param_literal->data._typeid;
     }
 
     // Analyse Return Type
     UIRLiteral *return_literal =
         *executeGetReturn(state, module, inst->function.return_type);
-    raw_type.function._return = return_literal->_typeid;
+    raw_type.function._return = return_literal->data._typeid;
 
     // Get final type
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
-    lit_out->_typeid = state->analyser->rir_ctx->types.push(raw_type);
+    lit_out->data.kind = UIRRawDataKind::TypeId;
+    lit_out->data._typeid = state->analyser->rir_ctx->types.push(raw_type);
     return;
   }
   case UIRValueKind::Pointer: {
     UIRLiteral lit = state->getValue(frame, module, inst->pointer);
 
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
-    lit_out->_typeid = state->analyser->rir_ctx->types.push(
-        {.kind = RIRTypeKind::Pointer, .child = lit._typeid});
+    lit_out->data.kind = UIRRawDataKind::TypeId;
+    lit_out->data._typeid = state->analyser->rir_ctx->types.push(
+        {.kind = RIRTypeKind::Pointer, .child = lit.data._typeid});
     return;
   }
   case UIRValueKind::Struct: {
@@ -242,12 +309,12 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = inst->_struct.fields.ptr + i;
       UIRLiteral type_lit = state->getValue(frame, module, field->type);
-      struct_type->_struct.fields.ptr[i] = type_lit._typeid;
+      assert(type_lit.data.kind == UIRRawDataKind::TypeId);
+      struct_type->_struct.fields.ptr[i] = type_lit.data._typeid;
     }
 
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
-    lit_out->_typeid = struct_type_id;
+    lit_out->data = {.kind = UIRRawDataKind::TypeId, ._typeid = struct_type_id};
     return;
   }
   // FIXME:
@@ -305,7 +372,8 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     RIRType *union_type = state->analyser->rir_ctx->getType(union_type_id);
     UIRLiteral repr_lit =
         state->getValue(frame, module, inst->_union.repr_type);
-    union_type->_enum.repr = repr_lit._typeid;
+    assert(repr_lit.data.kind == UIRRawDataKind::TypeId);
+    union_type->_enum.repr = repr_lit.data._typeid;
 
     // Fields
     union_type->_union.variants = {
@@ -316,18 +384,17 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = inst->_struct.fields.ptr + i;
       UIRLiteral type_lit = state->getValue(frame, module, field->type);
-      union_type->_union.variants.ptr[i] = type_lit._typeid;
+      assert(type_lit.data.kind = UIRRawDataKind::TypeId);
+      union_type->_union.variants.ptr[i] = type_lit.data._typeid;
     }
 
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
-    lit_out->_typeid = union_type_id;
+    lit_out->data = {.kind = UIRRawDataKind::TypeId, ._typeid = union_type_id};
     return;
   }
   case UIRValueKind::Namespace: {
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::Namespace;
-    lit_out->_namespace = inst;
+    lit_out->data = {.kind = UIRRawDataKind::Namespace, ._namespace = inst};
     return;
     // Type raw_type = {.kind = TypeKind::Namespace};
     // raw_type._namespace.inst = inst;
@@ -344,26 +411,31 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
                             RIRTypeKind::Slice}; // TODO: Readd constant types
 
     UIRLiteral element = state->getValue(frame, module, inst->slice.element);
-    assert(element.kind == UIRLiteralKind::TypeId);
-    raw_type.slice.child = element._typeid;
+    assert(element.data.kind == UIRRawDataKind::TypeId);
+    raw_type.slice.child = element.data._typeid;
 
     if (inst->slice.is_pointer) {
       raw_type.slice.length = -1;
     } else if (inst->slice.length != nullptr) {
       UIRLiteral length = state->getValue(frame, module, inst->slice.length);
-      RIRType *length_type = state->analyser->rir_ctx->getType(length.lit_type);
-      assert(length_type->kind == RIRTypeKind::Integer &&
-             (length_type->integer.is_untyped ||
-              (length_type->integer.bits =
-                   -1 && !length_type->integer.is_signed)));
-      raw_type.slice.length = length._int;
+
+      assert(length.data.kind = UIRRawDataKind::Int);
+      if (length.lit_type.isSome()) {
+        RIRType *length_type =
+            state->analyser->rir_ctx->getType(length.lit_type.get());
+        assert(length_type->integer.is_untyped ||
+               (length_type->integer.bits =
+                    -1 && !length_type->integer.is_signed));
+      }
+
+      raw_type.slice.length = length.data._int;
     } else {
       raw_type.slice.length = 0;
     }
 
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->kind = UIRLiteralKind::TypeId;
-    lit_out->_typeid = state->analyser->rir_ctx->types.push(raw_type);
+    lit_out->data = {.kind = UIRRawDataKind::TypeId,
+                     ._typeid = state->analyser->rir_ctx->types.push(raw_type)};
     return;
   }
   }
@@ -397,11 +469,10 @@ void executeProgram(UIRComptime *state, UIRModule *module,
       pc = 0;
 
       UIRLiteral cond = state->getValue(frame, module, inst->condbr.condition);
-      RIRType *cond_type = state->analyser->rir_ctx->getType(cond.lit_type);
-      assert(cond_type->kind == RIRTypeKind::Bool &&
+      assert(cond.data.kind == UIRRawDataKind::Bool &&
              "Condition was not boolean");
 
-      if (cond._bool) {
+      if (cond.data._bool) {
         program = &inst->condbr.then->instructions;
       } else {
         program = &inst->condbr._else->instructions;
@@ -466,7 +537,7 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
       type_id =
           this->analyser->rir_ctx->getInst(resolved_constant->inst)->result;
     } else if (resolved_constant->kind == UIRResolvedKind::Literal) {
-      type_id = resolved_constant->literal.lit_type;
+      type_id = resolved_constant->literal.lit_type.get();
     }
 
     // TODO: Readd constant types
@@ -484,10 +555,16 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
     });
 
     // Return Pointer to constant
-    return UIRLiteral{
-        .lit_type = ptr_type,
-        .pointer = &constant->literal,
-    };
+    UIRLiteral lit_out = {.lit_type = ptr_type};
+    lit_out.data.kind = UIRRawDataKind::Pointer;
+
+    if (resolved_constant->kind == UIRResolvedKind::Inst) {
+      lit_out.data.ptr = {.kind = UIRPlaceKind::Inst,
+                          .inst = resolved_constant->inst};
+    } else {
+      lit_out.data.ptr = {.kind = UIRPlaceKind::Raw,
+                          .data = &resolved_constant->literal.data};
+    }
   }
 
   size_t idx = *frame->lookup.get(from);

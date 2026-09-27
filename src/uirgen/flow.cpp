@@ -91,14 +91,15 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
         gen(uirgen, node->_for.conditional->in.range->range.min, for_scope);
     UIRValue *type;
     if (initial->kind == UIRValueKind::Literal) {
-      UIRLiteral literal = {
-          .lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-          .kind = UIRLiteralKind::Typed,
+      UIRLiteral literal;
+      literal.data = UIRRawData{
+          .kind = UIRRawDataKind::TypeId,
           ._typeid = uirgen->ctx->type_cache->get({
               .kind = TypeKind::Integer,
               .integer = {false, false, -1},
               .is_constant = true,
-          })};
+          }),
+      };
       type = uirgen->builder.buildLiteral(literal);
     } else {
       type = uirgen->builder.buildTypeOf(initial);
@@ -155,9 +156,7 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
     UIRValue *ptr = *uirgen->node_to_value.get(node->_for.conditional);
     UIRValue *idx = uirgen->builder.buildLoad(ptr);
     UIRValue *one = uirgen->builder.buildLiteral(
-        {.lit_type = ptr->local_variable.type->literal._typeid,
-         .kind = UIRLiteralKind::Typed,
-         ._int = 1});
+        {.data = {.kind = UIRRawDataKind::Int, ._int = 1}});
     UIRValue *result = uirgen->builder.buildBinOp(idx, one, UIROpcode::Add);
     uirgen->builder.buildStore(result, ptr);
 

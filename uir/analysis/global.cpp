@@ -16,9 +16,9 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRValue *type_inst = inst->global_variable.type.get();
       UIRLiteral type_literal =
           analyser->comptime_state.execute(module, type_inst);
-      typeId.setSome(type_literal._typeid);
+      typeId.setSome(type_literal.data._typeid);
 
-      expect(type_literal.kind == UIRLiteralKind::TypeId,
+      expect(type_literal.data.kind == UIRRawDataKind::TypeId,
              type_inst->source_location, "Field type must be a typeid");
     }
 
@@ -29,17 +29,18 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRLiteral const_literal =
           analyser->comptime_state.execute(module, const_inst);
 
-      if (const_literal.kind == UIRLiteralKind::TypeId) {
+      if (const_literal.data.kind == UIRRawDataKind::TypeId) {
         // FIXME: Pointer literal
         analyser->resolved_mapping.insert(
             inst, {.kind = UIRResolvedKind::Literal, .literal = const_literal});
       } else {
-        RIRType *type = analyser->rir_ctx->getType(const_literal.lit_type);
+        RIRType *type =
+            analyser->rir_ctx->getType(const_literal.lit_type.get());
         expect(type != nullptr, const_inst->source_location,
                "Couldn't determine type of constant");
 
         if (typeId.isNone()) {
-          typeId.setSome(const_literal.lit_type);
+          typeId.setSome(const_literal.lit_type.get());
         } else {
           // FIXME:
           // autoCast(analyser, const_inst, inst->result_type->child);
@@ -56,17 +57,17 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         switch (type->kind) {
         case RIRTypeKind::Bool: {
           constant.kind = RIRConstantKind::Bool;
-          constant._bool = const_literal._bool;
+          constant._bool = const_literal.data._bool;
           break;
         }
         case RIRTypeKind::Integer: {
           constant.kind = RIRConstantKind::Integer;
-          constant.integer = const_literal._int;
+          constant.integer = const_literal.data._int;
           break;
         }
         case RIRTypeKind::Float: {
           constant.kind = RIRConstantKind::Float;
-          constant._float = const_literal._float;
+          constant._float = const_literal.data._float;
           break;
         }
         }
@@ -86,9 +87,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Analyse Definitions
     UIRResolved *resolved = analyser->resolved_mapping.get(inst);
     if (resolved->kind == UIRResolvedKind::Literal) {
-      if (resolved->literal.pointer->kind == UIRLiteralKind::TypeId) {
-        RIRType *child_type =
-            analyser->rir_ctx->getType(resolved->literal.pointer->_typeid);
+      if (resolved->literal.data.ptr.data->kind == UIRRawDataKind::TypeId) {
+        RIRType *ptr_type =
+            analyser->rir_ctx->getType(resolved->literal.lit_type.get());
+        RIRType *child_type = analyser->rir_ctx->getType(ptr_type->child);
         switch (child_type->kind) {
         case RIRTypeKind::Struct: {
           UIRValue *_struct =
@@ -109,10 +111,11 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
           break;
         }
         }
-      } else if (resolved->literal.pointer->kind == UIRLiteralKind::Namespace) {
-        analyseScope(
-            analyser, module,
-            resolved->literal.pointer->_namespace->_namespace.definitions);
+      } else if (resolved->literal.data.ptr.data->kind ==
+                 UIRRawDataKind::Namespace) {
+        analyseScope(analyser, module,
+                     resolved->literal.data.ptr.data->_namespace->_namespace
+                         .definitions);
       }
     }
     break;
@@ -120,8 +123,8 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIRValueKind::Function: {
     UIRLiteral type = analyser->comptime_state.execute(module, inst);
 
-    RIRValueId fn_inst_id =
-        analyser->builder.buildFunction(type._typeid, inst->function.undefined);
+    RIRValueId fn_inst_id = analyser->builder.buildFunction(
+        type.data._typeid, inst->function.undefined);
     analyser->resolved_mapping.insert(
         inst, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 

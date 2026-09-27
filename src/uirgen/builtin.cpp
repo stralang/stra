@@ -1,4 +1,5 @@
 #include "define.hpp"
+#include "rir/type.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
 #include "uirgen.hpp"
@@ -7,21 +8,21 @@
 UIRValue *genBuiltin(UIRGen *uirgen, String name) {
   std::string str((const char *)name.ptr, name.len);
 
-  Type *out_type = nullptr;
+  Option<RIRTypeId> out_type_id;
   if (str.compare("void") == 0) {
-    out_type = uirgen->ctx->type_cache->get({.kind = TypeKind::Void});
+    out_type_id = uirgen->ctx->type_cache->get({.kind = TypeKind::Void});
   } else if (str.compare("typeid") == 0) {
-    out_type = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId});
+    out_type_id = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId});
   } else if (str.compare("bool") == 0) {
-    out_type = uirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
+    out_type_id = uirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
   } else if (str.compare("usize") == 0) {
     Type t = {.kind = TypeKind::Integer};
     t.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
-    out_type = uirgen->ctx->type_cache->get(t);
+    out_type_id = uirgen->ctx->type_cache->get(t);
   } else if (str.compare("isize") == 0) {
     Type t = {.kind = TypeKind::Integer};
     t.integer = {.is_untyped = false, .is_signed = true, .bits = -1};
-    out_type = uirgen->ctx->type_cache->get(t);
+    out_type_id = uirgen->ctx->type_cache->get(t);
   } else if (name.len >= 2 &&
              (name[0] == 'u' || name[0] == 'i' || name[0] == 'f')) {
     // Integer and Float
@@ -45,24 +46,21 @@ UIRValue *genBuiltin(UIRGen *uirgen, String name) {
       }
 
       if (t.kind != TypeKind::Void) {
-        out_type = uirgen->ctx->type_cache->get(t);
+        out_type_id = uirgen->ctx->type_cache->get(t);
       }
     }
   }
 
   UIRLiteral literal;
-  if (out_type != nullptr) {
+  if (out_type_id.isSome()) {
     literal.lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::TypeId});
-    literal.kind = UIRLiteralKind::Typed;
-    literal._typeid = out_type;
+    literal.data = {.kind = UIRRawDataKind::TypeId, ._typeid = out_type.get()};
   } else if (str.compare("true") == 0) {
     literal.lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
-    literal.kind = UIRLiteralKind::Typed;
-    literal._bool = true;
+    literal.data = {.kind = UIRRawDataKind::Bool, ._bool = true};
   } else if (str.compare("false") == 0) {
     literal.lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
-    literal.kind = UIRLiteralKind::Typed;
-    literal._bool = false;
+    literal.data = {.kind = UIRRawDataKind::Bool, ._bool = false};
   } else {
     return nullptr;
   }

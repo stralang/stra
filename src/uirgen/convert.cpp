@@ -3,41 +3,24 @@
 #include "uirgen.hpp"
 
 UIRValue *valueToUIR(UIRGen *uirgen, Value *value) {
-  UIRLiteral literal;
+  UIRRawData raw_data;
   switch (value->type->kind) {
   case TypeKind::Bool: {
-    literal.lit_type = uirgen->ctx->type_cache->get({.kind = TypeKind::Bool});
-    literal._bool = value->data._bool;
+    raw_data.kind = UIRRawDataKind::Bool;
+    raw_data._bool = value->data._bool;
     break;
   }
   case TypeKind::Integer: {
-    Type ty = {.kind = TypeKind::Integer};
-    ty.integer = {.is_untyped = true};
-
-    literal.lit_type = uirgen->ctx->type_cache->get(ty);
-    literal._int = value->data.integer;
+    raw_data.kind = UIRRawDataKind::Int;
+    raw_data._int = value->data.integer;
     break;
   }
   case TypeKind::Float: {
-    Type ty = {.kind = TypeKind::Float};
-    ty._float = {.is_untyped = true};
-
-    literal.lit_type = uirgen->ctx->type_cache->get(ty);
-    literal._float = value->data._float;
-    break;
-  }
-  case TypeKind::Slice: {
-    // TODO:
-    // literal.kind = UIRLiteralKind::Slice;
-    // literal.slice = {.len = value->data.text.len, .pointer = };
-    break;
-  }
-  case TypeKind::Enum: {
-    literal.lit_type = value->type;
-    literal._int = value->data.integer;
+    raw_data.kind = UIRRawDataKind::Float;
+    raw_data._float = value->data._float;
     break;
   }
   }
 
-  return uirgen->builder.buildLiteral(literal);
+  return uirgen->builder.buildLiteral({.data = raw_data});
 }
