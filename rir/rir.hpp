@@ -30,6 +30,7 @@ enum class RIRValueKind : std::uint16_t {
   Arg,
   BinOp,
   UnaryOp,
+  Cast,
   Call,
   GEP,
   Return,
@@ -102,6 +103,10 @@ struct RIRValue {
       RIROpcode opcode;
       RIRValueId value;
     } unaryop;
+    struct {
+      RIRValueId value;
+      bool bitcast;
+    } cast;
     struct {
       RIRValueId callee;
       Slice<RIRValueId> arguments;

@@ -20,6 +20,7 @@ struct RIRBuilder {
   RIRValueId buildBinOp(RIROpcode opcode, RIRValueId lhs, RIRValueId rhs,
                         RIRTypeId result);
   RIRValueId buildUnaryOp(RIROpcode opcode, RIRValueId child, RIRTypeId result);
+  RIRValueId buildCast(RIRValueId value, RIRTypeId result, bool bitcast);
   RIRValueId buildCall(RIRValueId callee, Slice<RIRValueId> arguments,
                        RIRTypeId result);
   RIRValueId buildGEP(RIRValueId ptr, RIRValueId index, RIRTypeId result);

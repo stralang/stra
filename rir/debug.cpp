@@ -180,6 +180,13 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << inst->unaryop.opcode << " " << inst->unaryop.value;
     break;
   }
+  case RIRValueKind::Cast: {
+    if (inst->cast.bitcast) {
+      std::cout << "bit";
+    }
+    os << "cast " << inst->cast.value << " to #" << inst->result;
+    break;
+  }
   case RIRValueKind::Call: {
     os << "call " << inst->call.callee << "(";
     for (size_t i = 0; i < inst->call.arguments.len; i++) {

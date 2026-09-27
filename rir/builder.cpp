@@ -76,6 +76,13 @@ RIRValueId RIRBuilder::buildUnaryOp(RIROpcode opcode, RIRValueId child,
   return this->buildInst(inst);
 }
 
+RIRValueId RIRBuilder::buildCast(RIRValueId value, RIRTypeId result,
+                                 bool bitcast) {
+  RIRValue inst = {.kind = RIRValueKind::Cast, .result = result};
+  inst.cast = {.value = value, .bitcast = bitcast};
+  return this->buildInst(inst);
+}
+
 RIRValueId RIRBuilder::buildCall(RIRValueId callee, Slice<RIRValueId> arguments,
                                  RIRTypeId result) {
   RIRValue inst = {.kind = RIRValueKind::Call, .result = result};
