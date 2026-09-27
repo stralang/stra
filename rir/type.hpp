@@ -5,6 +5,8 @@
 #include "containers.hpp"
 #include <cstdint>
 
+struct RIRTypeContext; // Forward Declaration
+
 using RIRTypeId = uint32_t;
 
 enum class RIRTypeKind : uint8_t {
@@ -58,51 +60,10 @@ struct RIRType {
     } _union;
   };
 
-  void makeHashcode() {
-    Hasher hasher;
-    hasher.hash(&this->kind);
-    switch (this->kind) {
-    case RIRTypeKind::Integer: {
-      hasher.hash(&this->integer);
-      break;
-    }
-    case RIRTypeKind::Float: {
-      hasher.hash(&this->_float);
-      break;
-    }
-    case RIRTypeKind::Pointer: {
-      hasher.hash(&this->child);
-      break;
-    }
-    case RIRTypeKind::Slice: {
-      hasher.hash(&this->slice.length);
-      hasher.hash(&this->slice.child);
-      break;
-    }
-    case RIRTypeKind::Function: {
-      hasher.hash(&this->function.arguments.len);
-      for (size_t i = 0; i < this->function.arguments.len; i++) {
-        hasher.hash(this->function.arguments.ptr + i);
-      }
-      hasher.hash(&this->function._return);
-      break;
-    }
-    case RIRTypeKind::Struct: {
-      hasher.hash(&this->_struct.unique);
-      break;
-    }
-    case RIRTypeKind::Enum: {
-      hasher.hash(&this->_enum.unique);
-      break;
-    }
-    case RIRTypeKind::Union: {
-      hasher.hash(&this->_union.unique);
-      break;
-    }
-    }
+  size_t sizeBits(RIRTypeContext *ctx, size_t native_size);
+  size_t alignBits(RIRTypeContext *ctx, size_t native_size);
 
-    this->hashcode = hasher.state;
-  }
+  void makeHashcode();
 };
 
 struct RIRTypeContext {

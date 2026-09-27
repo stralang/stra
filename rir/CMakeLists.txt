@@ -4,6 +4,7 @@ project(rir VERSION 0.1.0 LANGUAGES CXX)
 add_library(rir STATIC
   rir.cpp
   builder.cpp
+  type.cpp
 
   debug.cpp
 )

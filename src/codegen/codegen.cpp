@@ -5,6 +5,7 @@
 #include "containers.hpp"
 #include "define.hpp"
 #include "passes.hpp"
+#include "rir/constant.hpp"
 #include "uir/literal.hpp"
 #include "uir/types.hpp"
 #include "uir/uir.hpp"
@@ -22,44 +23,45 @@
 #include <llvm-c/TargetMachine.h>
 #include <sstream>
 
-LLVMValueRef getReference(CodeGenModule *codegen, UIRValue *value) {
-  if (value->kind == UIRValueKind::Literal) {
-    return literalToLLVM(codegen, &value->literal);
-  } else if (value->kind == UIRValueKind::Alias) {
-    return getReference(codegen, value->alias);
+LLVMValueRef getReference(CodeGenModule *codegen, RIRValueId value_id) {
+  RIRValue *value = codegen->rir_context->getInst(value_id);
+  if (value->kind == RIRValueKind::Constant) {
+    return constantToLLVM(codegen, &value->constant.value, value->result);
   }
 
-  return *codegen->inst_to_llvm.get(value);
+  return *codegen->inst_to_llvm.get(value_id);
 }
 
-void gen(CodeGenModule *codegen, LLVMBuilderRef builder, UIRValue *inst) {
+void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
+  RIRValue *inst = codegen->rir_context->getInst(inst_id);
   LLVMValueRef out = nullptr;
 
   switch (inst->kind) {
-  case UIRValueKind::LocalVariable: {
-    LLVMTypeRef ty =
-        typeToLLVM(codegen, inst->local_variable.type->literal._typeid);
+  case RIRValueKind::LocalVariable: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->local.type);
     out = BuildAlloca(codegen, builder, ty, "");
 
-    LLVMSetValueName2(out, (const char *)inst->name.ptr, inst->name.len);
+    // FIXME: LLVMSetValueName2(out, (const char *)inst->name.ptr,
+    // inst->name.len);
     break;
   }
-  case UIRValueKind::Load: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type);
+  case RIRValueKind::Load: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->result);
     LLVMValueRef ptr = getReference(codegen, inst->load.ptr);
     out = LLVMBuildLoad2(builder, ty, ptr, "");
     break;
   }
-  case UIRValueKind::Store: {
+  case RIRValueKind::Store: {
     LLVMValueRef val = getReference(codegen, inst->store.value);
     LLVMValueRef ptr = getReference(codegen, inst->store.ptr);
     LLVMBuildStore(builder, val, ptr);
     break;
   }
-  case UIRValueKind::Arg: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->arg.type->literal._typeid);
+  case RIRValueKind::Arg: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->arg.type);
     out = BuildAlloca(codegen, builder, ty, "");
-    LLVMSetValueName2(out, (const char *)inst->name.ptr, inst->name.len);
+    // FIXME: LLVMSetValueName2(out, (const char *)inst->name.ptr,
+    // inst->name.len);
 
     // Get Parameter
     FnABICache *abi = codegen->fn_abi_cache.get(codegen->parent_function_type);
@@ -87,180 +89,192 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, UIRValue *inst) {
     codegen->function_arg_index += 1;
     break;
   }
-  case UIRValueKind::BinOp: {
+  case RIRValueKind::BinOp: {
     out = genBinary(codegen, builder, inst);
     break;
   }
-  case UIRValueKind::UnaryOp: {
+  case RIRValueKind::UnaryOp: {
     out = genUnary(codegen, builder, inst);
     break;
   }
-  case UIRValueKind::Call: {
+  case RIRValueKind::Cast: {
+    out = genCast(codegen, builder, inst);
+    break;
+  }
+  case RIRValueKind::Call: {
     out = genCall(codegen, builder, inst);
     break;
   }
-  case UIRValueKind::Index: {
-    LLVMValueRef value = getReference(codegen, inst->index.ptr);
-    Type *value_type = inst->index.ptr->result_type->child;
-
-    if (value_type->kind == TypeKind::Slice) {
-      LLVMValueRef slice = value;
-      Type *slice_type = value_type;
-
-      LLVMValueRef ptr = slice;
-      LLVMTypeRef type = nullptr;
-
-      bool in_bounds = false;
-      LLVMValueRef indices[2];
-      indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
-      if (slice_type->slice.length > 0) {
-        // Array (compile-time length)
-        type = typeToLLVM(codegen, slice_type->slice.type);
-        ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-                            indices, 1, "");
-        LLVMSetIsInBounds(ptr, true);
-        in_bounds = true;
-      } else if (slice_type->slice.length == 0) {
-        // Slice (runtime length)
-        indices[1] = indices[0];
-
-        type = typeToLLVM(codegen, slice_type->slice.type);
-        ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-                            indices, 2, "");
-        LLVMSetIsInBounds(ptr, true);
-        ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
-        in_bounds = true;
-      } else {
-        // Pointer Slice (no length)
-        type = typeToLLVM(codegen, slice_type->slice.type);
-        ptr =
-            LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
-      }
-
-      indices[0] = getReference(codegen, inst->index.index);
-
-      // Runtime length check is handled by UIR
-
-      // Index
-      LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1, "");
-      LLVMSetIsInBounds(elem_ptr, in_bounds);
-      out = elem_ptr;
-    }
-    break;
-  }
-  case UIRValueKind::Range: {
-    LLVMValueRef slice = getReference(codegen, inst->range.ptr);
-    Type *slice_type = inst->range.ptr->result_type->child;
-
-    LLVMValueRef length;
-    LLVMValueRef ptr = slice;
-    LLVMTypeRef elem_type;
-
-    LLVMValueRef indices[2];
-    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
-    if (slice_type->kind == TypeKind::Pointer) {
-      // Pointer to slice conversion
-      elem_type = typeToLLVM(codegen, slice_type->child);
-      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
-    } else if (slice_type->slice.length > 0) {
-      // Array (compile-time length)
-      elem_type = typeToLLVM(codegen, slice_type->slice.type);
-
-      length = LLVMConstInt(
-          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
-          slice_type->slice.length, false);
-    } else if (slice_type->slice.length == 0) {
-      // Slice (runtime length)
-      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
-      length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-                             indices, 2, "");
-      length = LLVMBuildLoad2(
-          builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
-          length, "");
-
-      indices[1] = indices[0];
-      ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-                          indices, 2, "");
-      elem_type = typeToLLVM(codegen, slice_type->slice.type);
-      ptr = LLVMBuildLoad2(builder, LLVMPointerType(elem_type, 0), ptr, "");
-    } else {
-      // Pointer Slice (no length)
-      elem_type = typeToLLVM(codegen, slice_type->slice.type);
-      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice, "");
-    }
-
-    LLVMValueRef start = getReference(codegen, inst->range.start);
-    LLVMValueRef end = getReference(codegen, inst->range.end);
-    indices[0] = start;
-
-    // TODO: Bounds checking
-
-    // Create
-    LLVMValueRef elem_ptr =
-        LLVMBuildGEP2(builder, elem_type, ptr, indices, 1, "");
-
-    // Get new slice length
-    LLVMValueRef new_length = LLVMBuildSub(builder, end, start, "");
-    LLVMTypeRef ptr_ty =
-        LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
-
-    // Create Slice
-    LLVMValueRef constants[2];
-    constants[0] = LLVMConstNull(LLVMTypeOf(elem_ptr));
-    constants[1] = LLVMConstInt(LLVMTypeOf(new_length), 0, false);
-
-    LLVMValueRef new_slice =
-        LLVMConstStructInContext(codegen->ctx, constants, 2, false);
-    new_slice = LLVMBuildInsertValue(builder, new_slice, elem_ptr, 0, "");
-    new_slice = LLVMBuildInsertValue(builder, new_slice, new_length, 1, "");
-    codegen->inst_to_llvm.insert(inst, new_slice);
-    break;
-  }
-  case UIRValueKind::LookupPtr: {
-    LLVMValueRef out = genLookupPtr(codegen, builder, inst);
-    codegen->inst_to_llvm.insert(inst, out);
-    break;
-  }
-  case UIRValueKind::LookupValue: {
-    LLVMValueRef ptr = genLookupPtr(codegen, builder, inst);
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type);
-    LLVMValueRef out = LLVMBuildLoad2(builder, ty, ptr, "");
-    codegen->inst_to_llvm.insert(inst, out);
-    break;
-  }
-  case UIRValueKind::Aggregate: {
-    Type *type = inst->result_type;
-    LLVMTypeRef llvm_type = typeToLLVM(codegen, type);
-
-    LLVMValueRef out = LLVMConstNull(llvm_type);
-    for (size_t i = 0; i < inst->aggregate.values.len; i++) {
-      UIRValue *value = inst->aggregate.values.ptr[i];
-      LLVMValueRef llvm_value = getReference(codegen, value);
-
-      // Get Index
-      size_t index = i;
-      if (type->kind == TypeKind::Struct) {
-        // NOTE: This lookup should probably be replaced during analysis
-        String name = inst->aggregate.names.ptr[i];
-        UIRValue *struct_inst = type->_struct.inst;
-        for (size_t l = 0; l < struct_inst->_struct.fields.len; l++) {
-          UIRStruct::Field *field = struct_inst->_struct.fields.ptr + l;
-          if (!field->name.compare(name)) {
-            continue;
-          }
-
-          index = l;
-        }
-      }
-
-      // Insert Value
-      out = LLVMBuildInsertValue(builder, out, llvm_value, index, "");
-    }
-
-    codegen->inst_to_llvm.insert(inst, out);
-    break;
-  }
-  case UIRValueKind::Return: {
+  // FIXME:
+  // case RIRValueKind::Index: {
+  //   LLVMValueRef value = getReference(codegen, inst->index.ptr);
+  //   Type *value_type = inst->index.ptr->result_type->child;
+  //
+  //   if (value_type->kind == TypeKind::Slice) {
+  //     LLVMValueRef slice = value;
+  //     Type *slice_type = value_type;
+  //
+  //     LLVMValueRef ptr = slice;
+  //     LLVMTypeRef type = nullptr;
+  //
+  //     bool in_bounds = false;
+  //     LLVMValueRef indices[2];
+  //     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0,
+  //     false); if (slice_type->slice.length > 0) {
+  //       // Array (compile-time length)
+  //       type = typeToLLVM(codegen, slice_type->slice.type);
+  //       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+  //                           indices, 1, "");
+  //       LLVMSetIsInBounds(ptr, true);
+  //       in_bounds = true;
+  //     } else if (slice_type->slice.length == 0) {
+  //       // Slice (runtime length)
+  //       indices[1] = indices[0];
+  //
+  //       type = typeToLLVM(codegen, slice_type->slice.type);
+  //       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+  //                           indices, 2, "");
+  //       LLVMSetIsInBounds(ptr, true);
+  //       ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
+  //       in_bounds = true;
+  //     } else {
+  //       // Pointer Slice (no length)
+  //       type = typeToLLVM(codegen, slice_type->slice.type);
+  //       ptr =
+  //           LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice,
+  //           "");
+  //     }
+  //
+  //     indices[0] = getReference(codegen, inst->index.index);
+  //
+  //     // Runtime length check is handled by UIR
+  //
+  //     // Index
+  //     LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1,
+  //     ""); LLVMSetIsInBounds(elem_ptr, in_bounds); out = elem_ptr;
+  //   }
+  //   break;
+  // }
+  // FIXME:
+  // case RIRValueKind::Range: {
+  //   LLVMValueRef slice = getReference(codegen, inst->range.ptr);
+  //   Type *slice_type = inst->range.ptr->result_type->child;
+  //
+  //   LLVMValueRef length;
+  //   LLVMValueRef ptr = slice;
+  //   LLVMTypeRef elem_type;
+  //
+  //   LLVMValueRef indices[2];
+  //   indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0,
+  //   false); if (slice_type->kind == TypeKind::Pointer) {
+  //     // Pointer to slice conversion
+  //     elem_type = typeToLLVM(codegen, slice_type->child);
+  //     ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice,
+  //     "");
+  //   } else if (slice_type->slice.length > 0) {
+  //     // Array (compile-time length)
+  //     elem_type = typeToLLVM(codegen, slice_type->slice.type);
+  //
+  //     length = LLVMConstInt(
+  //         LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+  //         slice_type->slice.length, false);
+  //   } else if (slice_type->slice.length == 0) {
+  //     // Slice (runtime length)
+  //     indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1,
+  //     false); length = LLVMBuildGEP2(builder, typeToLLVM(codegen,
+  //     slice_type), slice,
+  //                            indices, 2, "");
+  //     length = LLVMBuildLoad2(
+  //         builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+  //         length, "");
+  //
+  //     indices[1] = indices[0];
+  //     ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
+  //                         indices, 2, "");
+  //     elem_type = typeToLLVM(codegen, slice_type->slice.type);
+  //     ptr = LLVMBuildLoad2(builder, LLVMPointerType(elem_type, 0), ptr, "");
+  //   } else {
+  //     // Pointer Slice (no length)
+  //     elem_type = typeToLLVM(codegen, slice_type->slice.type);
+  //     ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice,
+  //     "");
+  //   }
+  //
+  //   LLVMValueRef start = getReference(codegen, inst->range.start);
+  //   LLVMValueRef end = getReference(codegen, inst->range.end);
+  //   indices[0] = start;
+  //
+  //   // TODO: Bounds checking
+  //
+  //   // Create
+  //   LLVMValueRef elem_ptr =
+  //       LLVMBuildGEP2(builder, elem_type, ptr, indices, 1, "");
+  //
+  //   // Get new slice length
+  //   LLVMValueRef new_length = LLVMBuildSub(builder, end, start, "");
+  //   LLVMTypeRef ptr_ty =
+  //       LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
+  //
+  //   // Create Slice
+  //   LLVMValueRef constants[2];
+  //   constants[0] = LLVMConstNull(LLVMTypeOf(elem_ptr));
+  //   constants[1] = LLVMConstInt(LLVMTypeOf(new_length), 0, false);
+  //
+  //   LLVMValueRef new_slice =
+  //       LLVMConstStructInContext(codegen->ctx, constants, 2, false);
+  //   new_slice = LLVMBuildInsertValue(builder, new_slice, elem_ptr, 0, "");
+  //   new_slice = LLVMBuildInsertValue(builder, new_slice, new_length, 1, "");
+  //   codegen->inst_to_llvm.insert(inst, new_slice);
+  //   break;
+  // }
+  // FIXME:
+  // case RIRValueKind::LookupPtr: {
+  //   LLVMValueRef out = genLookupPtr(codegen, builder, inst);
+  //   codegen->inst_to_llvm.insert(inst, out);
+  //   break;
+  // }
+  // FIXME:
+  // case RIRValueKind::LookupValue: {
+  //   LLVMValueRef ptr = genLookupPtr(codegen, builder, inst);
+  //   LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type);
+  //   LLVMValueRef out = LLVMBuildLoad2(builder, ty, ptr, "");
+  //   codegen->inst_to_llvm.insert(inst, out);
+  //   break;
+  // }
+  // FIXME:
+  // case RIRValueKind::Aggregate: {
+  //   Type *type = inst->result_type;
+  //   LLVMTypeRef llvm_type = typeToLLVM(codegen, type);
+  //
+  //   LLVMValueRef out = LLVMConstNull(llvm_type);
+  //   for (size_t i = 0; i < inst->aggregate.values.len; i++) {
+  //     UIRValue *value = inst->aggregate.values.ptr[i];
+  //     LLVMValueRef llvm_value = getReference(codegen, value);
+  //
+  //     // Get Index
+  //     size_t index = i;
+  //     if (type->kind == TypeKind::Struct) {
+  //       // NOTE: This lookup should probably be replaced during analysis
+  //       String name = inst->aggregate.names.ptr[i];
+  //       UIRValue *struct_inst = type->_struct.inst;
+  //       for (size_t l = 0; l < struct_inst->_struct.fields.len; l++) {
+  //         UIRStruct::Field *field = struct_inst->_struct.fields.ptr + l;
+  //         if (!field->name.compare(name)) {
+  //           continue;
+  //         }
+  //
+  //         index = l;
+  //       }
+  //     }
+  //
+  //     // Insert Value
+  //     out = LLVMBuildInsertValue(builder, out, llvm_value, index, "");
+  //   }
+  //
+  //   codegen->inst_to_llvm.insert(inst, out);
+  //   break;
+  // }
+  case RIRValueKind::Return: {
     if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);
     } else {
@@ -277,19 +291,21 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, UIRValue *inst) {
     }
     break;
   }
-  case UIRValueKind::Branch: {
-    LLVMBasicBlockRef dst = *codegen->block_to_llvm.get(inst->br);
+  case RIRValueKind::Branch: {
+    LLVMBasicBlockRef dst = *codegen->block_to_llvm.get(inst->branch);
     LLVMBuildBr(builder, dst);
     break;
   }
-  case UIRValueKind::CondBranch: {
-    LLVMValueRef condition = getReference(codegen, inst->condbr.condition);
-    LLVMBasicBlockRef then = *codegen->block_to_llvm.get(inst->condbr.then);
-    LLVMBasicBlockRef _else = *codegen->block_to_llvm.get(inst->condbr._else);
+  case RIRValueKind::CondBranch: {
+    LLVMValueRef condition = getReference(codegen, inst->cond_branch.condition);
+    LLVMBasicBlockRef then =
+        *codegen->block_to_llvm.get(inst->cond_branch.then);
+    LLVMBasicBlockRef _else =
+        *codegen->block_to_llvm.get(inst->cond_branch._else);
     LLVMBuildCondBr(builder, condition, then, _else);
     break;
   }
-  case UIRValueKind::Switch: {
+  case RIRValueKind::Switch: {
     LLVMValueRef condition = getReference(codegen, inst->_switch.condition);
     LLVMBasicBlockRef _else =
         *codegen->block_to_llvm.get(inst->_switch.default_block);
@@ -306,98 +322,51 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, UIRValue *inst) {
     break;
   }
 
-  case UIRValueKind::GlobalVariable: {
-    // Sub-Definitions
-    if (inst->result_type->child->kind == TypeKind::TypeId) {
-      UIRLiteral *lit = &inst->global_variable.constant.get()->literal;
-      UIRScope *scope = nullptr;
-      if (lit->_typeid->kind == TypeKind::Struct) {
-        scope = lit->_typeid->_struct.inst->_struct.definitions;
-      } else if (lit->_typeid->kind == TypeKind::Enum) {
-        scope = lit->_typeid->_enum.inst->_enum.definitions;
-      } else if (lit->_typeid->kind == TypeKind::Union) {
-        scope = lit->_typeid->_union.inst->_union.definitions;
-      } else if (lit->_typeid->kind == TypeKind::Namespace) {
-        scope = lit->_typeid->_namespace.inst->_namespace.definitions;
-      }
-
-      for (size_t i = 0; i < scope->list.length; i++) {
-        gen(codegen, builder, scope->list.getUnchecked(i));
-      }
-      break;
-    }
-
-    LLVMValueRef *opt_global = codegen->inst_to_llvm.get(inst);
+  case RIRValueKind::GlobalVariable: {
+    LLVMValueRef *opt_global = codegen->inst_to_llvm.get(inst_id);
     if (opt_global == nullptr) {
       break;
     }
 
     LLVMValueRef global = *opt_global;
     if (inst->global_variable.constant.isSome()) {
-      UIRValue *const_inst = inst->global_variable.constant.get();
-      LLVMValueRef val = literalToLLVM(codegen, &const_inst->literal);
+      RIRConstant const_inst = inst->global_variable.constant.get();
+      LLVMValueRef val =
+          constantToLLVM(codegen, &const_inst, inst->global_variable.type);
       LLVMSetInitializer(global, val);
     }
     break;
   }
-  case UIRValueKind::Function: {
+  case RIRValueKind::Function: {
     genFunctionBody(codegen, builder, inst);
     break;
   }
   }
 
   if (out != nullptr) {
-    codegen->inst_to_llvm.insert(inst, out);
+    codegen->inst_to_llvm.insert(inst_id, out);
   }
 }
 
-void genDeclaration(CodeGenModule *codegen, UIRValue *inst) {
+void genDeclaration(CodeGenModule *codegen, RIRValueId inst_id) {
+  RIRValue *inst = codegen->rir_context->getInst(inst_id);
   switch (inst->kind) {
-  case UIRValueKind::GlobalVariable: {
-    if (inst->result_type->child->kind == TypeKind::TypeId) {
-      // Sub-Declarations
-      UIRLiteral *lit = &inst->global_variable.constant.get()->literal;
-      UIRScope *scope = nullptr;
-      bool real_type = false;
-      if (lit->_typeid->kind == TypeKind::Struct) {
-        scope = lit->_typeid->_struct.inst->_struct.definitions;
-        real_type = true;
-      } else if (lit->_typeid->kind == TypeKind::Enum) {
-        scope = lit->_typeid->_enum.inst->_enum.definitions;
-      } else if (lit->_typeid->kind == TypeKind::Union) {
-        scope = lit->_typeid->_union.inst->_union.definitions;
-      } else if (lit->_typeid->kind == TypeKind::Namespace) {
-        scope = lit->_typeid->_namespace.inst->_namespace.definitions;
-      }
-
-      if (real_type) {
-        char *name =
-            (char *)codegen->allocator->allocZeroed(inst->name.len + 1);
-        memcpy(name, inst->name.ptr, inst->name.len);
-        name[inst->name.len] = 0;
-        typeToLLVM(codegen, inst->global_variable.constant.get()->result_type,
-                   name);
-      }
-
-      for (size_t i = 0; i < scope->list.length; i++) {
-        genDeclaration(codegen, scope->list.getUnchecked(i));
-      }
-      break;
-    }
-
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type->child);
+  case RIRValueKind::GlobalVariable: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->global_variable.type);
     LLVMValueRef global = LLVMAddGlobal(codegen->mod, ty, "");
-    codegen->inst_to_llvm.insert(inst, global);
+    codegen->inst_to_llvm.insert(inst_id, global);
 
-    LLVMSetValueName2(global, (const char *)inst->name.ptr, inst->name.len);
+    // FIXME: LLVMSetValueName2(global, (const char *)inst->name.ptr,
+    // inst->name.len);
     break;
   }
-  case UIRValueKind::Function: {
-    LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type);
+  case RIRValueKind::Function: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->function.type);
     LLVMValueRef func = LLVMAddFunction(codegen->mod, "", ty);
-    codegen->inst_to_llvm.insert(inst, func);
+    codegen->inst_to_llvm.insert(inst_id, func);
 
-    LLVMSetValueName2(func, (const char *)inst->name.ptr, inst->name.len);
+    // FIXME: LLVMSetValueName2(func, (const char *)inst->name.ptr,
+    // inst->name.len);
     break;
   }
   }
@@ -435,14 +404,15 @@ void CodeGenModule::generate(CodeGenContext *context, bool emit_ir,
   this->target_abi = ABIcreateTarget(context->abi);
 
   // Generate Definitions
-  for (size_t i = 0; i < this->uir_module->definitions->list.length; i++) {
-    genDeclaration(this, this->uir_module->definitions->list.getUnchecked(i));
+  for (size_t i = 0; i < this->rir_module->roots.length; i++) {
+    RIRValueId inst_id = this->rir_module->roots.getUnchecked(i);
+    genDeclaration(this, inst_id);
   }
 
   // Generate Code
-  for (size_t i = 0; i < this->uir_module->definitions->list.length; i++) {
-    gen(this, this->builder,
-        this->uir_module->definitions->list.getUnchecked(i));
+  for (size_t i = 0; i < this->rir_module->roots.length; i++) {
+    RIRValueId inst_id = this->rir_module->roots.getUnchecked(i);
+    gen(this, this->builder, inst_id);
   }
 
 // Optimize

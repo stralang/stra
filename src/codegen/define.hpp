@@ -1,40 +1,33 @@
 #pragma once
 
 #include "codegen.hpp"
-#include "uir/literal.hpp"
-#include "uir/uir.hpp"
 #include "llvm-c/Types.h"
 #include <llvm-c/Core.h>
 
 // Base
-LLVMValueRef getReference(CodeGenModule *codegen, UIRValue *value);
-void gen(CodeGenModule *codegen, LLVMBuilderRef builder, UIRValue *inst);
-void genDeclaration(CodeGenModule *codegen, UIRValue *inst);
+LLVMValueRef getReference(CodeGenModule *codegen, RIRValueId value_id);
+void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst);
+void genDeclaration(CodeGenModule *codegen, RIRValueId inst);
 
 // Conversion
-LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type,
+LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
                        const char *name = nullptr);
-LLVMValueRef literalToLLVM(CodeGenModule *codegen, UIRLiteral *literal);
+LLVMValueRef constantToLLVM(CodeGenModule *codegen, RIRConstant *constant,
+                            RIRTypeId const_type);
 
 // Operator
-LLVMValueRef genMemberAccess(CodeGenModule *codegen, LLVMBuilderRef builder,
-                             Node *node, Symbol *scope);
-LLVMValueRef addrCastAs(CodeGenModule *codegen, LLVMBuilderRef builder,
-                        Node *node, Symbol *scope);
-
 LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                      UIRValue *inst);
+                      RIRValue *inst);
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
-                       UIRValue *inst);
-
-LLVMValueRef genLookupPtr(CodeGenModule *codegen, LLVMBuilderRef builder,
-                          UIRValue *inst);
+                       RIRValue *inst);
+LLVMValueRef genCast(CodeGenModule *codegen, LLVMBuilderRef builder,
+                     RIRValue *inst);
 
 // Function
 void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
-                     UIRValue *inst);
+                     RIRValue *inst);
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
-                     UIRValue *inst);
+                     RIRValue *inst);
 
 LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
                             Node *builtin_name, Value *callee,

@@ -1,26 +1,32 @@
 #include "codegen.hpp"
 #include "define.hpp"
+#include "rir/constant.hpp"
+#include "rir/rir.hpp"
+#include "rir/type.hpp"
 #include "uir/literal.hpp"
 #include "llvm-c/Types.h"
+#include <cassert>
 #include <llvm-c/Core.h>
 
-LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
-  LLVMTypeRef *type_cache = codegen->type_to_llvm.get(type);
+LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
+                       const char *name) {
+  LLVMTypeRef *type_cache = codegen->type_to_llvm.get(type_id);
   if (type_cache != nullptr) {
     return *type_cache;
   }
 
   LLVMTypeRef out;
+  RIRType *type = codegen->rir_context->getType(type_id);
   switch (type->kind) {
-  case TypeKind::Void: {
+  case RIRTypeKind::Void: {
     out = LLVMVoidTypeInContext(codegen->ctx);
     break;
   }
-  case TypeKind::Bool: {
+  case RIRTypeKind::Bool: {
     out = LLVMInt1TypeInContext(codegen->ctx);
     break;
   }
-  case TypeKind::Integer: {
+  case RIRTypeKind::Integer: {
     size_t bits = type->integer.bits;
     if (type->integer.bits == -1) {
       bits = codegen->pointer_size;
@@ -28,7 +34,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     out = LLVMIntTypeInContext(codegen->ctx, bits);
     break;
   }
-  case TypeKind::Float: {
+  case RIRTypeKind::Float: {
     switch (type->_float.bits) {
     case 16: {
       out = LLVMHalfTypeInContext(codegen->ctx);
@@ -49,12 +55,12 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     }
     break;
   }
-  case TypeKind::Pointer: {
+  case RIRTypeKind::Pointer: {
     out = LLVMPointerType(typeToLLVM(codegen, type->child, ""), 0);
     break;
   }
-  case TypeKind::Slice: {
-    LLVMTypeRef elem = typeToLLVM(codegen, type->slice.type, "");
+  case RIRTypeKind::Slice: {
+    LLVMTypeRef elem = typeToLLVM(codegen, type->slice.child, "");
     if (type->slice.length > 0) {
       out = LLVMArrayType(elem, type->slice.length);
     } else if (type->slice.length < 0) {
@@ -68,22 +74,22 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     }
     break;
   }
-  case TypeKind::SIMD: {
-    out = LLVMVectorType(typeToLLVM(codegen, type->slice.type),
-                         type->slice.length);
+  // TODO: case RIRTypeKind::SIMD: {
+  //   out = LLVMVectorType(typeToLLVM(codegen, type->slice.type),
+  //                        type->slice.length);
+  //   break;
+  // }
+  case RIRTypeKind::TypeId: {
     break;
   }
-  case TypeKind::TypeId: {
-    break;
-  }
-  case TypeKind::Function: {
+  case RIRTypeKind::Function: {
     ArrayList<LLVMTypeRef> param_types;
     param_types.init(codegen->allocator, type->function.arguments.len);
 
     FnABICache abi_cache;
 
     // Return
-    LLVMTypeRef ir_ret_type = typeToLLVM(codegen, type->function.return_type);
+    LLVMTypeRef ir_ret_type = typeToLLVM(codegen, type->function._return);
     abi_cache.return_arg =
         codegen->target_abi.classifyReturnType(codegen->mod, ir_ret_type);
 
@@ -100,7 +106,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
         sizeof(ABIArg) * abi_cache.args.len);
 
     for (size_t i = 0; i < type->function.arguments.len; i++) {
-      Type *arg_type = type->function.arguments.ptr[i];
+      RIRTypeId arg_type = type->function.arguments.ptr[i];
       LLVMTypeRef ir_arg_type = typeToLLVM(codegen, arg_type);
       ABIArg arg =
           codegen->target_abi.classifyArgumentType(codegen->mod, ir_arg_type);
@@ -118,7 +124,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     codegen->fn_abi_cache.insert(out, abi_cache);
     break;
   }
-  case TypeKind::Struct: {
+  case RIRTypeKind::Struct: {
     LLVMTypeRef *field_types = (LLVMTypeRef *)codegen->allocator->allocZeroed(
         sizeof(LLVMTypeRef) * type->_struct.fields.len);
     for (size_t i = 0; i < type->_struct.fields.len; i++) {
@@ -129,24 +135,26 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
     LLVMStructSetBody(out, field_types, type->_struct.fields.len, false);
     break;
   }
-  case TypeKind::Enum: {
-    out = typeToLLVM(codegen, type->_enum.repr_type);
+  case RIRTypeKind::Enum: {
+    out = typeToLLVM(codegen, type->_enum.repr);
     break;
   }
-  case TypeKind::Union: {
+  case RIRTypeKind::Union: {
     // Raw/C-Style Union
-    if (type->_union.repr_type->kind == TypeKind::Void) {
-      LLVMTypeRef ty = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx),
-                                     type->sizeBits(codegen->pointer_size));
+    RIRType *repr_type = codegen->rir_context->getType(type->_union.repr);
+    if (repr_type->kind == RIRTypeKind::Void) {
+      LLVMTypeRef ty = LLVMArrayType(
+          LLVMInt8TypeInContext(codegen->ctx),
+          type->sizeBits(codegen->rir_context->types, codegen->pointer_size));
       out = LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
     } else {
-      size_t data_size = type->sizeBits(codegen->pointer_size) -
-                         type->_union.repr_type->integer.bits;
+      size_t data_size =
+          type->sizeBits(codegen->rir_context->types, codegen->pointer_size) -
+          repr_type->integer.bits;
       data_size = (data_size + 7) / 8; // Bits to Bytes
 
       LLVMTypeRef tys[2];
-      tys[0] = LLVMIntTypeInContext(codegen->ctx,
-                                    type->_union.repr_type->integer.bits);
+      tys[0] = LLVMIntTypeInContext(codegen->ctx, repr_type->integer.bits);
       tys[1] = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);
       out = LLVMStructTypeInContext(codegen->ctx, tys, 2, false);
     }
@@ -154,55 +162,64 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, Type *type, const char *name) {
   }
   }
 
-  codegen->type_to_llvm.insert(type, out);
+  codegen->type_to_llvm.insert(type_id, out);
   return out;
 }
 
-LLVMValueRef literalToLLVM(CodeGenModule *codegen, UIRLiteral *literal) {
-  switch (literal->lit_type->kind) {
-  case TypeKind::Bool: {
-    return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), literal->_bool,
+LLVMValueRef constantToLLVM(CodeGenModule *codegen, RIRConstant *constant,
+                            RIRTypeId const_type) {
+  switch (constant->kind) {
+  case RIRConstantKind::Bool: {
+    return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), constant->_bool,
                         false);
   }
-  case TypeKind::Integer: {
-    LLVMTypeRef type = typeToLLVM(codegen, literal->lit_type);
-    return LLVMConstInt(type, literal->_int,
-                        literal->lit_type->integer.is_signed);
+  case RIRConstantKind::Integer: {
+    RIRType *result_type = codegen->rir_context->getType(const_type);
+    LLVMTypeRef type = typeToLLVM(codegen, const_type);
+    return LLVMConstInt(type, constant->integer,
+                        result_type->integer.is_signed);
   }
-  case TypeKind::Float: {
-    LLVMTypeRef type = typeToLLVM(codegen, literal->lit_type);
-    return LLVMConstReal(type, literal->_float);
+  case RIRConstantKind::Float: {
+    LLVMTypeRef type = typeToLLVM(codegen, const_type);
+    return LLVMConstReal(type, constant->_float);
   }
-  case TypeKind::Slice: {
-    LLVMTypeRef elem_type = typeToLLVM(codegen, literal->lit_type->slice.type);
-    LLVMTypeRef array_type = LLVMArrayType2(elem_type, literal->slice.len);
+  case RIRConstantKind::List: {
+    LLVMTypeRef llvm_type = typeToLLVM(codegen, const_type);
+    RIRType *list_type = codegen->rir_context->getType(const_type);
 
-    LLVMValueRef ptr = literalToLLVM(codegen, literal->slice.pointer);
-    LLVMValueRef data = LLVMConstBitCast(ptr, array_type);
+    LLVMValueRef aggregate = LLVMConstNull(llvm_type);
+    for (size_t i = 0; i < constant->constants.len; i++) {
+      RIRTypeId elem_type;
+      if (list_type->kind == RIRTypeKind::Slice) {
+        elem_type = list_type->slice.child;
+      } else if (list_type->kind == RIRTypeKind::Struct) {
+        elem_type = list_type->_struct.fields[i];
+      }
 
-    // Runtime
-    if (literal->lit_type->slice.length == 0) {
+      RIRConstant *elem = constant->constants.ptr + i;
+      LLVMValueRef elem_val = constantToLLVM(codegen, elem, elem_type);
+      aggregate =
+          LLVMBuildInsertValue(codegen->builder, aggregate, elem_val, i, "");
+    }
+
+    if (list_type->kind == RIRTypeKind::Slice && list_type->slice.length == 0) {
+      LLVMTypeRef elem_type = typeToLLVM(codegen, list_type->slice.child);
       LLVMValueRef ptr = LLVMAddGlobal(
-          codegen->mod, LLVMArrayType(elem_type, literal->slice.len),
+          codegen->mod, LLVMArrayType(elem_type, constant->constants.len),
           "const_ptr");
       LLVMSetGlobalConstant(ptr, true);
       LLVMSetLinkage(ptr, LLVMPrivateLinkage);
-      LLVMSetInitializer(ptr, data);
+      LLVMSetInitializer(ptr, aggregate);
 
       LLVMValueRef slice_out[2];
       slice_out[0] = ptr;
       slice_out[1] = LLVMConstInt(
           LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
-          literal->slice.len, false);
-      data = LLVMConstStructInContext(codegen->ctx, slice_out, 2, false);
+          constant->constants.len, false);
+      aggregate = LLVMConstStructInContext(codegen->ctx, slice_out, 2, false);
     }
 
-    return data;
-  }
-  case TypeKind::Enum: {
-    Type *repr_type = literal->lit_type->_enum.repr_type;
-    LLVMTypeRef type = typeToLLVM(codegen, repr_type);
-    return LLVMConstInt(type, literal->_int, repr_type->integer.is_signed);
+    return aggregate;
   }
   }
 
