@@ -137,6 +137,14 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         RIRBlockId rir_block = analyser->builder.appendBlock(fn_inst_id);
         analyser->resolved_block_mapping.insert(uir_block, rir_block);
         analyser->builder.block.setSome(analyser->rir_ctx->getBlock(rir_block));
+      }
+
+      for (size_t i = 0; i < inst->function.blocks.length; i++) {
+        UIRBlock *uir_block = inst->function.blocks.getUnchecked(i);
+        RIRBlockId rir_block_id =
+            *analyser->resolved_block_mapping.get(uir_block);
+        analyser->builder.block.setSome(
+            analyser->rir_ctx->getBlock(rir_block_id));
 
         analyseBlock(analyser, module, uir_block);
       }

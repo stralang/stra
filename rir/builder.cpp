@@ -157,7 +157,7 @@ RIRValueId RIRBuilder::buildFunction(RIRTypeId type, bool undefined) {
 RIRValueId RIRBuilder::buildConstant(RIRTypeId type, RIRConstant constant) {
   RIRValue inst = {.kind = RIRValueKind::Constant, .result = type};
   inst.constant = {.type = type, .value = constant};
-  return this->build(inst);
+  return this->buildInst(inst);
 }
 
 RIRBlockId RIRBuilder::appendBlock(RIRValueId function) {

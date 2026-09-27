@@ -1,5 +1,6 @@
 #include "debug.hpp"
 #include "rir.hpp"
+#include "rir/constant.hpp"
 #include "type.hpp"
 
 std::ostream &operator<<(std::ostream &os, const RIRValueId &inst_id) {
@@ -121,6 +122,36 @@ std::ostream &operator<<(std::ostream &os, const RIROpcode &opcode) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const RIRConstant &constant) {
+  switch (constant.kind) {
+  case RIRConstantKind::Bool: {
+    os << constant._bool;
+    break;
+  }
+  case RIRConstantKind::Integer: {
+    os << constant.integer;
+    break;
+  }
+  case RIRConstantKind::Float: {
+    os << constant._float;
+    break;
+  }
+  case RIRConstantKind::List: {
+    os << "{";
+    for (size_t i = 0; i < constant.constants.len; i++) {
+      if (i > 0) {
+        os << ", ";
+      }
+      os << constant.constants.ptr[i];
+    }
+    os << "}";
+    break;
+  }
+  }
+
+  return os;
+}
+
 std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
   os << inst->id << " = ";
   switch (inst->kind) {
@@ -208,6 +239,12 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
       printBlock(os, ctx, ctx->getBlock(id));
     }
     os << "}";
+    break;
+  }
+
+  case RIRValueKind::Constant: {
+    os << "constant #" << inst->constant.type << " `" << inst->constant.value
+       << "`";
     break;
   }
   }

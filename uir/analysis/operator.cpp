@@ -189,7 +189,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
 void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   analyse(analyser, module, inst->unaryop.value);
-  UIRResolved *child_id = analyser->resolved_mapping.get(inst);
+  UIRResolved *child_id = analyser->resolved_mapping.get(inst->unaryop.value);
   RIRValue *child = analyser->rir_ctx->getInst(child_id->inst);
   RIRType *child_primitive = analyser->rir_ctx->getType(child->result);
 

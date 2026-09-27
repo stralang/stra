@@ -17,15 +17,15 @@ add_executable(stra
   src/uirgen/convert.cpp
   src/uirgen/builtin.cpp
 
-  src/codegen/codegen.cpp
-  src/codegen/convert.cpp
-  src/codegen/operator.cpp
-  src/codegen/function.cpp
-  src/codegen/lookup.cpp
-  # src/codegen/builtin.cpp
-
-  src/codegen/abi/general.cpp
-  src/codegen/abi/sysvamd64.cpp
+  # src/codegen/codegen.cpp
+  # src/codegen/convert.cpp
+  # src/codegen/operator.cpp
+  # src/codegen/function.cpp
+  # src/codegen/lookup.cpp
+  # # src/codegen/builtin.cpp
+  #
+  # src/codegen/abi/general.cpp
+  # src/codegen/abi/sysvamd64.cpp
 
   src/environment.cpp
   src/helper.cpp
