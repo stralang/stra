@@ -96,7 +96,7 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
           .kind = UIRRawDataKind::TypeId,
           ._typeid = uirgen->ctx->types->push({
               .kind = RIRTypeKind::Integer,
-              .integer = {false, false, -1},
+              .integer = {false, -1},
           }),
       };
       type = uirgen->builder.buildLiteral(literal);

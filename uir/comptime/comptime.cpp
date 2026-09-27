@@ -423,9 +423,8 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
       if (length.lit_type.isSome()) {
         RIRType *length_type =
             state->analyser->rir_ctx->getType(length.lit_type.get());
-        assert(length_type->integer.is_untyped ||
-               (length_type->integer.bits =
-                    -1 && !length_type->integer.is_signed));
+        assert(length_type->integer.bits =
+                   -1 && !length_type->integer.is_signed);
       }
 
       raw_type.slice.length = length.data._int;

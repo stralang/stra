@@ -35,7 +35,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
     break;
   }
   case RIRTypeKind::Float: {
-    switch (type->_float.bits) {
+    switch (type->float_bits) {
     case 16: {
       out = LLVMHalfTypeInContext(codegen->ctx);
       break;

@@ -54,7 +54,6 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                   dst_type->kind == RIRTypeKind::Float;
       } else if (src_type->kind == RIRTypeKind::Pointer) {
         allowed = dst_type->kind == RIRTypeKind::Integer &&
-                  !dst_type->integer.is_untyped &&
                   !dst_type->integer.is_signed && dst_type->integer.bits == -1;
       } else if (src_type->kind == RIRTypeKind::Slice) {
         if (src_type->slice.length == 0 && dst_type->slice.length == 0) {

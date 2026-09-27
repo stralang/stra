@@ -67,7 +67,7 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
         .kind = UIRRawDataKind::TypeId,
         ._typeid = uirgen->ctx->types->push({
             .kind = RIRTypeKind::Integer,
-            .integer = {false, false, 32},
+            .integer = {false, 32},
         }),
     };
     repr_type = uirgen->builder.buildLiteral(literal);

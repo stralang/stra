@@ -17,11 +17,11 @@ UIRValue *genBuiltin(UIRGen *uirgen, String name) {
     out_type_id = uirgen->ctx->types->push({.kind = RIRTypeKind::Bool});
   } else if (str.compare("usize") == 0) {
     RIRType t = {.kind = RIRTypeKind::Integer};
-    t.integer = {.is_untyped = false, .is_signed = false, .bits = -1};
+    t.integer = {.is_signed = false, .bits = -1};
     out_type_id = uirgen->ctx->types->push(t);
   } else if (str.compare("isize") == 0) {
     RIRType t = {.kind = RIRTypeKind::Integer};
-    t.integer = {.is_untyped = false, .is_signed = true, .bits = -1};
+    t.integer = {.is_signed = true, .bits = -1};
     out_type_id = uirgen->ctx->types->push(t);
   } else if (name.len >= 2 &&
              (name[0] == 'u' || name[0] == 'i' || name[0] == 'f')) {
@@ -35,14 +35,13 @@ UIRValue *genBuiltin(UIRGen *uirgen, String name) {
       if (name.ptr[0] == 'u' || name.ptr[0] == 'i') {
         t.kind = RIRTypeKind::Integer;
         t.integer = {
-            .is_untyped = false,
             .is_signed = name.ptr[0] == 'i',
             .bits = (int32_t)bits,
         };
       } else if (name.ptr[0] == 'f' &&
                  (bits == 16 || bits == 32 || bits == 64 || bits == 128)) {
         t.kind = RIRTypeKind::Float;
-        t._float = {.is_untyped = false, .bits = bits};
+        t.float_bits = bits;
       }
 
       if (t.kind != RIRTypeKind::Void) {

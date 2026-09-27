@@ -12,7 +12,7 @@ size_t RIRType::sizeBits(RIRTypeContext *ctx, size_t native_size) {
     return this->integer.bits == -1 ? native_size : this->integer.bits;
   }
   case RIRTypeKind::Float: {
-    return this->_float.bits;
+    return this->float_bits;
   }
   case RIRTypeKind::Pointer: {
     return native_size;
@@ -78,7 +78,7 @@ size_t RIRType::alignBits(RIRTypeContext *ctx, size_t native_size) {
     return this->integer.bits == -1 ? native_size : this->integer.bits;
   }
   case RIRTypeKind::Float: {
-    return this->_float.bits;
+    return this->float_bits;
   }
   case RIRTypeKind::Pointer: {
     return native_size;
@@ -131,7 +131,7 @@ void RIRType::makeHashcode() {
     break;
   }
   case RIRTypeKind::Float: {
-    hasher.hash(&this->_float);
+    hasher.hash(&this->float_bits);
     break;
   }
   case RIRTypeKind::Pointer: {

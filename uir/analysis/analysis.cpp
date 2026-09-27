@@ -403,7 +403,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
       if (type_id.isNone()) {
         type_id = analyser->rir_ctx->types->push(
-            {.kind = RIRTypeKind::Float, ._float = {.bits = 32}});
+            {.kind = RIRTypeKind::Float, .float_bits = 32});
       }
       break;
     }
@@ -467,7 +467,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
       if (type_id.isNone()) {
         type_id = analyser->rir_ctx->types->push(
-            {.kind = RIRTypeKind::Float, ._float = {.bits = 32}});
+            {.kind = RIRTypeKind::Float, .float_bits = 32});
       }
       break;
     }

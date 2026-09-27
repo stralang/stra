@@ -291,7 +291,7 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
     break;
   }
   case RIRTypeKind::Float: {
-    os << 'f' << type->_float.bits;
+    os << 'f' << type->float_bits;
     break;
   }
   case RIRTypeKind::Pointer: {

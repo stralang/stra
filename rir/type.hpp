@@ -28,14 +28,10 @@ struct RIRType {
   RIRTypeKind kind;
   union {
     struct {
-      bool is_untyped;
       bool is_signed;
       int32_t bits; // negative is pointer size
     } integer;
-    struct {
-      bool is_untyped;
-      uint32_t bits;
-    } _float;
+    uint32_t float_bits;
     RIRTypeId child;
     struct {
       int64_t length;
