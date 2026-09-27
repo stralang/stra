@@ -11,14 +11,10 @@ void RIRModule::deinit() {}
 
 void RIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
-  this->types.init(allocator, arena_allocator);
   this->modules.init(allocator, arena_allocator, sizeof(RIRModule) * 32);
 }
 
-void RIRContext::deinit() {
-  this->modules.deinit();
-  this->types.deinit();
-}
+void RIRContext::deinit() { this->modules.deinit(); }
 
 RIRValue *RIRContext::getInst(RIRValueId id) {
   return this->modules.getPtr(id.module)->instructions.getPtr(id.local);
@@ -28,4 +24,4 @@ RIRBlock *RIRContext::getBlock(RIRBlockId id) {
   return this->modules.getPtr(id.module)->blocks.getPtr(id.local);
 }
 
-RIRType *RIRContext::getType(RIRTypeId id) { return this->types.getPtr(id); }
+RIRType *RIRContext::getType(RIRTypeId id) { return this->types->getPtr(id); }

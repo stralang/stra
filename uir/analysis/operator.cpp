@@ -100,7 +100,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     //                << rhs_primitive << "`");
 
     RIRTypeId result =
-        analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool});
+        analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, result);
     break;
@@ -122,7 +122,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     //                << rhs_primitive << "`");
 
     RIRTypeId result =
-        analyser->rir_ctx->types.push({.kind = RIRTypeKind::Bool});
+        analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, result);
     break;
@@ -209,7 +209,7 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         !child_primitive->integer.is_signed) {
       RIRType ty = *child_primitive;
       ty.integer.is_signed = true;
-      result = analyser->rir_ctx->types.push(ty);
+      result = analyser->rir_ctx->types->push(ty);
     }
 
     out_id = analyser->builder.buildUnaryOp((RIROpcode)inst->binop.opcode,

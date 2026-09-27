@@ -142,9 +142,6 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     return out;
   }
   case NodeKind::RawString: {
-    Type int_t = {.kind = TypeKind::Integer};
-    int_t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
-
     // Parse text
     Slice<UIRRawData> real_text = {
         .ptr = (UIRRawData *)uirgen->allocator->alloc(sizeof(UIRRawData) *
@@ -171,13 +168,16 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
 
     // Set Value
-    Type slice_t = {.kind = TypeKind::Slice};
-    slice_t.slice = SliceType{
+    RIRType int_t = {.kind = RIRTypeKind::Integer};
+    int_t.integer = {.is_signed = false, .bits = 8};
+
+    RIRType slice_t = {.kind = RIRTypeKind::Slice};
+    slice_t.slice = {
         .length = (int64_t)real_text.len,
-        .type = uirgen->ctx->type_cache->get(int_t),
+        .child = uirgen->ctx->types->push(int_t),
     };
 
-    UIRLiteral slice_lit = {.lit_type = uirgen->ctx->type_cache->get(slice_t)};
+    UIRLiteral slice_lit = {.lit_type = uirgen->ctx->types->push(slice_t)};
     slice_lit.data = {.kind = UIRRawDataKind::Slice, .values = real_text};
     return uirgen->builder.buildLiteral(slice_lit);
   }
@@ -252,7 +252,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       UIRLiteral literal;
       literal.data = UIRRawData{
           .kind = UIRRawDataKind::TypeId,
-          ._typeid = uirgen->ctx->type_cache->get({.kind = TypeKind::Void}),
+          ._typeid = uirgen->ctx->types->push({.kind = RIRTypeKind::Void}),
       };
 
       return_type = uirgen->builder.buildLiteral(literal);

@@ -11,8 +11,8 @@ std::ostream &operator<<(std::ostream &os, const RIRBlockId &block_id) {
 }
 
 std::ostream &printTypes(std::ostream &os, RIRContext *ctx) {
-  for (size_t i = 0; i < ctx->types.len(); i++) {
-    RIRType *type = ctx->types.getPtrUnchecked(i);
+  for (size_t i = 0; i < ctx->types->len(); i++) {
+    RIRType *type = ctx->types->getPtrUnchecked(i);
     os << "#" << i << " = ";
     printType(os, ctx, type);
     os << "\n";

@@ -18,6 +18,7 @@ enum class RIRTypeKind : uint8_t {
   Struct,
   Enum,
   Union,
+  TypeId,
 };
 
 struct RIRType {
@@ -104,7 +105,7 @@ struct RIRType {
   }
 };
 
-struct RIRTypeCache {
+struct RIRTypeContext {
 private:
   ArenaList<RIRType> list;
   HashMap<uint64_t, RIRTypeId> hash_mapping;

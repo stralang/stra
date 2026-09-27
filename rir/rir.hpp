@@ -166,7 +166,7 @@ struct RIRModule {
 };
 
 struct RIRContext {
-  RIRTypeCache types;
+  RIRTypeContext *types;
   ArenaList<RIRModule> modules;
 
   Allocator *allocator;

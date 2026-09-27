@@ -28,7 +28,7 @@ RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type) {
   RIRValue inst = {
       .kind = RIRValueKind::LocalVariable,
       .result =
-          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
       .local = {.type = type},
   };
   return this->buildInst(inst);
@@ -46,7 +46,7 @@ RIRValueId RIRBuilder::buildLoad(RIRValueId ptr, RIRTypeId result) {
 RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value) {
   RIRValue inst = {
       .kind = RIRValueKind::Store,
-      .result = this->ctx->types.push({.kind = RIRTypeKind::Void}),
+      .result = this->ctx->types->push({.kind = RIRTypeKind::Void}),
       .store = {.ptr = ptr, .value = value},
   };
   return this->buildInst(inst);
@@ -56,7 +56,7 @@ RIRValueId RIRBuilder::buildArg(RIRTypeId type) {
   RIRValue inst = {
       .kind = RIRValueKind::Arg,
       .result =
-          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
       .arg = {.type = type},
   };
   return this->buildInst(inst);
@@ -139,7 +139,7 @@ RIRValueId RIRBuilder::buildGlobalVariable(RIRTypeId type,
   RIRValue inst = {
       .kind = RIRValueKind::GlobalVariable,
       .result =
-          this->ctx->types.push({.kind = RIRTypeKind::Pointer, .child = type}),
+          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
       .global_variable = {.type = type, .constant = constant},
   };
   return this->buildDeclare(inst);

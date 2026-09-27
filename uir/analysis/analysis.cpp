@@ -19,7 +19,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            inst->local_variable.type->source_location,
            "Field type must be a typeid");
 
-    RIRTypeId type = analyser->rir_ctx->types.push({
+    RIRTypeId type = analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
         .child = type_literal.data._typeid,
     });
@@ -190,10 +190,10 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            "Cannot index into non-slice");
 
     // Analyse Index
-    Type *usize_ty = analyser->ctx->type_cache->get({
-        .kind = TypeKind::Integer,
-        .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
-    });
+    // TODO: RIRTypeId usize_ty = analyser->rir_ctx->types->push({
+    //     .kind = RIRTypeKind::Integer,
+    //     .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
+    // });
 
     analyse(analyser, module, inst->index.index);
     UIRResolved *index_id = analyser->resolved_mapping.get(
@@ -206,7 +206,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            inst->index.index->source_location, "Index must be of type `usize`");
 
     // Create Instruction
-    RIRTypeId result = analyser->rir_ctx->types.push(
+    RIRTypeId result = analyser->rir_ctx->types->push(
         {.kind = RIRTypeKind::Pointer, .child = ptr_child_type->slice.child});
     RIRValueId out_id =
         analyser->builder.buildGEP(ptr_id->inst, index_id->inst, result);
@@ -488,6 +488,7 @@ void UIRAnalyser::init(Allocator *allocator) {
 
   this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
   this->rir_ctx->init(allocator, allocator);
+  this->rir_ctx->types = this->ctx->types;
   this->builder.ctx = this->rir_ctx;
 
   for (size_t i = 0; i < this->ctx->modules.len(); i++) {

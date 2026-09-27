@@ -266,7 +266,7 @@ struct UIRModule {
 };
 
 struct UIRContext {
-  TypeCache *type_cache;
+  RIRTypeContext *types;
   ArenaList<UIRModule> modules;
   Allocator *allocator;
 

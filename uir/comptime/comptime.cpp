@@ -82,7 +82,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
 
     // Create pointer
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->lit_type = state->analyser->rir_ctx->types.push({
+    lit_out->lit_type = state->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
         .child = ty_lit.data._typeid,
         // TODO: Readd constant types
@@ -140,7 +140,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     frame->arg_count += 1;
 
     UIRLiteral *lit_out = frame->add(inst);
-    lit_out->lit_type = state->analyser->rir_ctx->types.push({
+    lit_out->lit_type = state->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
         .child = ty_lit.data._typeid,
         // TODO: Readd constant types
@@ -195,7 +195,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
       result = state->getValue(frame, module, inst->ret.value.get());
     } else {
       result.lit_type =
-          state->analyser->rir_ctx->types.push({.kind = RIRTypeKind::Void});
+          state->analyser->rir_ctx->types->push({.kind = RIRTypeKind::Void});
       result.data.kind = UIRRawDataKind::Void;
     }
 
@@ -278,7 +278,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     // Get final type
     UIRLiteral *lit_out = frame->add(inst);
     lit_out->data.kind = UIRRawDataKind::TypeId;
-    lit_out->data._typeid = state->analyser->rir_ctx->types.push(raw_type);
+    lit_out->data._typeid = state->analyser->rir_ctx->types->push(raw_type);
     return;
   }
   case UIRValueKind::Pointer: {
@@ -286,7 +286,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
 
     UIRLiteral *lit_out = frame->add(inst);
     lit_out->data.kind = UIRRawDataKind::TypeId;
-    lit_out->data._typeid = state->analyser->rir_ctx->types.push(
+    lit_out->data._typeid = state->analyser->rir_ctx->types->push(
         {.kind = RIRTypeKind::Pointer, .child = lit.data._typeid});
     return;
   }
@@ -297,7 +297,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     };
     raw_type._struct.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
 
-    RIRTypeId struct_type_id = state->analyser->rir_ctx->types.push(raw_type);
+    RIRTypeId struct_type_id = state->analyser->rir_ctx->types->push(raw_type);
 
     // Fields
     RIRType *struct_type = state->analyser->rir_ctx->getType(struct_type_id);
@@ -325,7 +325,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
   //   };
   //   raw_type._enum.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
   //
-  //   RIRTypeId enum_type_id = state->analyser->rir_ctx->types.push(raw_type);
+  //   RIRTypeId enum_type_id = state->analyser->rir_ctx->types->push(raw_type);
   //
   //   // Represent Type
   //   RIRType *enum_type = state->analyser->rir_ctx->getType(enum_type_id);
@@ -366,7 +366,7 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     };
     raw_type._union.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
 
-    RIRTypeId union_type_id = state->analyser->rir_ctx->types.push(raw_type);
+    RIRTypeId union_type_id = state->analyser->rir_ctx->types->push(raw_type);
 
     // Represent Type
     RIRType *union_type = state->analyser->rir_ctx->getType(union_type_id);
@@ -435,7 +435,8 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
 
     UIRLiteral *lit_out = frame->add(inst);
     lit_out->data = {.kind = UIRRawDataKind::TypeId,
-                     ._typeid = state->analyser->rir_ctx->types.push(raw_type)};
+                     ._typeid =
+                         state->analyser->rir_ctx->types->push(raw_type)};
     return;
   }
   }
@@ -545,10 +546,10 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
     // // because all global variables are constant during compile-time
     // execution Type vtype = *constant->result_type; vtype.is_constant = true;
     //
-    // RIRTypeId real_vtype = this->analyser->rir_ctx->types.push(vtype);
+    // RIRTypeId real_vtype = this->analyser->rir_ctx->types->push(vtype);
 
     RIRTypeId real_vtype = type_id;
-    RIRTypeId ptr_type = this->analyser->rir_ctx->types.push({
+    RIRTypeId ptr_type = this->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
         .child = real_vtype,
         // TODO: Readd constant types

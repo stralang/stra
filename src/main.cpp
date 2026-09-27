@@ -7,6 +7,7 @@
 #include "print.hpp"
 #include "rir/debug.hpp"
 #include "rir/rir.hpp"
+#include "rir/type.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
 #include "tokenizer.hpp"
@@ -497,10 +498,14 @@ int main(int argc, const char **argv) {
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);
 
+  // Setup Type Context
+  RIRTypeContext type_ctx;
+  type_ctx.init(&global_allocator, &global_allocator);
+
   // UIR
   UIRContext ctx;
   ctx.init(&global_allocator, &global_allocator);
-  ctx.type_cache = &type_cache;
+  ctx.types = &type_ctx;
 
   size_t uirgen_error_count = 0;
   size_t uirgen_warning_count = 0;
