@@ -42,36 +42,18 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         if (typeId.isNone()) {
           typeId.setSome(const_literal.lit_type.get());
         } else {
+          RIRType *expected_type = analyser->rir_ctx->getType(typeId.get());
           // FIXME:
           // autoCast(analyser, const_inst, inst->result_type->child);
-          // expect(compareTypes(inst->result_type->child,
-          // const_inst->result_type),
-          //        const_inst->source_location,
-          //        "Field initial doesn't match type. Field Type: `"
-          //            << inst->result_type << "` Initial Type: `"
-          //            << const_inst->result_type << "`\n");
+          expect(expected_type->compare(analyser->rir_ctx->types, type->id),
+                 const_inst->source_location,
+                 "Field initial doesn't match type. Field Type: `"
+                     << expected_type->id << "` Initial Type: `" << type->id
+                     << "`\n");
         }
 
         // Create Instruction
-        RIRConstant constant;
-        switch (type->kind) {
-        case RIRTypeKind::Bool: {
-          constant.kind = RIRConstantKind::Bool;
-          constant._bool = const_literal.data._bool;
-          break;
-        }
-        case RIRTypeKind::Integer: {
-          constant.kind = RIRConstantKind::Integer;
-          constant.integer = const_literal.data._int;
-          break;
-        }
-        case RIRTypeKind::Float: {
-          constant.kind = RIRConstantKind::Float;
-          constant._float = const_literal.data._float;
-          break;
-        }
-        }
-
+        RIRConstant constant = uirRawDataToRIRConstant(const_literal.data);
         RIRValueId out_id = analyser->builder.buildGlobalVariable(
             typeId.get(), constant, inst->name);
         analyser->resolved_mapping.insert(

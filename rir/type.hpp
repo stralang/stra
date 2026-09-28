@@ -24,6 +24,7 @@ enum class RIRTypeKind : uint8_t {
 };
 
 struct RIRType {
+  RIRTypeId id;
   uint64_t hashcode;
   RIRTypeKind kind;
   union {
@@ -58,6 +59,7 @@ struct RIRType {
 
   size_t sizeBits(RIRTypeContext *ctx, size_t native_size);
   size_t alignBits(RIRTypeContext *ctx, size_t native_size);
+  bool compare(RIRTypeContext *ctx, RIRTypeId other);
 
   void makeHashcode();
 };
@@ -88,6 +90,7 @@ public:
     }
 
     RIRTypeId id = this->list.len();
+    type.id = id;
     this->hash_mapping.insert(type.hashcode, id);
     this->list.push(type);
     return id;

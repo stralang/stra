@@ -122,6 +122,71 @@ size_t RIRType::alignBits(RIRTypeContext *ctx, size_t native_size) {
   return 0;
 }
 
+bool RIRType::compare(RIRTypeContext *ctx, RIRTypeId other_id) {
+  RIRType *other = ctx->getPtr(other_id);
+  if (this->kind != other->kind) {
+    return false;
+  }
+
+  switch (this->kind) {
+  case RIRTypeKind::Void: {
+    return true;
+  }
+  case RIRTypeKind::Bool: {
+    return true;
+  }
+  case RIRTypeKind::Integer: {
+    bool term1 = this->integer.is_signed || !other->integer.is_signed;
+    bool term2 = other->integer.is_signed || !this->integer.is_signed;
+
+    bool bits_match = this->integer.bits == other->integer.bits;
+    return term1 && term2 && bits_match;
+  }
+  case RIRTypeKind::Float: {
+    return this->float_bits == other->float_bits;
+  }
+  case RIRTypeKind::Pointer: {
+    RIRType *this_child = ctx->getPtr(this->child);
+    return this_child->compare(ctx, other->child);
+  }
+  case RIRTypeKind::Slice: {
+    RIRType *this_child = ctx->getPtr(this->slice.child);
+    return this->slice.length == other->slice.length &&
+           this_child->compare(ctx, other->slice.child);
+  }
+  case RIRTypeKind::TypeId: {
+    return true;
+  }
+  case RIRTypeKind::Function: {
+    if (this->function.arguments.len != other->function.arguments.len) {
+      return false;
+    }
+
+    for (size_t i = 0; i < this->function.arguments.len; i++) {
+      RIRType *this_arg = ctx->getPtr(this->function.arguments.ptr[i]);
+      if (!this_arg->compare(ctx, other->function.arguments.ptr[i])) {
+        return false;
+      }
+    }
+
+    RIRType *this_return = ctx->getPtr(this->function._return);
+    return this_return->compare(ctx, other->function._return);
+  }
+  case RIRTypeKind::Struct: {
+    return this->_struct.unique == other->_struct.unique;
+  }
+  case RIRTypeKind::Enum: {
+    RIRType *this_repr = ctx->getPtr(this->_enum.repr);
+    return this_repr->compare(ctx, other->_enum.repr);
+  }
+  case RIRTypeKind::Union: {
+    return this->_union.unique == other->_union.unique;
+  }
+  }
+
+  return false;
+}
+
 void RIRType::makeHashcode() {
   Hasher hasher;
   hasher.hash(&this->kind);

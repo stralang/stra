@@ -101,8 +101,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
             allowed = true; // Compile-time to Runtime
           }
 
-          // FIXME: allowed &= compareTypes(src_type->slice.type,
-          // dst_type->slice.type);
+          RIRType *src_elem_type =
+              analyser->rir_ctx->getType(src_type->slice.child);
+          allowed &= src_elem_type->compare(analyser->rir_ctx->types,
+                                            dst_type->slice.child);
         } else if (src_type->kind == RIRTypeKind::Enum) {
           allowed = dst_type->kind == RIRTypeKind::Integer;
         }
@@ -146,9 +148,8 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
              "LHS must be of Integer, Float, Pointer, or SIMD.");
     }
 
-    // FIXME: expect(compareTypes(lhs_primitive, rhs_primitive),
-    // inst->binop.rhs->source_location,
-    //        "LHS cannot operate with RHS");
+    expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
+           inst->binop.rhs->source_location, "LHS cannot operate with RHS");
 
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, lhs->result);
@@ -160,10 +161,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                lhs_primitive->kind == RIRTypeKind::Bool,
            inst->binop.lhs->source_location,
            "LHS must be a Bool or Integer. Got `" << lhs_primitive << "`");
-    // FIXME: expect(compareTypes(lhs_primitive, rhs_primitive),
-    // rhs->source_location,
-    //        "LHS `" << lhs_primitive << "` cannot operate with RHS `"
-    //                << rhs_primitive << "`");
+    expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
+           inst->binop.rhs->source_location,
+           "LHS `" << lhs_primitive << "` cannot operate with RHS `"
+                   << rhs_primitive << "`");
 
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, lhs->result);
@@ -175,10 +176,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     expect(lhs_primitive->kind == RIRTypeKind::Integer,
            inst->binop.lhs->source_location,
            "LHS must be an Integer. Got `" << lhs_primitive << "`");
-    // FIXME: expect(compareTypes(lhs_primitive, rhs_primitive),
-    // rhs->source_location,
-    //        "LHS `" << lhs_primitive << "` cannot operate with RHS `"
-    //                << rhs_primitive << "`");
+    expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
+           inst->binop.rhs->source_location,
+           "LHS `" << lhs_primitive << "` cannot operate with RHS `"
+                   << rhs_primitive << "`");
 
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, lhs->result);
@@ -186,10 +187,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIROpcode::EqualTo:
   case UIROpcode::NotEqualTo: {
-    // FIXME: expect(compareTypes(lhs_primitive, rhs_primitive),
-    // rhs->source_location,
-    //        "LHS `" << lhs_primitive << "` cannot operate with RHS `"
-    //                << rhs_primitive << "`");
+    expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
+           inst->binop.rhs->source_location,
+           "LHS `" << lhs_primitive << "` cannot operate with RHS `"
+                   << rhs_primitive << "`");
 
     RIRTypeId result =
         analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
@@ -208,10 +209,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                                                              << "`");
     }
 
-    // FIXME: expect(compareTypes(lhs_primitive, rhs_primitive),
-    // rhs->source_location,
-    //        "LHS `" << lhs_primitive << "` cannot operate with RHS `"
-    //                << rhs_primitive << "`");
+    expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
+           inst->binop.rhs->source_location,
+           "LHS `" << lhs_primitive << "` cannot operate with RHS `"
+                   << rhs_primitive << "`");
 
     RIRTypeId result =
         analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});

@@ -154,13 +154,14 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                uir_receiver_inst->source_location,
                "Receiver expects method with atleast 1 argument");
 
+        RIRValue *receiver_inst = analyser->rir_ctx->getInst(receiver_id->inst);
         RIRType *expected_type =
             analyser->rir_ctx->getType(fn_type->function.arguments.ptr[0]);
-        // TODO:
-        /*expect(compareTypes(expected_type, receiver_type),
-               receiver_inst->source_location,
-               "Receiver `" << receiver_type << "` doesn't match `"
-                            << expected_type << "`");*/
+        expect(expected_type->compare(analyser->rir_ctx->types,
+                                      receiver_inst->result),
+               uir_receiver_inst->source_location,
+               "Receiver `" << receiver_inst->result << "` doesn't match `"
+                            << expected_type << "`");
 
         arguments[initial_idx] = receiver_id->inst;
         initial_idx = 1;
@@ -202,10 +203,10 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       RIRValue *arg = analyser->rir_ctx->getInst(arg_id);
 
       // TODO: autoCast(analyser, arg, expected_type);
-      // expect(compareTypes(expected_type, arg->result),
-      // uir_arg->source_location,
-      //        "Argument `" << arg->result << "` doesn't match expected `"
-      //                     << expected_type << "`");
+      expect(expected_type->compare(analyser->rir_ctx->types, arg->result),
+             uir_arg->source_location,
+             "Argument `" << arg->result << "` doesn't match expected `"
+                          << expected_type << "`");
 
       arguments[i + initial_idx] = arg->id;
     }
@@ -326,14 +327,14 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRValue *uir_value_inst = inst->ret.value.get();
       analyse(analyser, module, uir_value_inst);
       UIRResolved *value_id = analyser->resolved_mapping.get(uir_value_inst);
+      RIRValue *value_inst = analyser->rir_ctx->getInst(value_id->inst);
 
       // TODO: autoCast(analyser, value_inst, expected_type);
-      // expect(compareTypes(expected_type, value_inst->result_type),
-      //        value_inst->source_location,
-      //        "Unexpected return type. Got `"
-      //            << value_inst->result_type << "` Expected `" <<
-      //            expected_type
-      //            << "`");
+      expect(
+          expected_type->compare(analyser->rir_ctx->types, value_inst->result),
+          uir_value_inst->source_location,
+          "Unexpected return type. Got `"
+              << value_inst->result << "` Expected `" << expected_type << "`");
 
       ret_value.setSome(value_id->inst);
     }
