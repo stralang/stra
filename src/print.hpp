@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "common/debug.hpp"
 #include "operator.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
@@ -8,9 +9,6 @@
 #include "uir/uir.hpp"
 #include <ostream>
 
-std::ostream &operator<<(std::ostream &os, const String &str);
-
-std::ostream &operator<<(std::ostream &os, const SrcLoc &location);
 std::ostream &operator<<(std::ostream &os, const Operator &op);
 std::ostream &operator<<(std::ostream &os, const UnaryOperator &op);
 std::ostream &operator<<(std::ostream &os, const TokenKind &kind);

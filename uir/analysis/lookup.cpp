@@ -1,6 +1,6 @@
-#include "../../src/print.hpp"
 #include "../literal.hpp"
 #include "../uir.hpp"
+#include "common/debug.hpp"
 #include "define.hpp"
 #include "uir/analysis/analysis.hpp"
 

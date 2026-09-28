@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
 project(common LANGUAGES CXX)
-add_library(common STATIC lib.cpp)
+add_library(common STATIC lib.cpp debug.cpp)
 
 target_include_directories(common PUBLIC ./)
