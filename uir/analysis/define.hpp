@@ -29,3 +29,5 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
 bool compareTypes(Type *lhs, Type *rhs);
 void fixUntyped(UIRAnalyser *analyser, UIRValue *inst, Type *real);
 void autoCast(UIRAnalyser *analyser, UIRValue *src, Type *dst);
+
+RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data);

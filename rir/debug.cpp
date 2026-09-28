@@ -295,7 +295,7 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
     break;
   }
   case RIRTypeKind::Pointer: {
-    os << '^' << type->child;
+    os << "^#" << type->child;
     break;
   }
   case RIRTypeKind::Slice: {

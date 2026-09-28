@@ -127,3 +127,25 @@ void autoCast(UIRAnalyser *analyser, UIRValue *src, Type *dst) {
   //
   // src->result_type = autoConvert(analyser, src->result_type, dst);
 }
+
+RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data) {
+  RIRConstant rir_const;
+  switch (raw_data.kind) {
+  case UIRRawDataKind::Bool: {
+    rir_const.kind = RIRConstantKind::Bool;
+    rir_const._bool = raw_data._bool;
+    break;
+  }
+  case UIRRawDataKind::Int: {
+    rir_const.kind = RIRConstantKind::Integer;
+    rir_const.integer = raw_data._int;
+    break;
+  }
+  case UIRRawDataKind::Float: {
+    rir_const.kind = RIRConstantKind::Float;
+    rir_const._float = raw_data._float;
+    break;
+  }
+  }
+  return rir_const;
+}

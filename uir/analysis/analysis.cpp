@@ -3,6 +3,7 @@
 #include "../uir.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
+#include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 
@@ -52,20 +53,38 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     analyse(analyser, module, inst->store.value);
     UIRResolved *ptr_id =
         analyser->resolved_mapping.get(inst->store.ptr); // FIXME: Confirm kind
-    UIRResolved *value_id = analyser->resolved_mapping.get(
+    UIRResolved *resolved_value = analyser->resolved_mapping.get(
         inst->store.value); // FIXME: Confirm kind
 
+    // Get ptr
     RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_id->inst);
-    RIRValue *value_inst = analyser->rir_ctx->getInst(value_id->inst);
-
     RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
+
+    // Get value
+    RIRValue *value_inst;
+    if (resolved_value->kind == UIRResolvedKind::Inst) {
+      value_inst = analyser->rir_ctx->getInst(resolved_value->inst);
+    } else if (resolved_value->kind == UIRResolvedKind::Literal) {
+      RIRConstant rir_const =
+          uirRawDataToRIRConstant(resolved_value->literal.data);
+      RIRTypeId const_type_id = ptr_type->child;
+      if (resolved_value->literal.lit_type.isSome()) {
+        const_type_id = resolved_value->literal.lit_type.get();
+      }
+
+      RIRValueId const_id =
+          analyser->builder.buildConstant(const_type_id, rir_const);
+      value_inst = analyser->rir_ctx->getInst(const_id);
+    }
+
+    // Check types
     // TODO: autoCast(analyser, value_inst, ptr_type->child);
     expect(ptr_type->child == value_inst->result, inst->source_location,
            "Cannot assign non-matching types");
 
     // Create Instruction
     RIRValueId out_id =
-        analyser->builder.buildStore(ptr_id->inst, value_id->inst);
+        analyser->builder.buildStore(ptr_inst->id, value_inst->id);
     analyser->resolved_mapping.insert(
         inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
@@ -156,19 +175,39 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         break;
       }
 
-      RIRType *expected_type = analyser->rir_ctx->getType(
-          fn_type->function.arguments.ptr[i + initial_idx]);
+      RIRTypeId expected_type_id =
+          fn_type->function.arguments.ptr[i + initial_idx];
+      RIRType *expected_type = analyser->rir_ctx->getType(expected_type_id);
+
+      // Get argument
       analyse(analyser, module, uir_arg);
-      UIRResolved *arg_id =
+      UIRResolved *arg_resolved =
           analyser->resolved_mapping.get(uir_arg); // FIXME: Confirm kind
-      RIRValue *arg = analyser->rir_ctx->getInst(arg_id->inst);
+      RIRValueId arg_id;
+
+      if (arg_resolved->kind == UIRResolvedKind::Inst) {
+        arg_id = arg_resolved->inst;
+      } else if (arg_resolved->kind == UIRResolvedKind::Literal) {
+        UIRLiteral lit = arg_resolved->literal;
+        RIRConstant rir_const = uirRawDataToRIRConstant(lit.data);
+
+        if (lit.lit_type.isSome()) {
+          arg_id =
+              analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
+        } else {
+          arg_id = analyser->builder.buildConstant(expected_type_id, rir_const);
+        }
+      }
+
+      RIRValue *arg = analyser->rir_ctx->getInst(arg_id);
+
       // TODO: autoCast(analyser, arg, expected_type);
       // expect(compareTypes(expected_type, arg->result),
       // uir_arg->source_location,
       //        "Argument `" << arg->result << "` doesn't match expected `"
       //                     << expected_type << "`");
 
-      arguments[i + initial_idx] = arg_id->inst;
+      arguments[i + initial_idx] = arg->id;
     }
     // Create Instruction
     RIRValueId out_id = analyser->builder.buildCall(callee_id->inst, arguments,
@@ -373,40 +412,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIRValueKind::Comptime: {
     UIRLiteral literal = analyser->comptime_state.execute(module, inst);
 
-    Option<RIRTypeId> type_id = literal.lit_type;
-    RIRConstant constant;
     switch (literal.data.kind) {
-    case UIRRawDataKind::Bool: {
-      constant.kind = RIRConstantKind::Bool;
-      constant._bool = literal.data._bool;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
-      }
-      break;
-    }
-    case UIRRawDataKind::Int: {
-      constant.kind = RIRConstantKind::Integer;
-      constant.integer = literal.data._int;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push({
-            .kind = RIRTypeKind::Integer,
-            .integer = {.is_signed = true, .bits = 32},
-        });
-      }
-      break;
-    }
-    case UIRRawDataKind::Float: {
-      constant.kind = RIRConstantKind::Float;
-      constant._float = literal.data._float;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push(
-            {.kind = RIRTypeKind::Float, .float_bits = 32});
-      }
-      break;
-    }
     case UIRRawDataKind::TypeId:
     case UIRRawDataKind::Namespace: {
       analyser->resolved_mapping.insert(
@@ -415,11 +421,18 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     }
     }
 
+    RIRConstant constant = uirRawDataToRIRConstant(literal.data);
+
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildConstant(type_id.get(), constant);
-    analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    if (literal.lit_type.isSome()) {
+      RIRValueId out_id =
+          analyser->builder.buildConstant(literal.lit_type.get(), constant);
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    } else {
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+    }
     break;
   }
   case UIRValueKind::TypeOf: {
@@ -436,48 +449,18 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIRValueKind::Literal: {
     UIRLiteral literal = inst->literal;
-
-    Option<RIRTypeId> type_id = literal.lit_type;
-    RIRConstant constant;
-    switch (literal.data.kind) {
-    case UIRRawDataKind::Bool: {
-      constant.kind = RIRConstantKind::Bool;
-      constant._bool = literal.data._bool;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
-      }
-      break;
-    }
-    case UIRRawDataKind::Int: {
-      constant.kind = RIRConstantKind::Integer;
-      constant.integer = literal.data._int;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push({
-            .kind = RIRTypeKind::Integer,
-            .integer = {.is_signed = true, .bits = 32},
-        });
-      }
-      break;
-    }
-    case UIRRawDataKind::Float: {
-      constant.kind = RIRConstantKind::Float;
-      constant._float = literal.data._float;
-
-      if (type_id.isNone()) {
-        type_id = analyser->rir_ctx->types->push(
-            {.kind = RIRTypeKind::Float, .float_bits = 32});
-      }
-      break;
-    }
-    }
+    RIRConstant constant = uirRawDataToRIRConstant(literal.data);
 
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildConstant(type_id.get(), constant);
-    analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    if (literal.lit_type.isSome()) {
+      RIRValueId out_id =
+          analyser->builder.buildConstant(literal.lit_type.get(), constant);
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    } else {
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+    }
     break;
   }
   default: {
