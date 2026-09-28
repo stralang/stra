@@ -2,65 +2,22 @@
 #include "analysis.hpp"
 #include "define.hpp"
 
-// Attempts to NO-OP convert `src` to `dst`
-Type *autoConvert(UIRAnalyser *analyser, Type *src, Type *dst) {
-  // FIXME:
-  // if (src->kind == TypeKind::Integer && src->integer.is_untyped &&
-  //     dst->kind == TypeKind::Integer) {
-  //   if (dst->integer.is_signed || !src->integer.is_signed) {
-  //     return dst;
-  //   }
-  // } else if (src->kind == TypeKind::Float && src->_float.is_untyped &&
-  //            dst->kind == TypeKind::Float) {
-  //   return dst;
-  // } else if (src->kind == TypeKind::Pointer && dst->kind == TypeKind::Slice
-  // &&
-  //            dst->slice.length < 0 &&
-  //            compareTypes(src->child, dst->slice.type)) {
-  //   // Pointer to Pointer Slice
-  //   return dst;
-  // }
-  //
+RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst) {
+  RIRType *src_type = analyser->rir_ctx->getType(src->result);
+  RIRType *dst_type = analyser->rir_ctx->getType(dst);
+
+  if (src_type->kind == RIRTypeKind::Pointer &&
+      dst_type->kind == RIRTypeKind::Slice) {
+    RIRType *src_child = analyser->rir_ctx->getType(src_type->child);
+    if (dst_type->slice.length < 0 &&
+        src_child->compare(analyser->rir_ctx->types, dst_type->slice.child)) {
+      // Pointer to Pointer Slice
+      RIRValueId out_id = analyser->builder.buildCast(src->id, dst, true);
+      return analyser->rir_ctx->getInst(out_id);
+    }
+  }
+
   return src;
-}
-
-void fixUntyped(UIRAnalyser *analyser, UIRValue *inst, Type *real) {
-  // FIXME:
-  // if (!(inst->result_type->kind == TypeKind::Integer &&
-  //       inst->result_type->integer.is_untyped) &&
-  //     !(inst->result_type->kind == TypeKind::Float &&
-  //       inst->result_type->_float.is_untyped)) {
-  //   return;
-  // }
-  //
-  // inst->result_type = real;
-  // switch (inst->kind) {
-  // case UIRValueKind::BinOp: {
-  //   fixUntyped(analyser, inst->binop.lhs, real);
-  //   fixUntyped(analyser, inst->binop.rhs, real);
-  //   break;
-  // }
-  // case UIRValueKind::UnaryOp: {
-  //   fixUntyped(analyser, inst->unaryop.value, real);
-  //   break;
-  // }
-  // case UIRValueKind::Literal: {
-  //   inst->literal.lit_type = real;
-  //   break;
-  // }
-  // }
-}
-
-void autoCast(UIRAnalyser *analyser, UIRValue *src, Type *dst) {
-  // FIXME:
-  // if ((src->result_type->kind == TypeKind::Integer &&
-  //      src->result_type->integer.is_untyped) ||
-  //     (src->result_type->kind == TypeKind::Float &&
-  //      src->result_type->_float.is_untyped)) {
-  //   fixUntyped(analyser, src, dst);
-  // }
-  //
-  // src->result_type = autoConvert(analyser, src->result_type, dst);
 }
 
 RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data) {

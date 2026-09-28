@@ -78,7 +78,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     }
 
     // Check types
-    // TODO: autoCast(analyser, value_inst, ptr_type->child);
+    value_inst = autoCast(analyser, value_inst, ptr_type->child);
     expect(ptr_type->child == value_inst->result, inst->source_location,
            "Cannot assign non-matching types");
 
@@ -201,8 +201,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       }
 
       RIRValue *arg = analyser->rir_ctx->getInst(arg_id);
-
-      // TODO: autoCast(analyser, arg, expected_type);
+      arg = autoCast(analyser, arg, expected_type_id);
       expect(expected_type->compare(analyser->rir_ctx->types, arg->result),
              uir_arg->source_location,
              "Argument `" << arg->result << "` doesn't match expected `"
@@ -329,7 +328,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRResolved *value_id = analyser->resolved_mapping.get(uir_value_inst);
       RIRValue *value_inst = analyser->rir_ctx->getInst(value_id->inst);
 
-      // TODO: autoCast(analyser, value_inst, expected_type);
+      value_inst = autoCast(analyser, value_inst, fn_type->function._return);
       expect(
           expected_type->compare(analyser->rir_ctx->types, value_inst->result),
           uir_value_inst->source_location,

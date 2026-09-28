@@ -43,7 +43,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
           typeId.setSome(const_literal.lit_type.get());
         } else {
           RIRType *expected_type = analyser->rir_ctx->getType(typeId.get());
-          // FIXME:
+          // TODO: Compile-time Cast
           // autoCast(analyser, const_inst, inst->result_type->child);
           expect(expected_type->compare(analyser->rir_ctx->types, type->id),
                  const_inst->source_location,

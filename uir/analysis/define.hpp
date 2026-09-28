@@ -26,7 +26,6 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
 void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
 void analyseAggregate(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
 
-void fixUntyped(UIRAnalyser *analyser, UIRValue *inst, Type *real);
-void autoCast(UIRAnalyser *analyser, UIRValue *src, Type *dst);
+RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst);
 
 RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data);
