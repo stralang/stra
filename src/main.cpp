@@ -12,6 +12,7 @@
 #include "token.hpp"
 #include "tokenizer.hpp"
 #include "uir/analysis/analysis.hpp"
+#include "uir/debug.hpp"
 #include "uir/uir.hpp"
 #include "uirgen/uirgen.hpp"
 #include <cstddef>
@@ -28,13 +29,13 @@ const char *NAME = "Stra";
 const char *VERSION = "0";
 
 enum class EmitMode {
-  Executable,
-  Object,
-  Assembly,
-  LLVM,
   AST,
   UIR,
-  AnalysedUIR,
+  RIR,
+  LLVM,
+  Assembly,
+  Object,
+  Executable,
 };
 
 enum class Linker {
@@ -239,8 +240,8 @@ int main(int argc, const char **argv) {
         args.emit_mode = EmitMode::LLVM;
       } else if (strcmp(argv[i], "ast") == 0) {
         args.emit_mode = EmitMode::AST;
-      } else if (strcmp(argv[i], "analysed") == 0) {
-        args.emit_mode = EmitMode::AnalysedUIR;
+      } else if (strcmp(argv[i], "rir") == 0) {
+        args.emit_mode = EmitMode::RIR;
       } else if (strcmp(argv[i], "uir") == 0) {
         args.emit_mode = EmitMode::UIR;
       }
@@ -330,13 +331,13 @@ int main(int argc, const char **argv) {
     std::cout << "\nOptions:\n";
     std::cout << "  `--run` build and execute\n";
     std::cout << "  `--emit`\n";
-    std::cout << "      `executable` Emit executable [default]\n";
-    std::cout << "      `object`     Emit object files\n";
-    std::cout << "      `asm`        Emit assembly files\n";
-    std::cout << "      `ir`         Emit LLVM IR files\n";
     std::cout << "      `ast`        Prints AST\n";
-    std::cout << "      `uir`        Prints Mid-Level IRs\n";
-    std::cout << "      `analysed`   Prints analysed Mid-Level IRs\n";
+    std::cout << "      `uir`        Prints Unresolved IR\n";
+    std::cout << "      `rir`        Prints Resolved IR\n";
+    std::cout << "      `llvm`       Emit LLVM IR files\n";
+    std::cout << "      `asm`        Emit assembly files\n";
+    std::cout << "      `object`     Emit object files\n";
+    std::cout << "      `executable` Emit executable [default]\n";
     std::cout << "  `--linker`\n";
     std::cout << "      `clang` Uses clang for linking [default]\n";
     std::cout << "      `ld` Uses ld for linking\n";
@@ -536,10 +537,13 @@ int main(int argc, const char **argv) {
 
   // Emit UIR
   if (args.emit_mode == EmitMode::UIR) {
+    std::cout << "---- Types ----\n";
+    printTypes(std::cout, &type_ctx);
+
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printUIRModule(file->uir.module);
+      printModule(std::cout, &ctx, file->uir.module);
     }
     return 0;
   }
@@ -565,7 +569,10 @@ int main(int argc, const char **argv) {
   }
 
   // Emit Analysed UIR
-  if (args.emit_mode == EmitMode::AnalysedUIR) {
+  if (args.emit_mode == EmitMode::RIR) {
+    std::cout << "---- Types ----\n";
+    printTypes(std::cout, &type_ctx);
+
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";

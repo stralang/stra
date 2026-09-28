@@ -11,9 +11,9 @@ std::ostream &operator<<(std::ostream &os, const RIRBlockId &block_id) {
   return os << "@" << block_id.module << "." << block_id.local;
 }
 
-std::ostream &printTypes(std::ostream &os, RIRContext *ctx) {
-  for (size_t i = 0; i < ctx->types->len(); i++) {
-    RIRType *type = ctx->types->getPtrUnchecked(i);
+std::ostream &printTypes(std::ostream &os, RIRTypeContext *ctx) {
+  for (size_t i = 0; i < ctx->len(); i++) {
+    RIRType *type = ctx->getPtrUnchecked(i);
     os << "#" << i << " = ";
     printType(os, ctx, type);
     os << "\n";
@@ -35,88 +35,67 @@ std::ostream &printModule(std::ostream &os, RIRContext *ctx,
 std::ostream &operator<<(std::ostream &os, const RIROpcode &opcode) {
   switch (opcode) {
   case RIROpcode::Add: {
-    os << "add";
-    break;
+    return os << "add";
   }
   case RIROpcode::Sub: {
-    os << "sub";
-    break;
+    return os << "sub";
   }
   case RIROpcode::Mul: {
-    os << "mul";
-    break;
+    return os << "mul";
   }
   case RIROpcode::Div: {
-    os << "div";
-    break;
+    return os << "div";
   }
   case RIROpcode::Mod: {
-    os << "mod";
-    break;
+    return os << "mod";
   }
   case RIROpcode::Or: {
-    os << "or";
-    break;
+    return os << "or";
   }
   case RIROpcode::Xor: {
-    os << "xor";
-    break;
+    return os << "xor";
   }
   case RIROpcode::And: {
-    os << "and";
-    break;
+    return os << "and";
   }
   case RIROpcode::LeftShift: {
-    os << "shl";
-    break;
+    return os << "shl";
   }
   case RIROpcode::RightShift: {
-    os << "shr";
-    break;
+    return os << "shr";
   }
   case RIROpcode::EqualTo: {
-    os << "eql";
-    break;
+    return os << "eql";
   }
   case RIROpcode::NotEqualTo: {
-    os << "neq";
-    break;
+    return os << "neq";
   }
   case RIROpcode::LessThen: {
-    os << "lt";
-    break;
+    return os << "lt";
   }
   case RIROpcode::GreaterThen: {
-    os << "gt";
-    break;
+    return os << "gt";
   }
   case RIROpcode::LessThenOrEqualTo: {
-    os << "leq";
-    break;
+    return os << "leq";
   }
   case RIROpcode::GreaterThenOrEqualTo: {
-    os << "geq";
-    break;
+    return os << "geq";
   }
   case RIROpcode::As: {
-    os << "as";
-    break;
+    return os << "as";
   }
   case RIROpcode::Bitcast: {
-    os << "bitcast";
-    break;
+    return os << "bitcast";
   }
   case RIROpcode::Minus: {
-    os << "minus";
-    break;
+    return os << "minus";
   }
   case RIROpcode::LogicalNot: {
-    os << "lognot";
-    break;
+    return os << "lognot";
   }
   case RIROpcode::BitwiseNot: {
-    os << "bitnot";
-    break;
+    return os << "bitnot";
   }
   }
   return os;
@@ -270,11 +249,13 @@ std::ostream &printBlock(std::ostream &os, RIRContext *ctx, RIRBlock *block) {
   return os;
 }
 
-std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
+std::ostream &printType(std::ostream &os, RIRTypeContext *ctx, RIRType *type) {
   switch (type->kind) {
+  case RIRTypeKind::Void: {
+    return os << "void";
+  }
   case RIRTypeKind::Bool: {
-    os << "bool";
-    break;
+    return os << "bool";
   }
   case RIRTypeKind::Integer: {
     if (type->integer.is_signed) {
@@ -284,19 +265,15 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
     }
 
     if (type->integer.bits < 0) {
-      os << "size";
-    } else {
-      os << type->integer.bits;
+      return os << "size";
     }
-    break;
+    return os << type->integer.bits;
   }
   case RIRTypeKind::Float: {
-    os << 'f' << type->float_bits;
-    break;
+    return os << 'f' << type->float_bits;
   }
   case RIRTypeKind::Pointer: {
-    os << "^#" << type->child;
-    break;
+    return os << "^#" << type->child;
   }
   case RIRTypeKind::Slice: {
     os << '[';
@@ -305,8 +282,7 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
     } else if (type->slice.length < 0) {
       os << '*';
     }
-    os << ']' << type->slice.child;
-    break;
+    return os << ']' << type->slice.child;
   }
   case RIRTypeKind::Function: {
     os << "fn(";
@@ -314,10 +290,9 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
       if (i != 0) {
         os << ", ";
       }
-      os << type->function.arguments.ptr[i];
+      os << "#" << type->function.arguments.ptr[i];
     }
-    os << ") -> " << type->function._return;
-    break;
+    return os << ") -> #" << type->function._return;
   }
   case RIRTypeKind::Struct: {
     os << "struct { ";
@@ -325,27 +300,26 @@ std::ostream &printType(std::ostream &os, RIRContext *ctx, RIRType *type) {
       if (i != 0) {
         os << ", ";
       }
-      os << type->_struct.fields.ptr[i];
+      os << "#" << type->_struct.fields.ptr[i];
     }
-    os << " }";
-    break;
+    return os << " }";
   }
   case RIRTypeKind::Enum: {
-    os << "enum " << type->_enum.repr;
-    break;
+    return os << "enum #" << type->_enum.repr;
   }
   case RIRTypeKind::Union: {
-    os << "union " << type->_union.repr << " { ";
+    os << "union #" << type->_union.repr << " { ";
     for (size_t i = 0; i < type->_union.variants.len; i++) {
       if (i != 0) {
         os << ", ";
       }
-      os << type->_union.variants.ptr[i];
+      os << "#" << type->_union.variants.ptr[i];
     }
-    os << " }";
-    break;
+    return os << " }";
+  }
+  case RIRTypeKind::TypeId: {
+    return os << "typeid";
   }
   }
-
   return os;
 }

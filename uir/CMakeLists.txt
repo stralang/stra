@@ -15,6 +15,8 @@ add_library(uir STATIC
   comptime/comptime.cpp
   comptime/operator.cpp
   #comptime/global.cpp
+
+  debug.cpp
 )
 
 target_include_directories(uir PUBLIC ../)

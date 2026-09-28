@@ -23,6 +23,3 @@ std::ostream &operator<<(std::ostream &os, const Symbol &symbol);
 
 std::ostream &operator<<(std::ostream &os, const TypeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Type &type);
-
-void UIRPrintInst(UIRValue *inst);
-void printUIRModule(UIRModule *mod);
