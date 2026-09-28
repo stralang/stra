@@ -6,6 +6,7 @@
 
 void analyseLookup(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst,
                    Type *parent_ty) {
+  assert(0 && "FIXME: Implement Lookup");
   // FIXME:
   // // Search
   // UIRScope *definitions = nullptr;
@@ -76,6 +77,7 @@ void analyseLookup(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst,
 
 void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
                       UIRValue *inst) {
+  assert(0 && "FIXME: Implement Lookup");
   // FIXME:
   // analyse(analyser, module, inst->lookup.parent);
   // expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
@@ -101,6 +103,7 @@ void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
 
 void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
                         UIRValue *inst) {
+  assert(0 && "FIXME: Implement Lookup");
   // FIXME:
   // analyse(analyser, module, inst->lookup.parent);
   // expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,

@@ -34,10 +34,16 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         analyser->resolved_mapping.insert(
             inst, {.kind = UIRResolvedKind::Literal, .literal = const_literal});
       } else {
-        RIRType *type =
-            analyser->rir_ctx->getType(const_literal.lit_type.get());
-        expect(type != nullptr, const_inst->source_location,
-               "Couldn't determine type of constant");
+        RIRType *type = nullptr;
+        if (const_literal.lit_type.isSome()) {
+          type = analyser->rir_ctx->getType(const_literal.lit_type.get());
+        } else if (typeId.isSome()) {
+          type = analyser->rir_ctx->getType(typeId.get());
+          // TODO: Check if type matches literal kind
+        } else {
+          expect(false, inst->source_location,
+                 "Global variable couldn't infer type from constant");
+        }
 
         if (typeId.isNone()) {
           typeId.setSome(const_literal.lit_type.get());

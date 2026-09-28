@@ -254,6 +254,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     break;
   }
   case UIRValueKind::Range: {
+    assert(0 && "FIXME: Implement Range");
     // TODO: Range analysis
     // analyse(analyser, module, inst->range.ptr);
     // analyse(analyser, module, inst->range.start);

@@ -16,6 +16,7 @@ Type *getFieldType(UIRValue *_struct, String name) {
 
 void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
                       UIRValue *inst) {
+  assert(0 && "FIXME: Implement Aggregate");
   // FIXME:
   // assert(inst->kind == UIRValueKind::Aggregate);
   //
