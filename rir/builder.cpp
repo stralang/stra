@@ -110,10 +110,10 @@ RIRValueId RIRBuilder::buildRange(RIRValueId ptr, RIRValueId offset,
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, RIRValueId index,
+RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, size_t index,
                                     RIRTypeId result) {
   RIRValue inst = {.kind = RIRValueKind::FieldAt, .result = result};
-  inst.index = {.ptr = ptr, .index = index};
+  inst.field_at = {.ptr = ptr, .index = index};
   return this->buildInst(inst);
 }
 

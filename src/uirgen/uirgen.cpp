@@ -375,10 +375,16 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
   case NodeKind::Index: {
     if (node->index.index->kind == NodeKind::Range) {
       UIRValue *ptr = addr(uirgen, node->index.slice, scope);
-      UIRValue *offset = gen(uirgen, node->index.index->range.min, scope);
-      UIRValue *length = gen(uirgen, node->index.index->range.max, scope);
+      UIRValue *start = gen(uirgen, node->index.index->range.min, scope);
+      UIRValue *end = gen(uirgen, node->index.index->range.max, scope);
 
-      UIRValue *out = uirgen->builder.buildRange(ptr, offset, length);
+      if (node->index.index->range.mode == NodeRange::EqualTo) {
+        UIRValue *increment = uirgen->builder.buildLiteral(
+            {.data = {.kind = UIRRawDataKind::Int, ._int = 1}});
+        end = uirgen->builder.buildBinOp(end, increment, UIROpcode::Add);
+      }
+
+      UIRValue *out = uirgen->builder.buildRange(ptr, start, end);
       out->source_location = node->location;
       return out;
     }

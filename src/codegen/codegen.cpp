@@ -6,6 +6,7 @@
 #include "define.hpp"
 #include "passes.hpp"
 #include "rir/constant.hpp"
+#include "rir/type.hpp"
 #include "uir/literal.hpp"
 #include "uir/types.hpp"
 #include "uir/uir.hpp"
@@ -158,6 +159,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     RIRType *ptr_type = codegen->rir_context->getType(ptr_inst->result);
     RIRType *slice_type = codegen->rir_context->getType(ptr_type->child);
 
+    LLVMValueRef src_length;
     LLVMValueRef ptr = slice;
     LLVMValueRef indices[2];
     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
@@ -175,17 +177,17 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
       // Array (compile-time length)
       elem_type = typeToLLVM(codegen, slice_type->slice.child);
 
-      length = LLVMConstInt(
+      src_length = LLVMConstInt(
           LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
           slice_type->slice.length, false);
     } else {
       // Slice (runtime length)
       indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
-      length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id),
-                             slice, indices, 2, "");
-      length = LLVMBuildLoad2(
+      src_length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id),
+                                 slice, indices, 2, "");
+      src_length = LLVMBuildLoad2(
           builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
-          length, "");
+          src_length, "");
 
       indices[1] = indices[0];
       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id), slice,
@@ -211,27 +213,52 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     constants[0] = LLVMConstNull(LLVMTypeOf(elem_ptr));
     constants[1] = LLVMConstInt(LLVMTypeOf(length), 0, false);
 
-    LLVMValueRef new_slice =
-        LLVMConstStructInContext(codegen->ctx, constants, 2, false);
-    new_slice = LLVMBuildInsertValue(builder, new_slice, elem_ptr, 0, "");
-    new_slice = LLVMBuildInsertValue(builder, new_slice, length, 1, "");
-    codegen->inst_to_llvm.insert(inst->id, new_slice);
+    out = LLVMConstStructInContext(codegen->ctx, constants, 2, false);
+    out = LLVMBuildInsertValue(builder, out, elem_ptr, 0, "");
+    out = LLVMBuildInsertValue(builder, out, length, 1, "");
     break;
   }
-  // FIXME:
-  // case RIRValueKind::LookupPtr: {
-  //   LLVMValueRef out = genLookupPtr(codegen, builder, inst);
-  //   codegen->inst_to_llvm.insert(inst, out);
-  //   break;
-  // }
-  // FIXME:
-  // case RIRValueKind::LookupValue: {
-  //   LLVMValueRef ptr = genLookupPtr(codegen, builder, inst);
-  //   LLVMTypeRef ty = typeToLLVM(codegen, inst->result_type);
-  //   LLVMValueRef out = LLVMBuildLoad2(builder, ty, ptr, "");
-  //   codegen->inst_to_llvm.insert(inst, out);
-  //   break;
-  // }
+  case RIRValueKind::FieldAt: {
+    LLVMValueRef ptr = getReference(codegen, inst->field_at.ptr);
+    RIRValue *ptr_inst = codegen->rir_context->getInst(inst->field_at.ptr);
+    RIRType *ptr_type = codegen->rir_context->getType(ptr_inst->result);
+
+    // Handle compile-time field
+    bool handled = false;
+    RIRType *rir_aggregate_type =
+        codegen->rir_context->getType(ptr_type->child);
+    if (rir_aggregate_type->kind == RIRTypeKind::Slice) {
+      if (rir_aggregate_type->slice.length > 0) {
+        if (inst->field_at.index == 0) {
+          out = LLVMBuildLoad2(builder, typeToLLVM(codegen, ptr_type->id), ptr,
+                               "");
+        } else if (inst->field_at.index == 1) {
+          LLVMTypeRef int_type =
+              LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
+
+          out = LLVMAddGlobal(codegen->mod, int_type, "");
+          LLVMSetLinkage(out, LLVMPrivateLinkage);
+          LLVMSetGlobalConstant(out, true);
+          LLVMSetInitializer(
+              out,
+              LLVMConstInt(int_type, rir_aggregate_type->slice.length, false));
+        }
+        handled = true;
+      }
+    }
+
+    // Generate GEP
+    if (!handled) {
+      LLVMTypeRef aggregate_type = typeToLLVM(codegen, ptr_type->child);
+
+      LLVMValueRef indices[2];
+      indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx),
+                                inst->field_at.index, false);
+      out = LLVMBuildGEP2(builder, aggregate_type, ptr, indices, 2, "");
+    }
+    break;
+  }
   // FIXME:
   // case RIRValueKind::Aggregate: {
   //   Type *type = inst->result_type;

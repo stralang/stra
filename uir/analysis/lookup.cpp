@@ -4,141 +4,176 @@
 #include "define.hpp"
 #include "uir/analysis/analysis.hpp"
 
-void analyseLookup(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst,
-                   Type *parent_ty) {
-  assert(0 && "FIXME: Implement Lookup");
-  // FIXME:
-  // // Search
-  // UIRScope *definitions = nullptr;
-  // if (parent_ty->kind == TypeKind::Slice) {
-  //   Type *sub_type = nullptr;
-  //   if (inst->lookup.member.compare("ptr")) {
-  //     sub_type = analyser->ctx->type_cache->get({
-  //         .kind = TypeKind::Pointer,
-  //         .child = parent_ty->slice.type,
-  //         .is_constant = true,
-  //     });
-  //   } else if (inst->lookup.member.compare("len")) {
-  //     sub_type = analyser->ctx->type_cache->get({
-  //         .kind = TypeKind::Integer,
-  //         .integer = {false, false, -1},
-  //         .is_constant = true,
-  //     });
-  //   }
-  //
-  //   if (sub_type != nullptr) {
-  //     inst->result_type = analyser->ctx->type_cache->get({
-  //         .kind = TypeKind::Pointer,
-  //         .child = sub_type,
-  //         .is_constant = true,
-  //     });
-  //     return;
-  //   }
-  // } else if (parent_ty->kind == TypeKind::Struct) {
-  //   UIRValue *struct_inst = parent_ty->_struct.inst;
-  //   definitions = struct_inst->_struct.definitions;
-  //
-  //   for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
-  //     UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
-  //     if (field->name.compare(inst->lookup.member)) {
-  //           inst->result_type = analyser->ctx->type_cache->get({
-  //           .kind = TypeKind::Pointer,
-  //           .child = field->type->literal._typeid,
-  //           .is_constant = true,
-  //       });
-  //       return;
-  //     }
-  //   }
-  // } else if (parent_ty->kind == TypeKind::Enum) {
-  //   UIRValue *enum_inst = parent_ty->_enum.inst;
-  //   definitions = enum_inst->_enum.definitions;
-  // } else if (parent_ty->kind == TypeKind::Namespace) {
-  //   definitions = parent_ty->_namespace.inst->_namespace.definitions;
-  // }
-  //
-  // // Definitions
-  // if (definitions != nullptr) {
-  //   for (size_t i = 0; i < definitions->list.length; i++) {
-  //     UIRValue *child = definitions->list.getUnchecked(i);
-  //     if (child->name.compare(inst->lookup.member)) {
-  //       analyse(analyser, module, child);
-  //       inst->kind = UIRValueKind::Alias;
-  //       inst->alias = child;
-  //       inst->result_type = child->result_type;
-  //       return;
-  //     }
-  //   }
-  // }
-  //
-  // // Error
-  // expect(false, inst->source_location,
-  //        "Couldn't find member of name \"" << inst->lookup.member << "\"");
+UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
+                          RIRValueId ptr_id, String *member,
+                          SrcLoc source_location) {
+  RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_id);
+  RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
+  expect(ptr_type->kind == RIRTypeKind::Pointer, source_location,
+         "Cannot `lookup` for non-pointer");
+
+  RIRType *parent_type = analyser->rir_ctx->getType(ptr_type->child);
+
+  // Search
+  UIRScope *definitions = nullptr;
+  Option<RIRTypeId> sub_type = {};
+  size_t field_index = 0;
+
+  if (parent_type->kind == RIRTypeKind::Slice) {
+
+    if (member->compare("ptr")) {
+      sub_type = analyser->rir_ctx->types->push({
+          .kind = RIRTypeKind::Pointer,
+          .child = parent_type->slice.child,
+      });
+      field_index = 0;
+    } else if (member->compare("len")) {
+      sub_type = analyser->rir_ctx->types->push({
+          .kind = RIRTypeKind::Integer,
+          .integer = {false, -1},
+      });
+      field_index = 1;
+
+      // FIXME: Compile-time length
+      // if (parent_type->slice.length > 0) {
+      //   UIRRawData len_data = {.kind = UIRRawDataKind::Int,
+      //                          ._int = parent_type->slice.length};
+      //   return {.kind = UIRResolvedKind::Literal,
+      //           .literal = {.data = len_data, .lit_type = sub_type.get()}};
+      // }
+    }
+  } else if (parent_type->kind == RIRTypeKind::Struct) {
+    UIRValue *struct_inst =
+        reinterpret_cast<UIRValue *>(parent_type->_struct.unique);
+    definitions = struct_inst->_struct.definitions;
+
+    for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
+      UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
+      if (field->name.compare(*member)) {
+        UIRResolved *type_resolved =
+            analyser->resolved_mapping.get(field->type);
+        assert(type_resolved->kind == UIRResolvedKind::Literal &&
+               type_resolved->literal.data.kind == UIRRawDataKind::TypeId);
+
+        sub_type = type_resolved->literal.data._typeid;
+        field_index = i;
+        break;
+      }
+    }
+  } else if (parent_type->kind == RIRTypeKind::Enum) {
+    UIRValue *enum_inst =
+        reinterpret_cast<UIRValue *>(parent_type->_enum.unique);
+    definitions = enum_inst->_enum.definitions;
+  }
+
+  if (sub_type.isSome()) {
+    RIRTypeId result_type = analyser->rir_ctx->types->push({
+        .kind = RIRTypeKind::Pointer,
+        .child = sub_type.get(),
+    });
+    RIRValueId out_id =
+        analyser->builder.buildFieldAt(ptr_inst->id, field_index, result_type);
+    return {
+        .kind = UIRResolvedKind::Inst,
+        .inst = out_id,
+    };
+  }
+
+  // Definitions
+  if (definitions != nullptr) {
+    for (size_t i = 0; i < definitions->list.length; i++) {
+      UIRValue *child = definitions->list.getUnchecked(i);
+      if (child->name.compare(*member)) {
+        return *analyser->resolved_mapping.get(child);
+      }
+    }
+  }
+
+  // Error
+  expect(false, source_location,
+         "Couldn't find member of name \"" << member << "\"");
+  return {};
 }
 
 void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
                       UIRValue *inst) {
-  assert(0 && "FIXME: Implement Lookup");
-  // FIXME:
-  // analyse(analyser, module, inst->lookup.parent);
-  // expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
-  //        inst->lookup.parent->source_location,
-  //        "Cannot `lookup` for non-pointer");
-  //
-  // // Get Type
-  // Type *parent_ty = inst->lookup.parent->result_type->child;
-  // bool is_typeid = parent_ty->kind == TypeKind::TypeId;
-  // if (is_typeid) {
-  //   UIRLiteral ty_lit =
-  //       analyser->comptime_state.execute(module, inst->lookup.parent);
-  //   parent_ty = ty_lit.pointer->_typeid;
-  // }
-  //
-  // // Auto dereference
-  // if (parent_ty->kind == TypeKind::Pointer) {
-  //   parent_ty = parent_ty->child;
-  // }
-  //
-  // analyseLookup(analyser, module, inst, parent_ty);
+  analyse(analyser, module, inst->lookup.parent);
+  UIRResolved *parent_resolved =
+      analyser->resolved_mapping.get(inst->lookup.parent);
+
+  // Instruction parent
+  if (parent_resolved->kind == UIRResolvedKind::Inst) {
+    UIRResolved result = analyseLookup(analyser, module, parent_resolved->inst,
+                                       &inst->lookup.member,
+                                       inst->lookup.parent->source_location);
+    analyser->resolved_mapping.insert(inst, result);
+  }
+
+  // Literal parent
+  assert(parent_resolved->kind == UIRResolvedKind::Literal);
+  UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+  analyser->resolved_mapping.insert(
+      inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
 }
 
 void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
                         UIRValue *inst) {
-  assert(0 && "FIXME: Implement Lookup");
-  // FIXME:
-  // analyse(analyser, module, inst->lookup.parent);
-  // expect(inst->lookup.parent->result_type->kind == TypeKind::Pointer,
-  //        inst->lookup.parent->source_location,
-  //        "Cannot `lookup` for non-pointer");
-  //
-  // // Get Type
-  // Type *parent_ty = inst->lookup.parent->result_type->child;
-  // bool is_typeid = parent_ty->kind == TypeKind::TypeId;
-  // if (is_typeid) {
-  //   UIRLiteral ty_lit =
-  //       analyser->comptime_state.execute(module, inst->lookup.parent);
-  //   parent_ty = ty_lit.pointer->_typeid;
-  // }
-  //
-  // // Auto dereference
-  // if (parent_ty->kind == TypeKind::Pointer) {
-  //   parent_ty = parent_ty->child;
-  // }
-  //
-  // // Lookup
-  // if (parent_ty->kind == TypeKind::Enum) {
-  //   UIRValue *enum_inst = parent_ty->_enum.inst;
-  //
-  //   for (size_t i = 0; i < enum_inst->_enum.members.len; i++) {
-  //     UIREnum::Member *member = enum_inst->_enum.members.ptr + i;
-  //     if (member->name.compare(inst->lookup.member)) {
-  //       inst->kind = UIRValueKind::Literal;
-  //       inst->literal = member->constant->literal;
-  //       inst->result_type = inst->literal.lit_type;
-  //       return;
-  //     }
-  //   }
-  // }
-  //
-  // analyseLookup(analyser, module, inst, parent_ty);
-  // inst->result_type = inst->result_type->child;
+  analyse(analyser, module, inst->lookup.parent);
+  UIRResolved *parent_resolved =
+      analyser->resolved_mapping.get(inst->lookup.parent);
+
+  // Instruction parent
+  if (parent_resolved->kind == UIRResolvedKind::Inst) {
+    UIRResolved result = analyseLookup(analyser, module, parent_resolved->inst,
+                                       &inst->lookup.member,
+                                       inst->lookup.parent->source_location);
+    if (result.kind == UIRResolvedKind::Inst) {
+      RIRValue *out_lookup = analyser->rir_ctx->getInst(result.inst);
+      RIRType *lookup_result = analyser->rir_ctx->getType(out_lookup->result);
+
+      RIRValueId out_id =
+          analyser->builder.buildLoad(out_lookup->id, lookup_result->child);
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+      return;
+    }
+
+    assert(result.kind == UIRResolvedKind::Literal);
+    if (result.literal.data.ptr.kind == UIRPlaceKind::Inst) {
+      analyser->resolved_mapping.insert(
+          inst, {
+                    .kind = UIRResolvedKind::Inst,
+                    .inst = result.literal.data.ptr.inst,
+                });
+    } else if (result.literal.data.ptr.kind == UIRPlaceKind::Raw) {
+      UIRLiteral out_lit = {.data = *result.literal.data.ptr.data};
+      if (result.literal.lit_type.isSome()) {
+        RIRType *ptr_type =
+            analyser->rir_ctx->getType(result.literal.lit_type.get());
+        out_lit.lit_type = ptr_type->child;
+      }
+
+      analyser->resolved_mapping.insert(
+          inst, {.kind = UIRResolvedKind::Literal, .literal = out_lit});
+    }
+    return;
+  }
+
+  // Literal parent
+  assert(parent_resolved->kind == UIRResolvedKind::Literal);
+  UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+
+  if (lit.data.ptr.kind == UIRPlaceKind::Inst) {
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Inst, .inst = lit.data.ptr.inst});
+  } else if (lit.data.ptr.kind == UIRPlaceKind::Raw) {
+    UIRLiteral out_lit = {.data = *lit.data.ptr.data};
+    if (lit.lit_type.isSome()) {
+      RIRType *ptr_type = analyser->rir_ctx->getType(lit.lit_type.get());
+      out_lit.lit_type = ptr_type->child;
+    }
+
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
+  }
 }

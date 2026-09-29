@@ -188,7 +188,7 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     break;
   }
   case RIRValueKind::FieldAt: {
-    os << "fieldat " << inst->index.ptr << ", " << inst->index.index;
+    os << "fieldat " << inst->field_at.ptr << ", " << inst->field_at.index;
     break;
   }
   case RIRValueKind::Return: {
