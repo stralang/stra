@@ -23,7 +23,8 @@ struct RIRBuilder {
   RIRValueId buildCast(RIRValueId value, RIRTypeId result, bool bitcast);
   RIRValueId buildCall(RIRValueId callee, Slice<RIRValueId> arguments,
                        RIRTypeId result);
-  RIRValueId buildGEP(RIRValueId ptr, RIRValueId index, RIRTypeId result);
+  RIRValueId buildIndex(RIRValueId ptr, RIRValueId index, RIRTypeId result);
+  RIRValueId buildFieldAt(RIRValueId ptr, RIRValueId index, RIRTypeId result);
   RIRValueId buildReturn(Option<RIRValueId> value);
   RIRValueId buildBranch(RIRBlockId dest);
   RIRValueId buildCondBranch(RIRValueId condition, RIRBlockId then,

@@ -90,10 +90,17 @@ RIRValueId RIRBuilder::buildCall(RIRValueId callee, Slice<RIRValueId> arguments,
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildGEP(RIRValueId ptr, RIRValueId index,
-                                RIRTypeId result) {
-  RIRValue inst = {.kind = RIRValueKind::GEP, .result = result};
-  inst.gep = {.ptr = ptr, .index = index};
+RIRValueId RIRBuilder::buildIndex(RIRValueId ptr, RIRValueId index,
+                                  RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::Index, .result = result};
+  inst.index = {.ptr = ptr, .index = index};
+  return this->buildInst(inst);
+}
+
+RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, RIRValueId index,
+                                    RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::FieldAt, .result = result};
+  inst.index = {.ptr = ptr, .index = index};
   return this->buildInst(inst);
 }
 

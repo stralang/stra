@@ -105,56 +105,48 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     out = genCall(codegen, builder, inst);
     break;
   }
-  // FIXME:
-  // case RIRValueKind::Index: {
-  //   LLVMValueRef value = getReference(codegen, inst->index.ptr);
-  //   Type *value_type = inst->index.ptr->result_type->child;
-  //
-  //   if (value_type->kind == TypeKind::Slice) {
-  //     LLVMValueRef slice = value;
-  //     Type *slice_type = value_type;
-  //
-  //     LLVMValueRef ptr = slice;
-  //     LLVMTypeRef type = nullptr;
-  //
-  //     bool in_bounds = false;
-  //     LLVMValueRef indices[2];
-  //     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0,
-  //     false); if (slice_type->slice.length > 0) {
-  //       // Array (compile-time length)
-  //       type = typeToLLVM(codegen, slice_type->slice.type);
-  //       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-  //                           indices, 1, "");
-  //       LLVMSetIsInBounds(ptr, true);
-  //       in_bounds = true;
-  //     } else if (slice_type->slice.length == 0) {
-  //       // Slice (runtime length)
-  //       indices[1] = indices[0];
-  //
-  //       type = typeToLLVM(codegen, slice_type->slice.type);
-  //       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type), slice,
-  //                           indices, 2, "");
-  //       LLVMSetIsInBounds(ptr, true);
-  //       ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
-  //       in_bounds = true;
-  //     } else {
-  //       // Pointer Slice (no length)
-  //       type = typeToLLVM(codegen, slice_type->slice.type);
-  //       ptr =
-  //           LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type), slice,
-  //           "");
-  //     }
-  //
-  //     indices[0] = getReference(codegen, inst->index.index);
-  //
-  //     // Runtime length check is handled by UIR
-  //
-  //     // Index
-  //     LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1,
-  //     ""); LLVMSetIsInBounds(elem_ptr, in_bounds); out = elem_ptr;
-  //   }
-  //   break;
-  // }
+  case RIRValueKind::Index: {
+    LLVMValueRef slice = getReference(codegen, inst->index.ptr);
+    RIRValue *slice_inst = codegen->rir_context->getInst(inst->index.ptr);
+    RIRType *slice_type = codegen->rir_context->getType(slice_inst->result);
+
+    LLVMValueRef ptr = slice;
+    LLVMTypeRef type = typeToLLVM(codegen, slice_type->slice.child);
+
+    bool in_bounds = false;
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+    if (slice_type->slice.length > 0) {
+      // Array (compile-time length)
+      ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id), slice,
+                          indices, 1, "");
+      LLVMSetIsInBounds(ptr, true);
+      in_bounds = true;
+    } else if (slice_type->slice.length == 0) {
+      // Slice (runtime length)
+      indices[1] = indices[0];
+
+      ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id), slice,
+                          indices, 2, "");
+      LLVMSetIsInBounds(ptr, true);
+      ptr = LLVMBuildLoad2(builder, LLVMPointerType(type, 0), ptr, "");
+      in_bounds = true;
+    } else {
+      // Pointer Slice (no length)
+      ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type->id), slice,
+                           "");
+    }
+
+    indices[0] = getReference(codegen, inst->index.index);
+
+    // Runtime length check is handled by UIR
+
+    // Index
+    LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1, "");
+    LLVMSetIsInBounds(elem_ptr, in_bounds);
+    out = elem_ptr;
+    break;
+  }
   // FIXME:
   // case RIRValueKind::Range: {
   //   LLVMValueRef slice = getReference(codegen, inst->range.ptr);

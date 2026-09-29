@@ -178,8 +178,12 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << ")";
     break;
   }
-  case RIRValueKind::GEP: {
-    os << "gep " << inst->gep.ptr << ", " << inst->gep.index;
+  case RIRValueKind::Index: {
+    os << "index " << inst->index.ptr << ", " << inst->index.index;
+    break;
+  }
+  case RIRValueKind::FieldAt: {
+    os << "fieldat " << inst->index.ptr << ", " << inst->index.index;
     break;
   }
   case RIRValueKind::Return: {

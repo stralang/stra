@@ -229,16 +229,29 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            "Cannot index into non-slice");
 
     // Analyse Index
-    // TODO: RIRTypeId usize_ty = analyser->rir_ctx->types->push({
-    //     .kind = RIRTypeKind::Integer,
-    //     .integer = {.is_untyped = false, .is_signed = false, .bits = -1},
-    // });
-
     analyse(analyser, module, inst->index.index);
-    UIRResolved *index_id = analyser->resolved_mapping.get(
-        inst->index.index); // FIXME: Confirm kind
-    RIRValue *index = analyser->rir_ctx->getInst(index_id->inst);
-    // TODO: fixUntyped(analyser, index, usize_ty);
+    UIRResolved *index_resolved =
+        analyser->resolved_mapping.get(inst->index.index);
+
+    RIRValue *index;
+    if (index_resolved->kind == UIRResolvedKind::Inst) {
+      index = analyser->rir_ctx->getInst(index_resolved->inst);
+    } else if (index_resolved->kind == UIRResolvedKind::Literal) {
+      RIRTypeId lit_type;
+      if (index_resolved->literal.lit_type.isSome()) {
+        lit_type = index_resolved->literal.lit_type.get();
+      } else {
+        lit_type = analyser->rir_ctx->types->push(
+            {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
+      }
+
+      RIRConstant rir_const =
+          uirRawDataToRIRConstant(index_resolved->literal.data);
+      RIRValueId index_id =
+          analyser->builder.buildConstant(lit_type, rir_const);
+      index = analyser->rir_ctx->getInst(index_id);
+    }
+
     RIRType *index_type = analyser->rir_ctx->getType(index->result);
     expect(index_type->kind == RIRTypeKind::Integer &&
                !index_type->integer.is_signed && index_type->integer.bits == -1,
@@ -248,7 +261,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     RIRTypeId result = analyser->rir_ctx->types->push(
         {.kind = RIRTypeKind::Pointer, .child = ptr_child_type->slice.child});
     RIRValueId out_id =
-        analyser->builder.buildGEP(ptr_id->inst, index_id->inst, result);
+        analyser->builder.buildIndex(ptr->id, index->id, result);
     analyser->resolved_mapping.insert(
         inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
