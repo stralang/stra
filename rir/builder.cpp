@@ -97,6 +97,19 @@ RIRValueId RIRBuilder::buildIndex(RIRValueId ptr, RIRValueId index,
   return this->buildInst(inst);
 }
 
+RIRValueId RIRBuilder::buildRange(RIRValueId ptr, RIRValueId offset,
+                                  RIRValueId length,
+                                  RIRTypeId result_elem_type) {
+  RIRTypeId result = this->ctx->types->push({
+      .kind = RIRTypeKind::Slice,
+      .slice = {0, result_elem_type},
+  });
+
+  RIRValue inst = {.kind = RIRValueKind::Range, .result = result};
+  inst.range = {.ptr = ptr, .offset = offset, .length = length};
+  return this->buildInst(inst);
+}
+
 RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, RIRValueId index,
                                     RIRTypeId result) {
   RIRValue inst = {.kind = RIRValueKind::FieldAt, .result = result};

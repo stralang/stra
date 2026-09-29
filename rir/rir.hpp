@@ -33,6 +33,7 @@ enum class RIRValueKind : std::uint16_t {
   Cast,
   Call,
   Index,
+  Range,
   FieldAt, // Uses `index` in `RIRValue`
   Return,
   Branch,
@@ -116,6 +117,11 @@ struct RIRValue {
       RIRValueId ptr;
       RIRValueId index;
     } index;
+    struct {
+      RIRValueId ptr;
+      RIRValueId offset;
+      RIRValueId length;
+    } range;
     struct {
       Option<RIRValueId> value;
     } ret;

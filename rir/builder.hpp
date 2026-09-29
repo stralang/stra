@@ -24,6 +24,8 @@ struct RIRBuilder {
   RIRValueId buildCall(RIRValueId callee, Slice<RIRValueId> arguments,
                        RIRTypeId result);
   RIRValueId buildIndex(RIRValueId ptr, RIRValueId index, RIRTypeId result);
+  RIRValueId buildRange(RIRValueId ptr, RIRValueId offset, RIRValueId length,
+                        RIRTypeId result_elem_type);
   RIRValueId buildFieldAt(RIRValueId ptr, RIRValueId index, RIRTypeId result);
   RIRValueId buildReturn(Option<RIRValueId> value);
   RIRValueId buildBranch(RIRBlockId dest);

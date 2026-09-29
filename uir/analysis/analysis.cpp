@@ -267,46 +267,82 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     break;
   }
   case UIRValueKind::Range: {
-    assert(0 && "FIXME: Implement Range");
-    // TODO: Range analysis
-    // analyse(analyser, module, inst->range.ptr);
-    // analyse(analyser, module, inst->range.start);
-    // analyse(analyser, module, inst->range.end);
-    //
-    // // Check Pointer
-    // UIRValue *ptr = inst->range.ptr;
-    // expect(ptr->result_type->child->kind == TypeKind::Slice ||
-    //            ptr->result_type->child->kind == TypeKind::Pointer,
-    //        inst->source_location, "Cannot range into non-slice/pointer");
-    //
-    // // Check Index and Length
-    // Type *usize_ty = analyser->ctx->type_cache->get({
-    //     .kind = TypeKind::Integer,
-    //     .integer = {false, false, -1},
-    // });
-    // fixUntyped(analyser, inst->range.start, usize_ty);
-    // fixUntyped(analyser, inst->range.end, usize_ty);
-    //
-    // UIRValue *start = inst->range.start;
-    // RIRType *range_type = analyser->rir_ctx->getType(start->result_type);
-    // expect(range_type->kind == RIRTypeKind::Integer &&
-    //            !range_type->integer.is_untyped &&
-    //            !range_type->integer.is_signed &&
-    //            range_type->integer.bits == -1 &&
-    //            start->result_type == inst->range.end->result_type,
-    //        start->source_location, "Range start and end must both be
-    //        `usize`");
-    //
-    // // Get Result type
-    // Type ty = {.kind = TypeKind::Slice};
-    // ty.slice.length = 0;
-    // if (ptr->result_type->child->kind == TypeKind::Pointer) {
-    //   ty.slice.type = ptr->result_type->child->child;
-    // } else {
-    //   ty.slice.type = ptr->result_type->child->slice.type;
-    // }
-    //
-    // inst->result_type = analyser->ctx->type_cache->get(ty);
+    analyse(analyser, module, inst->range.ptr);
+    analyse(analyser, module, inst->range.start);
+    analyse(analyser, module, inst->range.end);
+
+    // Check Pointer
+    UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->range.ptr);
+    assert(ptr_resolved->kind == UIRResolvedKind::Inst);
+
+    RIRValue *ptr = analyser->rir_ctx->getInst(ptr_resolved->inst);
+    RIRType *ptr_type = analyser->rir_ctx->getType(ptr->result);
+    RIRType *ptr_child_type = analyser->rir_ctx->getType(ptr_type->child);
+    expect(ptr_child_type->kind == RIRTypeKind::Slice ||
+               ptr_child_type->kind == RIRTypeKind::Pointer,
+           inst->source_location, "Cannot range into non-slice/pointer");
+
+    // Check Index and Length
+    RIRTypeId usize_ty = analyser->rir_ctx->types->push({
+        .kind = RIRTypeKind::Integer,
+        .integer = {false, -1},
+    });
+
+    UIRResolved *start_resolved =
+        analyser->resolved_mapping.get(inst->range.start);
+    UIRResolved *end_resolved = analyser->resolved_mapping.get(inst->range.end);
+
+    RIRValue *start;
+    RIRValue *end;
+    if (start_resolved->kind == UIRResolvedKind::Inst) {
+      start = analyser->rir_ctx->getInst(start_resolved->inst);
+    } else {
+      UIRLiteral start_lit = start_resolved->literal;
+      if (start_lit.lit_type.isSome()) {
+        RIRType *start_type =
+            analyser->rir_ctx->getType(start_lit.lit_type.get());
+        expect(start_type->kind == RIRTypeKind::Integer &&
+                   !start_type->integer.is_signed &&
+                   start_type->integer.bits == -1,
+               inst->range.start->source_location,
+               "Range start must be `usize`");
+      }
+
+      RIRConstant rir_const = uirRawDataToRIRConstant(start_lit.data);
+      RIRValueId start_id =
+          analyser->builder.buildConstant(usize_ty, rir_const);
+      start = analyser->rir_ctx->getInst(start_id);
+    }
+    if (end_resolved->kind == UIRResolvedKind::Inst) {
+      end = analyser->rir_ctx->getInst(end_resolved->inst);
+    } else {
+      UIRLiteral end_lit = end_resolved->literal;
+      if (end_lit.lit_type.isSome()) {
+        RIRType *end_type = analyser->rir_ctx->getType(end_lit.lit_type.get());
+        expect(end_type->kind == RIRTypeKind::Integer &&
+                   !end_type->integer.is_signed && end_type->integer.bits == -1,
+               inst->range.end->source_location, "Range end must be `usize`");
+      }
+
+      RIRConstant rir_const = uirRawDataToRIRConstant(end_lit.data);
+      RIRValueId end_id = analyser->builder.buildConstant(usize_ty, rir_const);
+      end = analyser->rir_ctx->getInst(end_id);
+    }
+
+    // Create Instruction
+    RIRTypeId elem_type;
+    if (ptr_child_type->kind == RIRTypeKind::Pointer) {
+      elem_type = ptr_child_type->child;
+    } else {
+      elem_type = ptr_child_type->slice.child;
+    }
+
+    RIRValueId length_id = analyser->builder.buildBinOp(RIROpcode::Sub, end->id,
+                                                        start->id, usize_ty);
+    RIRValueId out_id =
+        analyser->builder.buildRange(ptr->id, start->id, length_id, elem_type);
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::LookupPtr: {

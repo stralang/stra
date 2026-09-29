@@ -182,6 +182,11 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << "index " << inst->index.ptr << ", " << inst->index.index;
     break;
   }
+  case RIRValueKind::Range: {
+    os << "range " << inst->range.ptr << ", " << inst->range.offset << ", "
+       << inst->range.length;
+    break;
+  }
   case RIRValueKind::FieldAt: {
     os << "fieldat " << inst->index.ptr << ", " << inst->index.index;
     break;
@@ -286,7 +291,7 @@ std::ostream &printType(std::ostream &os, RIRTypeContext *ctx, RIRType *type) {
     } else if (type->slice.length < 0) {
       os << '*';
     }
-    return os << ']' << type->slice.child;
+    return os << "]#" << type->slice.child;
   }
   case RIRTypeKind::Function: {
     os << "fn(";
