@@ -259,39 +259,21 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     }
     break;
   }
-  // FIXME:
-  // case RIRValueKind::Aggregate: {
-  //   Type *type = inst->result_type;
-  //   LLVMTypeRef llvm_type = typeToLLVM(codegen, type);
-  //
-  //   LLVMValueRef out = LLVMConstNull(llvm_type);
-  //   for (size_t i = 0; i < inst->aggregate.values.len; i++) {
-  //     UIRValue *value = inst->aggregate.values.ptr[i];
-  //     LLVMValueRef llvm_value = getReference(codegen, value);
-  //
-  //     // Get Index
-  //     size_t index = i;
-  //     if (type->kind == TypeKind::Struct) {
-  //       // NOTE: This lookup should probably be replaced during analysis
-  //       String name = inst->aggregate.names.ptr[i];
-  //       UIRValue *struct_inst = type->_struct.inst;
-  //       for (size_t l = 0; l < struct_inst->_struct.fields.len; l++) {
-  //         UIRStruct::Field *field = struct_inst->_struct.fields.ptr + l;
-  //         if (!field->name.compare(name)) {
-  //           continue;
-  //         }
-  //
-  //         index = l;
-  //       }
-  //     }
-  //
-  //     // Insert Value
-  //     out = LLVMBuildInsertValue(builder, out, llvm_value, index, "");
-  //   }
-  //
-  //   codegen->inst_to_llvm.insert(inst, out);
-  //   break;
-  // }
+  case RIRValueKind::Aggregate: {
+    LLVMTypeRef llvm_type = typeToLLVM(codegen, inst->result);
+
+    LLVMValueRef out = LLVMConstNull(llvm_type);
+    for (size_t i = 0; i < inst->aggregate.values.len; i++) {
+      RIRValueId value_id = inst->aggregate.values.ptr[i];
+      LLVMValueRef llvm_value = getReference(codegen, value_id);
+
+      // Insert Value
+      out = LLVMBuildInsertValue(builder, out, llvm_value, i, "");
+    }
+
+    codegen->inst_to_llvm.insert(inst->id, out);
+    break;
+  }
   case RIRValueKind::Return: {
     if (inst->ret.value.isNone()) {
       LLVMBuildRetVoid(builder);

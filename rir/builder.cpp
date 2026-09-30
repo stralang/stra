@@ -117,6 +117,16 @@ RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, size_t index,
   return this->buildInst(inst);
 }
 
+RIRValueId RIRBuilder::buildAggregate(RIRTypeId aggregate_type,
+                                      Slice<RIRValueId> values) {
+  RIRValue inst = {
+      .kind = RIRValueKind::Aggregate,
+      .result = aggregate_type,
+      .aggregate = {.values = values},
+  };
+  return this->buildInst(inst);
+}
+
 RIRValueId RIRBuilder::buildReturn(Option<RIRValueId> value) {
   RIRValue inst = {.kind = RIRValueKind::Return}; // TODO: void result
   inst.ret = {.value = value};
