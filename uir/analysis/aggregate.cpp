@@ -62,8 +62,6 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
 
       UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
       UIRResolved *field_resolved = analyser->resolved_mapping.get(field->type);
-      assert(field_resolved->kind == UIRResolvedKind::Literal);
-      assert(field_resolved->literal.data.kind == UIRRawDataKind::TypeId);
       expected_type = field_resolved->literal.data._typeid;
     } else {
       expected_type = aggregate_type->slice.child;
@@ -87,7 +85,9 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
       if (lit.lit_type.isSome()) {
         out_type = lit.lit_type.get();
       } else {
-        out_type = expected_type; // TODO: Check data kind
+        out_type = expected_type;
+        expect(compareRawDataToType(analyser, lit.data.kind, out_type),
+               value->source_location, "Raw data kind doesn't match type kind");
       }
 
       out_id = analyser->builder.buildConstant(out_type, rir_const);

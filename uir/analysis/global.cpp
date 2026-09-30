@@ -39,7 +39,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
           type = analyser->rir_ctx->getType(const_literal.lit_type.get());
         } else if (typeId.isSome()) {
           type = analyser->rir_ctx->getType(typeId.get());
-          // TODO: Check if type matches literal kind
+          expect(
+              compareRawDataToType(analyser, const_literal.data.kind, type->id),
+              const_inst->source_location,
+              "Raw data kind doesn't match type kind");
         } else {
           expect(false, inst->source_location,
                  "Global variable couldn't infer type from constant");

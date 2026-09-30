@@ -26,6 +26,7 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
 void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
 void analyseAggregate(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
 
+bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
+                          RIRTypeId type_id);
 RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst);
-
 RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data);

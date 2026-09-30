@@ -1,6 +1,38 @@
 #include "../uir.hpp"
 #include "analysis.hpp"
 #include "define.hpp"
+#include "rir/type.hpp"
+#include "uir/literal.hpp"
+
+bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
+                          RIRTypeId type_id) {
+  RIRType *type = analyser->rir_ctx->getType(type_id);
+  switch (type->kind) {
+  case RIRTypeKind::Void: {
+    return kind == UIRRawDataKind::Void;
+  }
+  case RIRTypeKind::Bool: {
+    return kind == UIRRawDataKind::Bool;
+  }
+  case RIRTypeKind::Integer: {
+    return kind == UIRRawDataKind::Int;
+  }
+  case RIRTypeKind::Float: {
+    return kind == UIRRawDataKind::Float;
+  }
+  case RIRTypeKind::Pointer: {
+    return kind == UIRRawDataKind::Pointer;
+  }
+  case RIRTypeKind::Slice: {
+    return kind == UIRRawDataKind::Slice;
+  }
+  case RIRTypeKind::TypeId: {
+    return kind == UIRRawDataKind::TypeId;
+  }
+  }
+
+  return false;
+}
 
 RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst) {
   RIRType *src_type = analyser->rir_ctx->getType(src->result);
