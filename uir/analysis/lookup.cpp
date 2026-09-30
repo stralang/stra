@@ -181,18 +181,6 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
   // Literal parent
   assert(parent_resolved->kind == UIRResolvedKind::Literal);
   UIRLiteral lit = analyser->comptime_state.execute(module, inst);
-
-  if (lit.data.ptr.kind == UIRPlaceKind::Inst) {
-    analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = lit.data.ptr.inst});
-  } else if (lit.data.ptr.kind == UIRPlaceKind::Raw) {
-    UIRLiteral out_lit = {.data = *lit.data.ptr.data};
-    if (lit.lit_type.isSome()) {
-      RIRType *ptr_type = analyser->rir_ctx->getType(lit.lit_type.get());
-      out_lit.lit_type = ptr_type->child;
-    }
-
-    analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
-  }
+  analyser->resolved_mapping.insert(
+      inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
 }

@@ -364,8 +364,10 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     expect(inst->parent->parent->kind == UIRValueKind::Function,
            inst->source_location,
            "A runtime return must be a child of a function");
-    UIRResolved *function_id = analyser->resolved_mapping.get(
-        inst->parent->parent); // FIXME: Confirm kind
+    UIRResolved *function_id =
+        analyser->resolved_mapping.get(inst->parent->parent);
+    assert(function_id->kind == UIRResolvedKind::Inst);
+
     RIRValue *function = analyser->rir_ctx->getInst(function_id->inst);
     RIRType *fn_type = analyser->rir_ctx->getType(function->result);
     RIRType *expected_type =
@@ -378,9 +380,32 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     } else {
       UIRValue *uir_value_inst = inst->ret.value.get();
       analyse(analyser, module, uir_value_inst);
-      UIRResolved *value_id = analyser->resolved_mapping.get(uir_value_inst);
-      RIRValue *value_inst = analyser->rir_ctx->getInst(value_id->inst);
+      UIRResolved *value_resolved =
+          analyser->resolved_mapping.get(uir_value_inst);
 
+      RIRValue *value_inst;
+      if (value_resolved->kind == UIRResolvedKind::Inst) {
+        value_inst = analyser->rir_ctx->getInst(value_resolved->inst);
+      } else if (value_resolved->kind == UIRResolvedKind::Literal) {
+        // Get constant value
+        RIRConstant rir_const =
+            uirRawDataToRIRConstant(value_resolved->literal.data);
+        RIRTypeId const_type = expected_type->id;
+        if (value_resolved->literal.lit_type.isSome()) {
+          const_type = value_resolved->literal.lit_type.get();
+        } else {
+          expect(compareRawDataToType(
+                     analyser, value_resolved->literal.data.kind, const_type),
+                 inst->ret.value.get()->source_location,
+                 "Raw data kind doesn't match expected type");
+        }
+
+        RIRValueId value_inst_id =
+            analyser->builder.buildConstant(const_type, rir_const);
+        value_inst = analyser->rir_ctx->getInst(value_inst_id);
+      }
+
+      // Cast and Compare
       value_inst = autoCast(analyser, value_inst, fn_type->function._return);
       expect(
           expected_type->compare(analyser->rir_ctx->types, value_inst->result),
@@ -388,7 +413,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
           "Unexpected return type. Got `"
               << value_inst->result << "` Expected `" << expected_type << "`");
 
-      ret_value.setSome(value_id->inst);
+      ret_value.setSome(value_inst->id);
     }
 
     // Create Instruction
