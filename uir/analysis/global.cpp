@@ -97,8 +97,11 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     break;
   }
   case UIRValueKind::Function: {
-    UIRLiteral type = analyser->comptime_state.execute(module, inst);
+    // Save builder state
+    Option<RIRBlock *> prev_block = analyser->builder.block;
 
+    // Build and Map Function
+    UIRLiteral type = analyser->comptime_state.execute(module, inst);
     RIRValueId fn_inst_id = analyser->builder.buildFunction(
         type.data._typeid, inst->function.undefined, inst->name);
     analyser->resolved_mapping.insert(
@@ -125,6 +128,9 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         analyseBlock(analyser, module, uir_block);
       }
     }
+
+    // Load builder state
+    analyser->builder.block = prev_block;
     break;
   }
   }
