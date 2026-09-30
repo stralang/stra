@@ -69,26 +69,8 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
     analyse(analyser, module, value);
 
     UIRResolved *value_resolved = analyser->resolved_mapping.get(value);
-    RIRValueId out_id;
-
-    if (value_resolved->kind == UIRResolvedKind::Inst) {
-      RIRValue *inst = analyser->rir_ctx->getInst(value_resolved->inst);
-      out_id = autoCast(analyser, inst, expected_type)->id;
-    } else if (value_resolved->kind == UIRResolvedKind::Literal) {
-      UIRLiteral lit = value_resolved->literal;
-      RIRConstant rir_const = uirRawDataToRIRConstant(lit.data);
-
-      RIRTypeId out_type;
-      if (lit.lit_type.isSome()) {
-        out_type = lit.lit_type.get();
-      } else {
-        out_type = expected_type;
-        expect(compareRawDataToType(analyser, lit.data.kind, out_type),
-               value->source_location, "Raw data kind doesn't match type kind");
-      }
-
-      out_id = analyser->builder.buildConstant(out_type, rir_const);
-    }
+    RIRValueId out_id =
+        getInstFromResolved(analyser, value_resolved, expected_type);
 
     // Compare types
     RIRValue *out_inst = analyser->rir_ctx->getInst(out_id);

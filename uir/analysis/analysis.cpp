@@ -8,6 +8,56 @@
 #include "rir/type.hpp"
 #include <cassert>
 
+RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
+                               Option<RIRTypeId> default_type) {
+  if (resolved->kind == UIRResolvedKind::Inst) {
+    return resolved->inst;
+  }
+
+  assert(resolved->kind == UIRResolvedKind::Literal);
+  RIRConstant rir_const = uirRawDataToRIRConstant(resolved->literal.data);
+  RIRTypeId out_type;
+  if (resolved->literal.lit_type.isSome()) {
+    out_type = resolved->literal.lit_type.get();
+  } else if (default_type.isSome()) {
+    out_type = default_type.get();
+  } else {
+    // Guess Type
+    switch (resolved->literal.data.kind) {
+    case UIRRawDataKind::Void: {
+      out_type = analyser->rir_ctx->types->push({.kind = RIRTypeKind::Void});
+      break;
+    }
+    case UIRRawDataKind::Bool: {
+      out_type = analyser->rir_ctx->types->push({.kind = RIRTypeKind::Bool});
+      break;
+    }
+    case UIRRawDataKind::Int: {
+      out_type = analyser->rir_ctx->types->push(
+          {.kind = RIRTypeKind::Integer, .integer = {true, 32}});
+      break;
+    }
+    case UIRRawDataKind::Float: {
+      out_type = analyser->rir_ctx->types->push(
+          {.kind = RIRTypeKind::Float, .float_bits = 32});
+      break;
+    }
+    case UIRRawDataKind::Pointer:
+    case UIRRawDataKind::Slice:
+    case UIRRawDataKind::Namespace: {
+      assert(0 && "Cannot guess type");
+      break;
+    }
+    case UIRRawDataKind::TypeId: {
+      out_type = analyser->rir_ctx->types->push({.kind = RIRTypeKind::TypeId});
+      break;
+    }
+    }
+  }
+
+  return analyser->builder.buildConstant(out_type, rir_const);
+}
+
 void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   if (analyser->resolved_mapping.get(inst) != nullptr) {
     return; // Already Analysed
@@ -55,29 +105,18 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     analyse(analyser, module, inst->store.value);
     UIRResolved *ptr_id =
         analyser->resolved_mapping.get(inst->store.ptr); // FIXME: Confirm kind
-    UIRResolved *resolved_value = analyser->resolved_mapping.get(
-        inst->store.value); // FIXME: Confirm kind
 
     // Get ptr
     RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_id->inst);
     RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
 
     // Get value
-    RIRValue *value_inst;
-    if (resolved_value->kind == UIRResolvedKind::Inst) {
-      value_inst = analyser->rir_ctx->getInst(resolved_value->inst);
-    } else if (resolved_value->kind == UIRResolvedKind::Literal) {
-      RIRConstant rir_const =
-          uirRawDataToRIRConstant(resolved_value->literal.data);
-      RIRTypeId const_type_id = ptr_type->child;
-      if (resolved_value->literal.lit_type.isSome()) {
-        const_type_id = resolved_value->literal.lit_type.get();
-      }
+    UIRResolved *resolved_value =
+        analyser->resolved_mapping.get(inst->store.value);
 
-      RIRValueId const_id =
-          analyser->builder.buildConstant(const_type_id, rir_const);
-      value_inst = analyser->rir_ctx->getInst(const_id);
-    }
+    RIRValueId value_inst_id =
+        getInstFromResolved(analyser, resolved_value, ptr_type->child);
+    RIRValue *value_inst = analyser->rir_ctx->getInst(value_inst_id);
 
     // Check types
     value_inst = autoCast(analyser, value_inst, ptr_type->child);
@@ -187,22 +226,10 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       analyse(analyser, module, uir_arg);
       UIRResolved *arg_resolved =
           analyser->resolved_mapping.get(uir_arg); // FIXME: Confirm kind
-      RIRValueId arg_id;
+      RIRValueId arg_id =
+          getInstFromResolved(analyser, arg_resolved, expected_type_id);
 
-      if (arg_resolved->kind == UIRResolvedKind::Inst) {
-        arg_id = arg_resolved->inst;
-      } else if (arg_resolved->kind == UIRResolvedKind::Literal) {
-        UIRLiteral lit = arg_resolved->literal;
-        RIRConstant rir_const = uirRawDataToRIRConstant(lit.data);
-
-        if (lit.lit_type.isSome()) {
-          arg_id =
-              analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
-        } else {
-          arg_id = analyser->builder.buildConstant(expected_type_id, rir_const);
-        }
-      }
-
+      // Cast and Compare
       RIRValue *arg = analyser->rir_ctx->getInst(arg_id);
       arg = autoCast(analyser, arg, expected_type_id);
       expect(expected_type->compare(analyser->rir_ctx->types, arg->result),
@@ -236,25 +263,13 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     UIRResolved *index_resolved =
         analyser->resolved_mapping.get(inst->index.index);
 
-    RIRValue *index;
-    if (index_resolved->kind == UIRResolvedKind::Inst) {
-      index = analyser->rir_ctx->getInst(index_resolved->inst);
-    } else if (index_resolved->kind == UIRResolvedKind::Literal) {
-      RIRTypeId lit_type;
-      if (index_resolved->literal.lit_type.isSome()) {
-        lit_type = index_resolved->literal.lit_type.get();
-      } else {
-        lit_type = analyser->rir_ctx->types->push(
-            {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
-      }
+    RIRTypeId usize_type = analyser->rir_ctx->types->push(
+        {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
+    RIRValueId index_id =
+        getInstFromResolved(analyser, index_resolved, usize_type);
+    RIRValue *index = analyser->rir_ctx->getInst(index_id);
 
-      RIRConstant rir_const =
-          uirRawDataToRIRConstant(index_resolved->literal.data);
-      RIRValueId index_id =
-          analyser->builder.buildConstant(lit_type, rir_const);
-      index = analyser->rir_ctx->getInst(index_id);
-    }
-
+    // Compare
     RIRType *index_type = analyser->rir_ctx->getType(index->result);
     expect(index_type->kind == RIRTypeKind::Integer &&
                !index_type->integer.is_signed && index_type->integer.bits == -1,
@@ -295,42 +310,22 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         analyser->resolved_mapping.get(inst->range.start);
     UIRResolved *end_resolved = analyser->resolved_mapping.get(inst->range.end);
 
-    RIRValue *start;
-    RIRValue *end;
-    if (start_resolved->kind == UIRResolvedKind::Inst) {
-      start = analyser->rir_ctx->getInst(start_resolved->inst);
-    } else {
-      UIRLiteral start_lit = start_resolved->literal;
-      if (start_lit.lit_type.isSome()) {
-        RIRType *start_type =
-            analyser->rir_ctx->getType(start_lit.lit_type.get());
-        expect(start_type->kind == RIRTypeKind::Integer &&
-                   !start_type->integer.is_signed &&
-                   start_type->integer.bits == -1,
-               inst->range.start->source_location,
-               "Range start must be `usize`");
-      }
+    RIRValueId start_id =
+        getInstFromResolved(analyser, start_resolved, usize_ty);
+    RIRValueId end_id = getInstFromResolved(analyser, end_resolved, usize_ty);
+    RIRValue *start = analyser->rir_ctx->getInst(start_id);
+    RIRValue *end = analyser->rir_ctx->getInst(end_id);
 
-      RIRConstant rir_const = uirRawDataToRIRConstant(start_lit.data);
-      RIRValueId start_id =
-          analyser->builder.buildConstant(usize_ty, rir_const);
-      start = analyser->rir_ctx->getInst(start_id);
-    }
-    if (end_resolved->kind == UIRResolvedKind::Inst) {
-      end = analyser->rir_ctx->getInst(end_resolved->inst);
-    } else {
-      UIRLiteral end_lit = end_resolved->literal;
-      if (end_lit.lit_type.isSome()) {
-        RIRType *end_type = analyser->rir_ctx->getType(end_lit.lit_type.get());
-        expect(end_type->kind == RIRTypeKind::Integer &&
-                   !end_type->integer.is_signed && end_type->integer.bits == -1,
-               inst->range.end->source_location, "Range end must be `usize`");
-      }
+    // Check types
+    RIRType *start_type = analyser->rir_ctx->getType(start->result);
+    expect(start_type->kind == RIRTypeKind::Integer &&
+               !start_type->integer.is_signed && start_type->integer.bits == -1,
+           inst->range.start->source_location, "Range start must be `usize`");
 
-      RIRConstant rir_const = uirRawDataToRIRConstant(end_lit.data);
-      RIRValueId end_id = analyser->builder.buildConstant(usize_ty, rir_const);
-      end = analyser->rir_ctx->getInst(end_id);
-    }
+    RIRType *end_type = analyser->rir_ctx->getType(end->result);
+    expect(end_type->kind == RIRTypeKind::Integer &&
+               !end_type->integer.is_signed && end_type->integer.bits == -1,
+           inst->range.end->source_location, "Range end must be `usize`");
 
     // Create Instruction
     RIRTypeId elem_type;
@@ -383,30 +378,12 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRResolved *value_resolved =
           analyser->resolved_mapping.get(uir_value_inst);
 
-      RIRValue *value_inst;
-      if (value_resolved->kind == UIRResolvedKind::Inst) {
-        value_inst = analyser->rir_ctx->getInst(value_resolved->inst);
-      } else if (value_resolved->kind == UIRResolvedKind::Literal) {
-        // Get constant value
-        RIRConstant rir_const =
-            uirRawDataToRIRConstant(value_resolved->literal.data);
-        RIRTypeId const_type = expected_type->id;
-        if (value_resolved->literal.lit_type.isSome()) {
-          const_type = value_resolved->literal.lit_type.get();
-        } else {
-          expect(compareRawDataToType(
-                     analyser, value_resolved->literal.data.kind, const_type),
-                 inst->ret.value.get()->source_location,
-                 "Raw data kind doesn't match expected type");
-        }
-
-        RIRValueId value_inst_id =
-            analyser->builder.buildConstant(const_type, rir_const);
-        value_inst = analyser->rir_ctx->getInst(value_inst_id);
-      }
+      RIRValueId value_inst_id =
+          getInstFromResolved(analyser, value_resolved, expected_type->id);
+      RIRValue *value_inst = analyser->rir_ctx->getInst(value_inst_id);
 
       // Cast and Compare
-      value_inst = autoCast(analyser, value_inst, fn_type->function._return);
+      value_inst = autoCast(analyser, value_inst, expected_type->id);
       expect(
           expected_type->compare(analyser->rir_ctx->types, value_inst->result),
           uir_value_inst->source_location,
@@ -456,6 +433,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     analyse(analyser, module, inst->_switch.condition);
     UIRResolved *condition_id = analyser->resolved_mapping.get(
         inst->_switch.condition); // FIXME: Confirm kind
+    // TODO: Eliminate dead-code if `condition_id` is a literal
 
     RIRBlockId *default_dest = analyser->resolved_block_mapping.get(
         inst->_switch.default_block); // FIXME: Confirm exists
