@@ -14,22 +14,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   // Execute comptime
   if (lhs_resolved->kind == UIRResolvedKind::Literal &&
       rhs_resolved->kind == UIRResolvedKind::Literal) {
-    if (lhs_resolved->literal.lit_type.isNone() &&
-        rhs_resolved->literal.lit_type.isNone()) {
-      UIRLiteral lit = analyser->comptime_state.execute(module, inst);
-
-      if (lit.lit_type.isSome()) {
-        RIRConstant rir_const = uirRawDataToRIRConstant(lit.data);
-        RIRValueId out_id =
-            analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
-        analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
-      } else {
-        analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
-      }
-      return;
-    }
+    UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
+    return;
   }
 
   // Get operand instructions
@@ -48,7 +36,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
   if (lhs_resolved->kind == UIRResolvedKind::Literal) {
     // Make literal typed
-    // FIXME: Compare literal kind to type
+    expect(compareRawDataToType(analyser, lhs_resolved->literal.data.kind,
+                                rhs->result),
+           inst->binop.lhs->source_location, "LHS literal must match RHS type");
+
     lhs_type = rhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(lhs_resolved->literal.data);
     RIRValueId lhs_id = analyser->builder.buildConstant(rhs->result, rir_const);
@@ -123,7 +114,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     }
 
     // Make literal typed
-    // FIXME: Compare literal kind to type
+    expect(compareRawDataToType(analyser, rhs_resolved->literal.data.kind,
+                                lhs->result),
+           inst->binop.lhs->source_location, "RHS literal must match LHS type");
+
     rhs_type = lhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(rhs_resolved->literal.data);
     RIRValueId rhs_id = analyser->builder.buildConstant(lhs->result, rir_const);

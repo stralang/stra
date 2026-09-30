@@ -42,14 +42,27 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
           .integer = {false, -1},
       });
       field_index = 1;
+    }
 
-      // FIXME: Compile-time length
-      // if (parent_type->slice.length > 0) {
-      //   UIRRawData len_data = {.kind = UIRRawDataKind::Int,
-      //                          ._int = parent_type->slice.length};
-      //   return {.kind = UIRResolvedKind::Literal,
-      //           .literal = {.data = len_data, .lit_type = sub_type.get()}};
-      // }
+    // Compile-time length
+    if (field_index == 1 && parent_type->slice.length > 0) {
+      UIRRawData *len_data =
+          (UIRRawData *)analyser->allocator->alloc(sizeof(UIRRawData));
+      *len_data = {.kind = UIRRawDataKind::Int,
+                   ._int = parent_type->slice.length};
+
+      UIRRawData ptr_data = {.kind = UIRRawDataKind::Pointer};
+      ptr_data.ptr = {
+          .kind = UIRPlaceKind::Raw,
+          .data = len_data,
+      };
+
+      RIRTypeId ptr_type = analyser->rir_ctx->types->push(
+          {.kind = RIRTypeKind::Pointer, .child = sub_type.get()});
+      return {
+          .kind = UIRResolvedKind::Literal,
+          .literal = {.data = ptr_data, .lit_type = ptr_type},
+      };
     }
   } else if (parent_type->kind == RIRTypeKind::Struct) {
     UIRValue *struct_inst =

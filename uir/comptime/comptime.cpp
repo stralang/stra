@@ -520,23 +520,26 @@ ComptimeStackFrame *UIRComptime::currentStack() {
 
 UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
                                  UIRValue *from) {
-  if (from->kind == UIRValueKind::Literal) {
-    return from->literal;
+  size_t *opt_idx = frame->lookup.get(from);
+  if (opt_idx != nullptr) {
+    return *frame->values.getUnchecked(*opt_idx);
+  }
+
+  UIRResolved *resolved_value = this->analyser->resolved_mapping.get(from);
+  if (resolved_value->kind == UIRResolvedKind::Literal) {
+    return resolved_value->literal;
   } else if (from->kind == UIRValueKind::GlobalVariable) {
     UIRValue *constant = from->global_variable.constant.get();
-    UIRResolved *resolved_constant =
-        this->analyser->resolved_mapping.get(constant);
-    if (resolved_constant == nullptr) {
+    if (resolved_value == nullptr) {
       analyseGlobal(this->analyser, module, from);
-      resolved_constant = this->analyser->resolved_mapping.get(constant);
+      resolved_value = this->analyser->resolved_mapping.get(constant);
     }
 
     RIRTypeId type_id;
-    if (resolved_constant->kind == UIRResolvedKind::Inst) {
-      type_id =
-          this->analyser->rir_ctx->getInst(resolved_constant->inst)->result;
-    } else if (resolved_constant->kind == UIRResolvedKind::Literal) {
-      type_id = resolved_constant->literal.lit_type.get();
+    if (resolved_value->kind == UIRResolvedKind::Inst) {
+      type_id = this->analyser->rir_ctx->getInst(resolved_value->inst)->result;
+    } else if (resolved_value->kind == UIRResolvedKind::Literal) {
+      type_id = resolved_value->literal.lit_type.get();
     }
 
     // TODO: Readd constant types
@@ -557,17 +560,16 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
     UIRLiteral lit_out = {.lit_type = ptr_type};
     lit_out.data.kind = UIRRawDataKind::Pointer;
 
-    if (resolved_constant->kind == UIRResolvedKind::Inst) {
+    if (resolved_value->kind == UIRResolvedKind::Inst) {
       lit_out.data.ptr = {.kind = UIRPlaceKind::Inst,
-                          .inst = resolved_constant->inst};
+                          .inst = resolved_value->inst};
     } else {
       lit_out.data.ptr = {.kind = UIRPlaceKind::Raw,
-                          .data = &resolved_constant->literal.data};
+                          .data = &resolved_value->literal.data};
     }
 
     return lit_out;
   }
 
-  size_t idx = *frame->lookup.get(from);
-  return *frame->values.getUnchecked(idx);
+  assert(0 && "Failed to get value during compile-time");
 }

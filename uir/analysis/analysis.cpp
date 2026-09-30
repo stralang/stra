@@ -6,6 +6,7 @@
 #include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
+#include <cassert>
 
 void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   if (analyser->resolved_mapping.get(inst) != nullptr) {
@@ -34,16 +35,17 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIRValueKind::Load: {
     analyse(analyser, module, inst->load.ptr);
-    UIRResolved *ptr_id =
-        analyser->resolved_mapping.get(inst->load.ptr); // FIXME: Confirm kind
-    RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_id->inst);
+    UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->load.ptr);
+    assert(ptr_resolved->kind == UIRResolvedKind::Inst);
+
+    RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_resolved->inst);
     RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
     expect(ptr_type->kind == RIRTypeKind::Pointer,
            inst->load.ptr->source_location, "!UIR! Can only load from pointer");
 
     // Create Instruction
     RIRValueId out_id =
-        analyser->builder.buildLoad(ptr_id->inst, ptr_type->child);
+        analyser->builder.buildLoad(ptr_resolved->inst, ptr_type->child);
     analyser->resolved_mapping.insert(
         inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;

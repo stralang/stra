@@ -232,16 +232,6 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
         if (inst->field_at.index == 0) {
           out = LLVMBuildLoad2(builder, typeToLLVM(codegen, ptr_type->id), ptr,
                                "");
-        } else if (inst->field_at.index == 1) {
-          LLVMTypeRef int_type =
-              LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size);
-
-          out = LLVMAddGlobal(codegen->mod, int_type, "");
-          LLVMSetLinkage(out, LLVMPrivateLinkage);
-          LLVMSetGlobalConstant(out, true);
-          LLVMSetInitializer(
-              out,
-              LLVMConstInt(int_type, rir_aggregate_type->slice.length, false));
         }
         handled = true;
       }
