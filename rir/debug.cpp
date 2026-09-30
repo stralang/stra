@@ -1,4 +1,5 @@
 #include "debug.hpp"
+#include "common/debug.hpp"
 #include "rir.hpp"
 #include "rir/constant.hpp"
 #include "type.hpp"
@@ -191,6 +192,17 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << "fieldat " << inst->field_at.ptr << ", " << inst->field_at.index;
     break;
   }
+  case RIRValueKind::Aggregate: {
+    os << "aggregate #" << inst->result << " {";
+    for (size_t i = 0; i < inst->aggregate.values.len; i++) {
+      if (i != 0) {
+        os << ", ";
+      }
+      os << inst->aggregate.values.ptr[i];
+    }
+    os << "}";
+    break;
+  }
   case RIRValueKind::Return: {
     os << "ret ";
     if (inst->ret.value.isSome()) {
@@ -221,14 +233,16 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     break;
   }
   case RIRValueKind::GlobalVariable: {
-    os << "global #" << inst->global_variable.type;
+    os << "global \"" << inst->global_variable.link_name << "\" #"
+       << inst->global_variable.type;
     if (inst->global_variable.constant.isSome()) {
       // FIXME: os << ", " << inst->global_variable.constant.get();
     }
     break;
   }
   case RIRValueKind::Function: {
-    os << "fn #" << inst->function.type << " {\n";
+    os << "fn \"" << inst->function.link_name << "\" #" << inst->function.type
+       << " {\n";
     for (size_t i = 0; i < inst->function.blocks.length; i++) {
       RIRBlockId id = inst->function.blocks.getUnchecked(i);
       printBlock(os, ctx, ctx->getBlock(id));

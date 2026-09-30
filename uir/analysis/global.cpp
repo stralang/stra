@@ -28,12 +28,32 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRValue *const_inst = inst->global_variable.constant.get();
       UIRLiteral const_literal =
           analyser->comptime_state.execute(module, const_inst);
+      analyser->resolved_mapping.insert(
+          const_inst,
+          {.kind = UIRResolvedKind::Literal, .literal = const_literal});
 
       if (const_literal.data.kind == UIRRawDataKind::TypeId) {
-        // FIXME: Pointer literal
+        // Generate Virtual Variable
+        UIRResolved *const_resolved =
+            analyser->resolved_mapping.get(const_inst);
+        const_resolved->literal.lit_type =
+            analyser->rir_ctx->types->push({.kind = RIRTypeKind::TypeId});
+
+        // Create Pointer
+        RIRTypeId ptr_type = analyser->rir_ctx->types->push({
+            .kind = RIRTypeKind::Pointer,
+            .child = const_resolved->literal.lit_type.get(),
+        });
+        UIRLiteral out_lit = {.data = {.kind = UIRRawDataKind::Pointer},
+                              .lit_type = ptr_type};
+        out_lit.data.ptr = {.kind = UIRPlaceKind::Raw,
+                            .data = &const_resolved->literal.data};
+
+        // Create mapping
         analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Literal, .literal = const_literal});
+            inst, {.kind = UIRResolvedKind::Literal, .literal = out_lit});
       } else {
+        // Generate Real Variable
         RIRType *type = nullptr;
         if (const_literal.lit_type.isSome()) {
           type = analyser->rir_ctx->getType(const_literal.lit_type.get());
@@ -73,41 +93,6 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
           analyser->builder.buildGlobalVariable(typeId.get(), {}, inst->name);
       analyser->resolved_mapping.insert(
           inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
-    }
-
-    // Analyse Definitions
-    UIRResolved *resolved = analyser->resolved_mapping.get(inst);
-    if (resolved->kind == UIRResolvedKind::Literal) {
-      if (resolved->literal.data.ptr.data->kind == UIRRawDataKind::TypeId) {
-        RIRType *ptr_type =
-            analyser->rir_ctx->getType(resolved->literal.lit_type.get());
-        RIRType *child_type = analyser->rir_ctx->getType(ptr_type->child);
-        switch (child_type->kind) {
-        case RIRTypeKind::Struct: {
-          UIRValue *_struct =
-              reinterpret_cast<UIRValue *>(child_type->_struct.unique);
-          analyseScope(analyser, module, _struct->_struct.definitions);
-          break;
-        }
-        case RIRTypeKind::Enum: {
-          UIRValue *_enum =
-              reinterpret_cast<UIRValue *>(child_type->_enum.unique);
-          analyseScope(analyser, module, _enum->_enum.definitions);
-          break;
-        }
-        case RIRTypeKind::Union: {
-          UIRValue *_union =
-              reinterpret_cast<UIRValue *>(child_type->_union.unique);
-          analyseScope(analyser, module, _union->_union.definitions);
-          break;
-        }
-        }
-      } else if (resolved->literal.data.ptr.data->kind ==
-                 UIRRawDataKind::Namespace) {
-        analyseScope(analyser, module,
-                     resolved->literal.data.ptr.data->_namespace->_namespace
-                         .definitions);
-      }
     }
     break;
   }

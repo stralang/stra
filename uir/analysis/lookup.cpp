@@ -2,6 +2,7 @@
 #include "../uir.hpp"
 #include "common/debug.hpp"
 #include "define.hpp"
+#include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
 
 UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
@@ -14,13 +15,21 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
 
   RIRType *parent_type = analyser->rir_ctx->getType(ptr_type->child);
 
+  // Auto dereference
+  if (parent_type->kind == RIRTypeKind::Pointer) {
+    ptr_type = parent_type;
+    RIRValueId ptr_inst_id =
+        analyser->builder.buildLoad(ptr_inst->id, ptr_type->id);
+    ptr_inst = analyser->rir_ctx->getInst(ptr_inst_id);
+    parent_type = analyser->rir_ctx->getType(parent_type->child);
+  }
+
   // Search
   UIRScope *definitions = nullptr;
   Option<RIRTypeId> sub_type = {};
   size_t field_index = 0;
 
   if (parent_type->kind == RIRTypeKind::Slice) {
-
     if (member->compare("ptr")) {
       sub_type = analyser->rir_ctx->types->push({
           .kind = RIRTypeKind::Pointer,
@@ -50,12 +59,7 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
     for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
       if (field->name.compare(*member)) {
-        UIRResolved *type_resolved =
-            analyser->resolved_mapping.get(field->type);
-        assert(type_resolved->kind == UIRResolvedKind::Literal &&
-               type_resolved->literal.data.kind == UIRRawDataKind::TypeId);
-
-        sub_type = type_resolved->literal.data._typeid;
+        sub_type = parent_type->_struct.fields.ptr[i];
         field_index = i;
         break;
       }
@@ -84,6 +88,7 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
     for (size_t i = 0; i < definitions->list.length; i++) {
       UIRValue *child = definitions->list.getUnchecked(i);
       if (child->name.compare(*member)) {
+        analyse(analyser, module, child);
         return *analyser->resolved_mapping.get(child);
       }
     }
@@ -91,7 +96,7 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
 
   // Error
   expect(false, source_location,
-         "Couldn't find member of name \"" << member << "\"");
+         "Couldn't find member of name \"" << *member << "\"");
   return {};
 }
 
@@ -107,6 +112,7 @@ void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
                                        &inst->lookup.member,
                                        inst->lookup.parent->source_location);
     analyser->resolved_mapping.insert(inst, result);
+    return;
   }
 
   // Literal parent

@@ -9,7 +9,6 @@
 #include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
 #include <cassert>
-#include <cinttypes>
 #include <cstdlib>
 #include <iostream>
 
@@ -565,6 +564,8 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
       lit_out.data.ptr = {.kind = UIRPlaceKind::Raw,
                           .data = &resolved_constant->literal.data};
     }
+
+    return lit_out;
   }
 
   size_t idx = *frame->lookup.get(from);

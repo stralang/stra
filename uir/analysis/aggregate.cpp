@@ -59,10 +59,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
     if (inst->aggregate.names.ptr != nullptr) {
       String name = inst->aggregate.names.ptr[i];
       index = getFieldIndex(struct_inst, name).get();
-
-      UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
-      UIRResolved *field_resolved = analyser->resolved_mapping.get(field->type);
-      expected_type = field_resolved->literal.data._typeid;
+      expected_type = aggregate_type->_struct.fields.ptr[index];
     } else {
       expected_type = aggregate_type->slice.child;
     }

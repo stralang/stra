@@ -132,8 +132,8 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Arguments
     Slice<RIRValueId> arguments = Slice<RIRValueId>{
         .ptr = (RIRValueId *)analyser->allocator->alloc(
-            sizeof(RIRValueId) * inst->call.arguments.len),
-        .len = inst->call.arguments.len,
+            sizeof(RIRValueId) * callee_type->function.arguments.len),
+        .len = callee_type->function.arguments.len,
     };
 
     // Get receiver
@@ -142,19 +142,20 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       UIRValue *uir_receiver_inst = inst->call.receiver.get();
       analyse(analyser, module, uir_receiver_inst);
 
-      UIRResolved *receiver_id = analyser->resolved_mapping.get(
+      UIRResolved *receiver_resolved = analyser->resolved_mapping.get(
           uir_receiver_inst); // FIXME: Confirm kind
 
       bool receiver_is_valid =
-          receiver_id->kind != UIRResolvedKind::Literal ||
-          receiver_id->literal.data.kind != UIRRawDataKind::TypeId;
+          receiver_resolved->kind != UIRResolvedKind::Literal ||
+          receiver_resolved->literal.data.kind != UIRRawDataKind::TypeId;
 
       if (receiver_is_valid) {
         expect(fn_type->function.arguments.len >= 1,
                uir_receiver_inst->source_location,
                "Receiver expects method with atleast 1 argument");
 
-        RIRValue *receiver_inst = analyser->rir_ctx->getInst(receiver_id->inst);
+        RIRValue *receiver_inst =
+            analyser->rir_ctx->getInst(receiver_resolved->inst);
         RIRType *expected_type =
             analyser->rir_ctx->getType(fn_type->function.arguments.ptr[0]);
         expect(expected_type->compare(analyser->rir_ctx->types,
@@ -163,7 +164,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                "Receiver `" << receiver_inst->result << "` doesn't match `"
                             << expected_type << "`");
 
-        arguments[initial_idx] = receiver_id->inst;
+        arguments[initial_idx] = receiver_resolved->inst;
         initial_idx = 1;
       }
     }
