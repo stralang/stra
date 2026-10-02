@@ -65,8 +65,7 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
       };
     }
   } else if (parent_type->kind == RIRTypeKind::Struct) {
-    UIRValue *struct_inst =
-        reinterpret_cast<UIRValue *>(parent_type->_struct.unique);
+    UIRValue *struct_inst = analyser->type_extras.get(parent_type->id)->creator;
     definitions = struct_inst->_struct.definitions;
 
     for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
@@ -78,8 +77,7 @@ UIRResolved analyseLookup(UIRAnalyser *analyser, UIRModule *module,
       }
     }
   } else if (parent_type->kind == RIRTypeKind::Enum) {
-    UIRValue *enum_inst =
-        reinterpret_cast<UIRValue *>(parent_type->_enum.unique);
+    UIRValue *enum_inst = analyser->type_extras.get(parent_type->id)->creator;
     definitions = enum_inst->_enum.definitions;
   }
 

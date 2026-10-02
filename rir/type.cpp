@@ -172,15 +172,10 @@ bool RIRType::compare(RIRTypeContext *ctx, RIRTypeId other_id) {
     RIRType *this_return = ctx->getPtr(this->function._return);
     return this_return->compare(ctx, other->function._return);
   }
-  case RIRTypeKind::Struct: {
-    return this->_struct.unique == other->_struct.unique;
-  }
-  case RIRTypeKind::Enum: {
-    RIRType *this_repr = ctx->getPtr(this->_enum.repr);
-    return this_repr->compare(ctx, other->_enum.repr);
-  }
+  case RIRTypeKind::Struct:
+  case RIRTypeKind::Enum:
   case RIRTypeKind::Union: {
-    return this->_union.unique == other->_union.unique;
+    return this->id == other->id;
   }
   }
 
@@ -191,6 +186,11 @@ void RIRType::makeHashcode() {
   Hasher hasher;
   hasher.hash(&this->kind);
   switch (this->kind) {
+  case RIRTypeKind::Void:
+  case RIRTypeKind::Bool:
+  case RIRTypeKind::TypeId: {
+    break;
+  }
   case RIRTypeKind::Integer: {
     hasher.hash(&this->integer);
     break;
@@ -216,16 +216,10 @@ void RIRType::makeHashcode() {
     hasher.hash(&this->function._return);
     break;
   }
-  case RIRTypeKind::Struct: {
-    hasher.hash(&this->_struct.unique);
-    break;
-  }
-  case RIRTypeKind::Enum: {
-    hasher.hash(&this->_enum.unique);
-    break;
-  }
+  case RIRTypeKind::Struct:
+  case RIRTypeKind::Enum:
   case RIRTypeKind::Union: {
-    hasher.hash(&this->_union.unique);
+    hasher.hash(&this->id);
     break;
   }
   }

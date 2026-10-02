@@ -12,3 +12,8 @@ UIRLiteral **executeGetReturn(UIRComptime *state, UIRModule *module,
                               UIRValue *inst);
 UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
                          ComptimeStackFrame *frame, UIRValue *inst);
+
+UIRLiteral executeLookupPtr(UIRComptime *state, UIRModule *module,
+                            ComptimeStackFrame *frame, UIRValue *inst);
+UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
+                              ComptimeStackFrame *frame, UIRValue *inst);

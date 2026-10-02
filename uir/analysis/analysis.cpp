@@ -562,6 +562,7 @@ void UIRAnalyser::init(Allocator *allocator) {
   // RIR
   this->resolved_mapping.init(allocator, 4096);
   this->resolved_block_mapping.init(allocator, 512);
+  this->type_extras.init(allocator, 512);
 
   this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
   this->rir_ctx->init(allocator, allocator);
@@ -579,4 +580,5 @@ void UIRAnalyser::deinit() {
   this->arena.deinit();
   this->resolved_mapping.deinit();
   this->resolved_block_mapping.deinit();
+  this->type_extras.deinit();
 }

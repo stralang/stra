@@ -23,6 +23,11 @@ struct UIRResolved {
   };
 };
 
+struct UIRExtraTypeInfo {
+  UIRValue *creator; // the creator instruction, this is used to find methods
+  Slice<UIRLiteral> constants; // Struct defaults, Enum members, etc
+};
+
 struct UIRAnalyser {
   // UIR
   UIRContext *ctx;
@@ -34,6 +39,7 @@ struct UIRAnalyser {
 
   HashMap<UIRValue *, UIRResolved> resolved_mapping;
   HashMap<UIRBlock *, RIRBlockId> resolved_block_mapping;
+  HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
 
   // Misc
   DynamicArena arena;

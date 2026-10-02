@@ -44,16 +44,13 @@ struct RIRType {
     } function;
     struct {
       Slice<RIRTypeId> fields;
-      uint64_t unique;
     } _struct;
     struct {
       RIRTypeId repr;
-      uint64_t unique;
     } _enum;
     struct {
       RIRTypeId repr;
       Slice<RIRTypeId> variants;
-      uint64_t unique;
     } _union;
   };
 

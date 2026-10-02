@@ -42,7 +42,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
     expect(aggregate_type->kind == RIRTypeKind::Struct,
            inst->aggregate.type->source_location,
            "Cannot name initialize non-struct");
-    struct_inst = reinterpret_cast<UIRValue *>(aggregate_type->_struct.unique);
+    struct_inst = analyser->type_extras.get(aggregate_type_id)->creator;
   }
 
   // Analyse Aggregate

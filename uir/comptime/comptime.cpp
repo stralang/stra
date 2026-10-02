@@ -151,6 +151,10 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     };
     return;
   }
+  case UIRValueKind::BinOp: {
+    *(frame->add(inst)) = executeBinary(state, module, frame, inst);
+    return;
+  }
   case UIRValueKind::Call: {
     state->pushStack();
 
@@ -180,12 +184,12 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     *(frame->add(inst)) = result;
     return;
   }
-  case UIRValueKind::Index: {
-    // TODO: Implement compile-time Indexing
-    break;
+  case UIRValueKind::LookupPtr: {
+    *(frame->add(inst)) = executeLookupPtr(state, module, frame, inst);
+    return;
   }
-  case UIRValueKind::BinOp: {
-    *(frame->add(inst)) = executeBinary(state, module, frame, inst);
+  case UIRValueKind::LookupValue: {
+    *(frame->add(inst)) = executeLookupValue(state, module, frame, inst);
     return;
   }
   case UIRValueKind::Return: {
@@ -294,9 +298,8 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
         .kind = RIRTypeKind::Struct,
         // TODO: Readd constant types
     };
-    raw_type._struct.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
-
     RIRTypeId struct_type_id = state->analyser->rir_ctx->types->push(raw_type);
+    state->analyser->type_extras.insert(struct_type_id, {.creator = inst});
 
     // Fields
     RIRType *struct_type = state->analyser->rir_ctx->getType(struct_type_id);
@@ -316,56 +319,51 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     lit_out->data = {.kind = UIRRawDataKind::TypeId, ._typeid = struct_type_id};
     return;
   }
-  // FIXME:
-  // case UIRValueKind::Enum: {
-  //   RIRType raw_type = {
-  //       .kind = RIRTypeKind::Enum,
-  //       // TODO: Readd constant types
-  //   };
-  //   raw_type._enum.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
-  //
-  //   RIRTypeId enum_type_id = state->analyser->rir_ctx->types->push(raw_type);
-  //
-  //   // Represent Type
-  //   RIRType *enum_type = state->analyser->rir_ctx->getType(enum_type_id);
-  //   UIRLiteral repr_lit = state->getValue(frame, module,
-  //   inst->_enum.repr_type); enum_type->_enum.repr = repr_lit._typeid;
-  //
-  //   // Members
-  //   int64_t next_value = 0;
-  //   for (size_t i = 0; i < inst->_enum.members.len; i++) {
-  //     UIREnum::Member *member = inst->_enum.members.ptr + i;
-  //
-  //     UIRLiteral result;
-  //     if (member->constant != nullptr) {
-  //       result = **executeGetReturn(state, module, member->constant);
-  //     } else {
-  //       result.kind = UIRLiteralKind::Typed;
-  //       result._int = next_value;
-  //     }
-  //
-  //     result.lit_type = repr_lit._typeid;
-  //
-  //     member->constant->literal = result;
-  //     member->constant->kind = UIRValueKind::Literal;
-  //     member->constant->result_type = member->constant->literal.lit_type;
-  //     next_value = member->constant->literal._int + 1;
-  //   }
-  //
-  //   return {
-  //       .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-  //       .kind = UIRLiteralKind::Typed,
-  //       ._typeid = enum_type,
-  //   };
-  // }
+  case UIRValueKind::Enum: {
+    RIRTypeId enum_type_id =
+        state->analyser->rir_ctx->types->push({.kind = RIRTypeKind::Enum});
+    state->analyser->type_extras.insert(enum_type_id, {.creator = inst});
+
+    // Represent Type
+    RIRType *enum_type = state->analyser->rir_ctx->getType(enum_type_id);
+    UIRLiteral repr_lit = state->getValue(frame, module, inst->_enum.repr_type);
+    enum_type->_enum.repr = repr_lit.data._typeid;
+
+    // Members
+    Slice<UIRLiteral> members = {
+        .ptr = (UIRLiteral *)state->allocator->alloc(sizeof(UIRLiteral) *
+                                                     inst->_enum.members.len),
+        .len = inst->_enum.members.len,
+    };
+    int64_t next_value = 0;
+    for (size_t i = 0; i < inst->_enum.members.len; i++) {
+      UIREnum::Member *member = inst->_enum.members.ptr + i;
+
+      UIRLiteral *result = members.ptr + i;
+      if (member->constant != nullptr) {
+        *result = **executeGetReturn(state, module, member->constant);
+      } else {
+        result->data = {.kind = UIRRawDataKind::Int, ._int = next_value};
+      }
+
+      // TODO: verify `result` is correct type
+      result->lit_type = repr_lit.data._typeid;
+      next_value = result->data._int + 1;
+    }
+
+    state->analyser->type_extras.get(enum_type_id)->constants = members;
+
+    UIRLiteral *lit_out = frame->add(inst);
+    lit_out->data = {.kind = UIRRawDataKind::TypeId, ._typeid = enum_type_id};
+    return;
+  }
   case UIRValueKind::Union: {
     RIRType raw_type = {
         .kind = RIRTypeKind::Union,
         // TODO: Readd constant types
     };
-    raw_type._union.unique = (uint64_t)reinterpret_cast<uintptr_t>(inst);
-
     RIRTypeId union_type_id = state->analyser->rir_ctx->types->push(raw_type);
+    state->analyser->type_extras.insert(union_type_id, {.creator = inst});
 
     // Represent Type
     RIRType *union_type = state->analyser->rir_ctx->getType(union_type_id);
