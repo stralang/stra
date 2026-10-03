@@ -4,11 +4,79 @@
 #include "define.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
+#include "uir/comptime/comptime.hpp"
+#include <cassert>
 #include <cmath>
 #include <iostream>
 
+UIRLiteral executeCastAs(UIRComptime *state, UIRModule *module,
+                         ComptimeStackFrame *frame, UIRValue *inst) {
+  UIRLiteral src = state->getValue(frame, module, inst->binop.lhs);
+  UIRLiteral dstt = state->getValue(frame, module, inst->binop.rhs);
+  assert(dstt.data.kind == UIRRawDataKind::TypeId);
+
+  // Get types
+  RIRType *dst_type = state->ctx->types->getPtr(dstt.data._typeid);
+  RIRType *src_type = nullptr;
+  if (src.lit_type.isSome()) {
+    src_type = state->analyser->rir_ctx->getType(src.lit_type.get());
+  }
+
+  switch (dst_type->kind) {
+  case RIRTypeKind::Bool: {
+    if (src.data.kind == UIRRawDataKind::Bool) {
+      src.lit_type.setSome(dst_type->id);
+      return src;
+    } else if (src.data.kind == UIRRawDataKind::Int) {
+      src.lit_type.setSome(dst_type->id);
+      src.data.kind = UIRRawDataKind::Bool;
+      src.data._bool = src.data._int;
+      return src;
+    }
+    break;
+  }
+  case RIRTypeKind::Integer: {
+    if (src.data.kind == UIRRawDataKind::Bool) {
+      src.lit_type.setSome(dst_type->id);
+      src.data.kind = UIRRawDataKind::Int;
+      src.data._int = src.data._bool;
+      return src;
+    } else if (src.data.kind == UIRRawDataKind::Int) {
+      src.lit_type.setSome(dst_type->id);
+      return src;
+    } else if (src.data.kind == UIRRawDataKind::Float) {
+      src.lit_type.setSome(dst_type->id);
+      src.data.kind = UIRRawDataKind::Int;
+      src.data._int = src.data._float;
+      return src;
+    }
+    break;
+  }
+  case RIRTypeKind::Float: {
+    if (src.data.kind == UIRRawDataKind::Int) {
+      src.lit_type.setSome(dst_type->id);
+      src.data.kind = UIRRawDataKind::Float;
+      src.data._float = src.data._int;
+      return src;
+    } else if (src.data.kind == UIRRawDataKind::Float) {
+      src.lit_type.setSome(dst_type->id);
+      return src;
+    }
+    break;
+  }
+  }
+
+  std::cerr << "Unhandled cast " << (uint32_t)src.data.kind << " -> "
+            << dstt.data._typeid << "\n";
+  std::abort();
+}
+
 UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
                          ComptimeStackFrame *frame, UIRValue *inst) {
+  if (inst->binop.opcode == UIROpcode::As) {
+    return executeCastAs(state, module, frame, inst);
+  }
+
   UIRLiteral lhs = state->getValue(frame, module, inst->binop.lhs);
   UIRLiteral rhs = state->getValue(frame, module, inst->binop.rhs);
 
@@ -149,7 +217,10 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   case UIROpcode::EqualTo:
   case UIROpcode::NotEqualTo: {
     // TODO: `compareTypes`
-    UIRLiteral result = {.data = {.kind = UIRRawDataKind::Bool}};
+    UIRLiteral result = {
+        .data = {.kind = UIRRawDataKind::Bool},
+        .lit_type = state->ctx->types->push({.kind = RIRTypeKind::Bool}),
+    };
 
     if (lhs.data.kind == UIRRawDataKind::Bool &&
         rhs.data.kind == UIRRawDataKind::Bool) {
@@ -181,7 +252,10 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::LessThen: {
     // TODO: `compareTypes`
-    UIRLiteral result = {.data = {.kind = UIRRawDataKind::Bool}};
+    UIRLiteral result = {
+        .data = {.kind = UIRRawDataKind::Bool},
+        .lit_type = state->ctx->types->push({.kind = RIRTypeKind::Bool}),
+    };
 
     if (lhs.data.kind == UIRRawDataKind::Int &&
         rhs.data.kind == UIRRawDataKind::Int) {
@@ -195,7 +269,10 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::GreaterThen: {
     // TODO: `compareTypes`
-    UIRLiteral result = {.data = {.kind = UIRRawDataKind::Bool}};
+    UIRLiteral result = {
+        .data = {.kind = UIRRawDataKind::Bool},
+        .lit_type = state->ctx->types->push({.kind = RIRTypeKind::Bool}),
+    };
 
     if (lhs.data.kind == UIRRawDataKind::Int &&
         rhs.data.kind == UIRRawDataKind::Int) {
@@ -209,7 +286,10 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::LessThenOrEqualTo: {
     // TODO: `compareTypes`
-    UIRLiteral result = {.data = {.kind = UIRRawDataKind::Bool}};
+    UIRLiteral result = {
+        .data = {.kind = UIRRawDataKind::Bool},
+        .lit_type = state->ctx->types->push({.kind = RIRTypeKind::Bool}),
+    };
 
     if (lhs.data.kind == UIRRawDataKind::Int &&
         rhs.data.kind == UIRRawDataKind::Int) {
@@ -223,7 +303,10 @@ UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
   }
   case UIROpcode::GreaterThenOrEqualTo: {
     // TODO: `compareTypes`
-    UIRLiteral result = {.data = {.kind = UIRRawDataKind::Bool}};
+    UIRLiteral result = {
+        .data = {.kind = UIRRawDataKind::Bool},
+        .lit_type = state->ctx->types->push({.kind = RIRTypeKind::Bool}),
+    };
 
     if (lhs.data.kind == UIRRawDataKind::Int &&
         rhs.data.kind == UIRRawDataKind::Int) {

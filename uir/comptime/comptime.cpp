@@ -230,17 +230,48 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
       return;
     }
 
-    switch (resolved_inst->kind) {
-    case UIRResolvedKind::Inst: {
+    // Get type from instruction
+    if (resolved_inst->kind == UIRResolvedKind::Inst) {
       RIRValue *rir_inst =
           state->analyser->rir_ctx->getInst(resolved_inst->inst);
       lit_out->data._typeid = rir_inst->result;
-      break;
+      return;
     }
-    case UIRResolvedKind::Literal: {
+
+    // Get type from literal
+    assert(resolved_inst->kind == UIRResolvedKind::Literal);
+
+    if (resolved_inst->literal.lit_type.isSome()) {
       lit_out->data._typeid = resolved_inst->literal.lit_type.get();
-      break;
-    }
+    } else {
+      // Guess type from data
+      switch (resolved_inst->literal.data.kind) {
+      case UIRRawDataKind::Void: {
+        lit_out->data._typeid =
+            state->ctx->types->push({.kind = RIRTypeKind::Void});
+        break;
+      }
+      case UIRRawDataKind::Bool: {
+        lit_out->data._typeid =
+            state->ctx->types->push({.kind = RIRTypeKind::Bool});
+        break;
+      }
+      case UIRRawDataKind::Int: {
+        lit_out->data._typeid = state->ctx->types->push(
+            {.kind = RIRTypeKind::Integer, .integer = {true, 32}});
+        break;
+      }
+      case UIRRawDataKind::Float: {
+        lit_out->data._typeid = state->ctx->types->push(
+            {.kind = RIRTypeKind::Float, .float_bits = 32});
+        break;
+      }
+      case UIRRawDataKind::TypeId: {
+        lit_out->data._typeid =
+            state->ctx->types->push({.kind = RIRTypeKind::TypeId});
+        break;
+      }
+      }
     }
     return;
   }
