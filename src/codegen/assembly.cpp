@@ -56,6 +56,7 @@ LLVMValueRef genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder,
     }
   }
 
+  constraints << clobbered.str();
   std::string assembly_str = assembly.str();
   std::string constraints_str = constraints.str();
 
