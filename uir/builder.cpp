@@ -172,6 +172,12 @@ void UIRBuilder::addCase(UIRValue *switch_inst, UIRValue *onval,
   switch_inst->_switch.slots += 1;
 }
 
+UIRValue *UIRBuilder::buildAssembly(Slice<UIRAssembly> instructions,
+                                    String name) {
+  UIRValue inst = {.kind = UIRValueKind::Assembly, .assembly = instructions};
+  return this->insert(inst, false, name);
+}
+
 UIRValue *UIRBuilder::buildComptime(String name) {
   UIRValue inst = {.kind = UIRValueKind::Comptime};
   return this->insert(inst, false, name);

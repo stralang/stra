@@ -284,6 +284,35 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     os << indent << "  ]";
     break;
   }
+  case UIRValueKind::Assembly: {
+    os << "asm { ";
+    for (size_t i = 0; i < inst->assembly.len; i++) {
+      if (i != 0) {
+        os << "; ";
+      }
+
+      UIRAssembly *asm_inst = inst->assembly.ptr + i;
+      os << '`' << asm_inst->name << "` ";
+      for (size_t o = 0; o < asm_inst->operands.len; o++) {
+        if (o != 0) {
+          os << ", ";
+        }
+
+        UIRAssembly::Operand *asm_operand = asm_inst->operands.ptr + o;
+        if (asm_operand->kind == UIRAssembly::Operand::Register) {
+          os << "`%" << asm_operand->reg << '`';
+          continue;
+        } else if (asm_operand->kind == UIRAssembly::Operand::Return) {
+          os << "=";
+        }
+
+        os << "%";
+        printName(os, ctx, asm_operand->uir);
+      }
+    }
+    os << " }";
+    break;
+  }
 
   case UIRValueKind::Comptime: {
     os << "comptime {\n";

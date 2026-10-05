@@ -1,5 +1,6 @@
 #pragma once
 
+#include "containers.hpp"
 #include "uir.hpp"
 
 struct UIRBuilder {
@@ -47,6 +48,9 @@ struct UIRBuilder {
 
   UIRValue *buildSwitch(UIRValue *value, UIRBlock *default_block, size_t cases);
   void addCase(UIRValue *switch_inst, UIRValue *onval, UIRBlock *then);
+
+  UIRValue *buildAssembly(Slice<UIRAssembly> instructions,
+                          String name = {.ptr = nullptr});
 
   UIRValue *buildComptime(String name);
   UIRValue *buildTypeOf(UIRValue *value, String name = {.ptr = nullptr});

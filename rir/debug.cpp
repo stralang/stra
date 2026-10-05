@@ -232,6 +232,34 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << "]";
     break;
   }
+  case RIRValueKind::Assembly: {
+    os << "asm { ";
+    for (size_t i = 0; i < inst->assembly.len; i++) {
+      if (i != 0) {
+        os << "; ";
+      }
+
+      RIRAssembly *asm_inst = inst->assembly.ptr + i;
+      os << '`' << asm_inst->name << "` ";
+      for (size_t o = 0; o < asm_inst->operands.len; o++) {
+        if (o != 0) {
+          os << ", ";
+        }
+
+        RIRAssembly::Operand *asm_operand = asm_inst->operands.ptr + o;
+        if (asm_operand->kind == RIRAssembly::Operand::Register) {
+          os << "`%" << asm_operand->reg << "`";
+          continue;
+        } else if (asm_operand->kind == RIRAssembly::Operand::Return) {
+          os << "=";
+        }
+
+        os << asm_operand->rir_inst;
+      }
+    }
+    os << " }";
+    break;
+  }
   case RIRValueKind::GlobalVariable: {
     os << "global \"" << inst->global_variable.link_name << "\" #"
        << inst->global_variable.type;

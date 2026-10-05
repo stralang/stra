@@ -464,6 +464,48 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     }
     break;
   }
+  case UIRValueKind::Assembly: {
+    Slice<RIRAssembly> instructions = {
+        .ptr = (RIRAssembly *)analyser->allocator->alloc(sizeof(RIRAssembly) *
+                                                         inst->assembly.len),
+        .len = inst->assembly.len,
+    };
+
+    for (size_t i = 0; i < inst->assembly.len; i++) {
+      UIRAssembly *asm_inst = inst->assembly.ptr + i;
+      RIRAssembly *out_inst = instructions.ptr + i;
+      out_inst->name = asm_inst->name;
+      out_inst->operands = {
+          .ptr = (RIRAssembly::Operand *)analyser->allocator->alloc(
+              sizeof(RIRAssembly::Operand) * asm_inst->operands.len),
+          .len = asm_inst->operands.len,
+      };
+
+      for (size_t o = 0; o < asm_inst->operands.len; o++) {
+        UIRAssembly::Operand *uir_operand = asm_inst->operands.ptr + o;
+        RIRAssembly::Operand *rir_operand = out_inst->operands.ptr + o;
+        if (uir_operand->kind == UIRAssembly::Operand::Register) {
+          rir_operand->kind = RIRAssembly::Operand::Register;
+          rir_operand->reg = uir_operand->reg;
+          continue;
+        }
+
+        rir_operand->rir_inst = getInstFromResolved(
+            analyser, analyser->resolved_mapping.get(uir_operand->uir), {});
+        if (uir_operand->kind == UIRAssembly::Operand::Input) {
+          rir_operand->kind = RIRAssembly::Operand::Input;
+        } else if (uir_operand->kind == UIRAssembly::Operand::Return) {
+          rir_operand->kind = RIRAssembly::Operand::Return;
+        }
+      }
+    }
+
+    // Create Instruction
+    RIRValueId out_id = analyser->builder.buildAssembly(instructions);
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    break;
+  }
 
   case UIRValueKind::Comptime: {
     UIRLiteral literal = analyser->comptime_state.execute(module, inst);

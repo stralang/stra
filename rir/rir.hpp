@@ -40,6 +40,7 @@ enum class RIRValueKind : std::uint16_t {
   Branch,
   CondBranch,
   Switch,
+  Assembly,
 
   GlobalVariable,
   Function,
@@ -76,6 +77,19 @@ enum class RIROpcode : uint8_t {
   Minus,
   LogicalNot,
   BitwiseNot,
+};
+
+struct RIRAssembly {
+  struct Operand {
+    enum { Input, Return, Register } kind;
+    union {
+      RIRValueId rir_inst;
+      String reg;
+    };
+  };
+
+  String name;
+  Slice<Operand> operands;
 };
 
 struct RIRValue {
@@ -145,9 +159,7 @@ struct RIRValue {
       Slice<RIRValueId> onvals;
       Slice<RIRBlockId> blocks;
     } _switch;
-    struct {
-      // TODO: Assembly in RIR
-    } assembly;
+    Slice<RIRAssembly> assembly;
 
     struct {
       RIRTypeId type;

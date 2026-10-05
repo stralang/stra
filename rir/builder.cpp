@@ -171,6 +171,12 @@ void RIRBuilder::addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
   inst->_switch.blocks.ptr[_case] = dest;
 }
 
+RIRValueId RIRBuilder::buildAssembly(Slice<RIRAssembly> instructions) {
+  RIRValue inst = {.kind = RIRValueKind::Assembly,
+                   .assembly = instructions}; // TODO: void result
+  return this->buildInst(inst);
+}
+
 RIRValueId RIRBuilder::buildGlobalVariable(RIRTypeId type,
                                            Option<RIRConstant> constant,
                                            String link_name) {

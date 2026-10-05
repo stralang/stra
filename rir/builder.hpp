@@ -36,6 +36,7 @@ struct RIRBuilder {
                          size_t case_count);
   void addCase(RIRValueId _switch, RIRValueId on_val, RIRBlockId dest,
                size_t _case);
+  RIRValueId buildAssembly(Slice<RIRAssembly> instructions);
 
   RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRConstant> value,
                                  String link_name);

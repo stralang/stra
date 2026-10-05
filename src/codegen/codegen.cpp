@@ -311,6 +311,10 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     }
     break;
   }
+  case RIRValueKind::Assembly: {
+    genAssembly(codegen, builder, inst);
+    break;
+  }
 
   case RIRValueKind::GlobalVariable: {
     LLVMValueRef *opt_global = codegen->inst_to_llvm.get(inst_id);

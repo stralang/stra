@@ -1,6 +1,7 @@
 #include "uirgen.hpp"
 #include "../print.hpp"
 #include "define.hpp"
+#include "src/ast.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
 #include <functional>
@@ -459,6 +460,47 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Comptime: {
     return genComptime(uirgen, node->child, scope);
+  }
+  case NodeKind::Assembly: {
+    Slice<UIRAssembly> instructions = {
+        .ptr = (UIRAssembly *)uirgen->allocator->alloc(
+            sizeof(UIRAssembly) * node->assembly.instructions.length),
+        .len = node->assembly.instructions.length,
+    };
+
+    for (size_t i = 0; i < node->assembly.instructions.length; i++) {
+      NodeAssembly::Instruction *inst =
+          node->assembly.instructions.getPtrUnchecked(i);
+      UIRAssembly *out_inst = instructions.ptr + i;
+      out_inst->name = inst->name;
+      out_inst->operands = {
+          .ptr = (UIRAssembly::Operand *)uirgen->allocator->alloc(
+              sizeof(UIRAssembly::Operand) * inst->arguments.length),
+          .len = inst->arguments.length,
+      };
+
+      for (size_t a = 0; a < inst->arguments.length; a++) {
+        NodeAssembly::Argument *arg = inst->arguments.getPtrUnchecked(a);
+        UIRAssembly::Operand *operand = out_inst->operands.ptr + a;
+
+        if (arg->kind == NodeAssembly::Argument::Register) {
+          operand->kind = UIRAssembly::Operand::Register;
+          operand->reg = arg->reg;
+          continue;
+        }
+
+        if (arg->kind == NodeAssembly::Argument::Input) {
+          operand->kind = UIRAssembly::Operand::Input;
+          operand->uir = gen(uirgen, arg->node, scope);
+        } else if (arg->kind == NodeAssembly::Argument::Return) {
+          operand->kind = UIRAssembly::Operand::Return;
+          operand->uir = addr(uirgen, arg->node, scope);
+        }
+      }
+    }
+
+    uirgen->builder.buildAssembly(instructions);
+    break;
   }
   }
 

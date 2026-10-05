@@ -37,6 +37,7 @@ enum class UIRValueKind : std::uint16_t {
   Return,
   Branch,
   CondBranch,
+  Assembly,
   Switch,
 
   Comptime = 0x2000,
@@ -85,6 +86,19 @@ enum class UIROpcode : uint8_t {
   Minus,
   LogicalNot,
   BitwiseNot,
+};
+
+struct UIRAssembly {
+  struct Operand {
+    enum { Input, Return, Register } kind;
+    union {
+      UIRValue *uir;
+      String reg;
+    };
+  };
+
+  String name;
+  Slice<Operand> operands;
 };
 
 struct UIRInlineComptime {
@@ -211,10 +225,7 @@ struct UIRValue {
       Slice<UIRBlock *> blocks;
       size_t slots;
     } _switch;
-    // TODO: Comptime
-    struct {
-      // TODO: Assembly in UIR
-    } assembly;
+    Slice<UIRAssembly> assembly;
 
     UIRInlineComptime comptime;
     UIRValue *_typeof;
