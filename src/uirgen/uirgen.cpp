@@ -164,7 +164,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
         continue;
       }
 
-      real_text[real_text.len] = {.kind = UIRRawDataKind::Int, ._int = c};
+      real_text.ptr[real_text.len] = {.kind = UIRRawDataKind::Int, ._int = c};
       real_text.len += 1;
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../uir.hpp"
+#include "allocator.hpp"
 #include "analysis.hpp"
 #include <sstream>
 
@@ -32,4 +33,4 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
 bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
                           RIRTypeId type_id);
 RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst);
-RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data);
+RIRConstant uirRawDataToRIRConstant(Allocator *allocator, UIRRawData raw_data);

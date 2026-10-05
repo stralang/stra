@@ -104,6 +104,10 @@ std::ostream &operator<<(std::ostream &os, const RIROpcode &opcode) {
 
 std::ostream &operator<<(std::ostream &os, const RIRConstant &constant) {
   switch (constant.kind) {
+  case RIRConstantKind::Null: {
+    os << "Null";
+    break;
+  }
   case RIRConstantKind::Bool: {
     os << constant._bool;
     break;

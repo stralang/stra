@@ -41,7 +41,8 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            inst->binop.lhs->source_location, "LHS literal must match RHS type");
 
     lhs_type = rhs_type;
-    RIRConstant rir_const = uirRawDataToRIRConstant(lhs_resolved->literal.data);
+    RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,
+                                                    lhs_resolved->literal.data);
     RIRValueId lhs_id = analyser->builder.buildConstant(rhs->result, rir_const);
     lhs = analyser->rir_ctx->getInst(lhs_id);
   } else if (rhs_resolved->kind == UIRResolvedKind::Literal) {
@@ -119,7 +120,8 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
            inst->binop.lhs->source_location, "RHS literal must match LHS type");
 
     rhs_type = lhs_type;
-    RIRConstant rir_const = uirRawDataToRIRConstant(rhs_resolved->literal.data);
+    RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,
+                                                    rhs_resolved->literal.data);
     RIRValueId rhs_id = analyser->builder.buildConstant(lhs->result, rir_const);
     rhs = analyser->rir_ctx->getInst(rhs_id);
   }
@@ -230,7 +232,8 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     UIRLiteral lit = analyser->comptime_state.execute(module, inst);
 
     if (lit.lit_type.isSome()) {
-      RIRConstant rir_const = uirRawDataToRIRConstant(lit.data);
+      RIRConstant rir_const =
+          uirRawDataToRIRConstant(analyser->allocator, lit.data);
       RIRValueId out_id =
           analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
       analyser->resolved_mapping.insert(

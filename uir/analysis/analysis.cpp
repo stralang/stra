@@ -1,6 +1,7 @@
 #include "analysis.hpp"
 #include "../literal.hpp"
 #include "../uir.hpp"
+#include "allocator.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
 #include "rir/debug.hpp"
@@ -15,7 +16,8 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
   }
 
   assert(resolved->kind == UIRResolvedKind::Literal);
-  RIRConstant rir_const = uirRawDataToRIRConstant(resolved->literal.data);
+  RIRConstant rir_const =
+      uirRawDataToRIRConstant(analyser->allocator, resolved->literal.data);
   RIRTypeId out_type;
   if (resolved->literal.lit_type.isSome()) {
     out_type = resolved->literal.lit_type.get();
@@ -519,7 +521,8 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     }
     }
 
-    RIRConstant constant = uirRawDataToRIRConstant(literal.data);
+    RIRConstant constant =
+        uirRawDataToRIRConstant(analyser->allocator, literal.data);
 
     // Create Instruction
     if (literal.lit_type.isSome()) {
@@ -547,7 +550,8 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIRValueKind::Literal: {
     UIRLiteral literal = inst->literal;
-    RIRConstant constant = uirRawDataToRIRConstant(literal.data);
+    RIRConstant constant =
+        uirRawDataToRIRConstant(analyser->allocator, literal.data);
 
     // Create Instruction
     if (literal.lit_type.isSome()) {

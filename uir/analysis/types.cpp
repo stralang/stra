@@ -1,6 +1,8 @@
 #include "../uir.hpp"
+#include "allocator.hpp"
 #include "analysis.hpp"
 #include "define.hpp"
+#include "rir/constant.hpp"
 #include "rir/type.hpp"
 #include "uir/literal.hpp"
 
@@ -52,7 +54,7 @@ RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst) {
   return src;
 }
 
-RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data) {
+RIRConstant uirRawDataToRIRConstant(Allocator *allocator, UIRRawData raw_data) {
   RIRConstant rir_const;
   switch (raw_data.kind) {
   case UIRRawDataKind::Bool: {
@@ -68,6 +70,20 @@ RIRConstant uirRawDataToRIRConstant(UIRRawData raw_data) {
   case UIRRawDataKind::Float: {
     rir_const.kind = RIRConstantKind::Float;
     rir_const._float = raw_data._float;
+    break;
+  }
+  case UIRRawDataKind::Slice: {
+    rir_const.kind = RIRConstantKind::List;
+    rir_const.constants = {
+        .ptr = (RIRConstant *)allocator->alloc(sizeof(RIRConstant) *
+                                               raw_data.values.len),
+        .len = raw_data.values.len,
+    };
+
+    for (size_t i = 0; i < raw_data.values.len; i++) {
+      UIRRawData sub_data = raw_data.values.ptr[i];
+      rir_const.constants[i] = uirRawDataToRIRConstant(allocator, sub_data);
+    }
     break;
   }
   }

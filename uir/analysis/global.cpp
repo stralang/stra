@@ -82,7 +82,8 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         }
 
         // Create Instruction
-        RIRConstant constant = uirRawDataToRIRConstant(const_literal.data);
+        RIRConstant constant =
+            uirRawDataToRIRConstant(analyser->allocator, const_literal.data);
         RIRValueId out_id = analyser->builder.buildGlobalVariable(
             typeId.get(), constant, inst->name);
         analyser->resolved_mapping.insert(
