@@ -41,6 +41,13 @@ UIRValue *addr(UIRGen *uirgen, Node *node, Symbol *scope) {
       return nullptr;
     }
 
+    if ((*value)->kind == UIRValueKind::Struct ||
+        (*value)->kind == UIRValueKind::Enum ||
+        (*value)->kind == UIRValueKind::Union ||
+        (*value)->kind == UIRValueKind::Namespace) {
+      return *value;
+    }
+
     return *value;
   }
   case NodeKind::Operator: {
@@ -138,6 +145,13 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       return nullptr;
     }
 
+    if ((*value)->kind == UIRValueKind::Struct ||
+        (*value)->kind == UIRValueKind::Enum ||
+        (*value)->kind == UIRValueKind::Union ||
+        (*value)->kind == UIRValueKind::Namespace) {
+      return *value;
+    }
+
     UIRValue *out = uirgen->builder.buildLoad(*value, {.ptr = nullptr});
     out->source_location = node->location;
     return out;
@@ -213,7 +227,11 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
         store_inst->source_location = node->location;
       }
     } else if (node->field.initial != nullptr &&
-               node->field.initial->kind == NodeKind::Function) {
+               (node->field.initial->kind == NodeKind::Function ||
+                node->field.initial->kind == NodeKind::Struct ||
+                node->field.initial->kind == NodeKind::Enum ||
+                node->field.initial->kind == NodeKind::Union ||
+                node->field.initial->kind == NodeKind::Namespace)) {
       field = gen(uirgen, node->field.initial, field_symbol);
     } else {
       field = *uirgen->node_to_value.get(node); // Pre-generated
@@ -531,6 +549,24 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
         node->field.initial->kind == NodeKind::Function) {
       field = uirgen->builder.buildFunction({.ptr = nullptr}, nullptr,
                                             node->field.name);
+      uirgen->node_to_value.insert(node->field.initial, field);
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Struct) {
+      field = uirgen->builder.buildStruct({.ptr = nullptr}, node->field.name);
+      uirgen->node_to_value.insert(node->field.initial, field);
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Enum) {
+      field = uirgen->builder.buildEnum(nullptr, {.ptr = nullptr},
+                                        node->field.name);
+      uirgen->node_to_value.insert(node->field.initial, field);
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Union) {
+      field = uirgen->builder.buildUnion(nullptr, {.ptr = nullptr},
+                                         node->field.name);
+      uirgen->node_to_value.insert(node->field.initial, field);
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Namespace) {
+      field = uirgen->builder.buildNamespace(node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else {
       field = uirgen->builder.buildGlobalVariable(nullptr, nullptr,

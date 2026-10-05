@@ -43,7 +43,14 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  UIRValue *value = uirgen->builder.buildStruct(fields, {.ptr = nullptr});
+  UIRValue **cached = uirgen->node_to_value.get(node);
+  UIRValue *value;
+  if (cached != nullptr) {
+    value = *cached;
+    value->_struct.fields = fields;
+  } else {
+    value = uirgen->builder.buildStruct(fields, {.ptr = nullptr});
+  }
   value->source_location = node->location;
 
   // Definitions
@@ -92,8 +99,14 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  UIRValue *value =
-      uirgen->builder.buildEnum(repr_type, members, {.ptr = nullptr});
+  UIRValue **cached = uirgen->node_to_value.get(node);
+  UIRValue *value;
+  if (cached != nullptr) {
+    value = *cached;
+    value->_enum = {.repr_type = repr_type, .members = members};
+  } else {
+    value = uirgen->builder.buildEnum(repr_type, members, {.ptr = nullptr});
+  }
   value->source_location = node->location;
 
   // Definitions
@@ -124,8 +137,14 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 
   // Build Instruction
-  UIRValue *value =
-      uirgen->builder.buildUnion(repr_type, variants, {.ptr = nullptr});
+  UIRValue **cached = uirgen->node_to_value.get(node);
+  UIRValue *value;
+  if (cached != nullptr) {
+    value = *cached;
+    value->_union = {.repr_type = repr_type, .variants = variants};
+  } else {
+    value = uirgen->builder.buildUnion(repr_type, variants, {.ptr = nullptr});
+  }
   value->source_location = node->location;
 
   // Definitions
@@ -139,7 +158,14 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
 UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope) {
   Symbol *namespace_symbol = scope->findSymbolByNode(node);
 
-  UIRValue *value = uirgen->builder.buildNamespace({.ptr = nullptr});
+  UIRValue **cached = uirgen->node_to_value.get(node);
+  UIRValue *value;
+  if (cached != nullptr) {
+    value = *cached;
+  } else {
+    value = uirgen->builder.buildNamespace({.ptr = nullptr});
+  }
+
   value->source_location = node->location;
   value->_namespace.definitions =
       (UIRScope *)uirgen->module->allocator->alloc(sizeof(UIRScope));

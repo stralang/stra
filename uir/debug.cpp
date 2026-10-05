@@ -391,7 +391,7 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     os << "struct {\n";
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = inst->_struct.fields.ptr + i;
-      os << indent << field->name << ": `";
+      os << indent << "  " << field->name << ": `%";
       printName(os, ctx, field->type);
       os << "`\n";
     }
@@ -404,14 +404,18 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     break;
   }
   case UIRValueKind::Enum: {
-    os << "enum `";
+    os << "enum `%";
     printName(os, ctx, inst->_enum.repr_type);
     os << "` {\n";
     for (size_t i = 0; i < inst->_enum.members.len; i++) {
       UIREnum::Member *member = inst->_enum.members.ptr + i;
-      os << indent << member->name << ": `";
-      printName(os, ctx, member->constant);
-      os << "`\n";
+      os << indent << "  " << member->name;
+      if (member->constant != nullptr) {
+        os << ": `";
+        printName(os, ctx, member->constant);
+        os << "`";
+      }
+      os << "\n";
     }
 
     if (inst->_enum.definitions->list.length > 0) {
@@ -427,7 +431,7 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     os << "` {\n";
     for (size_t i = 0; i < inst->_union.variants.len; i++) {
       UIRStruct::Field *field = inst->_union.variants.ptr + i;
-      os << indent << field->name << ": `";
+      os << indent << "  " << field->name << ": `";
       printName(os, ctx, field->type);
       os << "`\n";
     }

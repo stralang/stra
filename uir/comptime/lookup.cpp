@@ -19,11 +19,18 @@ UIRLiteral executeLookupPtr(UIRComptime *state, UIRModule *module,
 UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
                               ComptimeStackFrame *frame, UIRValue *inst) {
   UIRLiteral parent_lit = state->getValue(frame, module, inst->lookup.parent);
+  if (parent_lit.data.kind == UIRRawDataKind::Pointer) {
+    if (parent_lit.data.ptr.kind == UIRPlaceKind::Raw &&
+        parent_lit.data.ptr.data->kind == UIRRawDataKind::TypeId) {
+      // Dereference typeid
+      parent_lit = {.data = *parent_lit.data.ptr.data};
+    }
+  } else if (parent_lit.data.kind != UIRRawDataKind::TypeId) {
+    assert(0 && "Lookup expects TypeId or Pointer");
+  }
 
-  // FIXME: This ptr->ptr should be handled above
-  if (parent_lit.data.ptr.kind == UIRPlaceKind::Raw &&
-      parent_lit.data.ptr.data->kind == UIRRawDataKind::TypeId) {
-    RIRTypeId parent_type_id = parent_lit.data.ptr.data->_typeid;
+  if (parent_lit.data.kind == UIRRawDataKind::TypeId) {
+    RIRTypeId parent_type_id = parent_lit.data._typeid;
     RIRType *parent_type = state->analyser->rir_ctx->getType(parent_type_id);
 
     // Get Enum Value
@@ -41,9 +48,14 @@ UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
     }
   }
 
-  // Load literal
+  // Get data
   UIRLiteral lit =
       executeLookup(state, module, frame, parent_lit, &inst->lookup.member);
+  if (lit.data.kind == UIRRawDataKind::TypeId) {
+    return lit;
+  }
+
+  // Load from pointer
   assert(lit.data.kind == UIRRawDataKind::Pointer);
 
   UIRPlace place = lit.data.ptr;

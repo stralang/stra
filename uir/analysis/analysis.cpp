@@ -205,7 +205,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
                                       receiver_inst->result),
                uir_receiver_inst->source_location,
                "Receiver `" << receiver_inst->result << "` doesn't match `"
-                            << expected_type << "`");
+                            << expected_type->id << "`");
 
         arguments[initial_idx] = receiver_resolved->inst;
         initial_idx = 1;
@@ -563,6 +563,15 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       analyser->resolved_mapping.insert(
           inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
     }
+    break;
+  }
+  case UIRValueKind::Struct:
+  case UIRValueKind::Enum:
+  case UIRValueKind::Union:
+  case UIRValueKind::Namespace: {
+    UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+    analyser->resolved_mapping.insert(
+        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
     break;
   }
   default: {

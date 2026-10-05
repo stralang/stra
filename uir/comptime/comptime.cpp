@@ -555,6 +555,11 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRModule *module,
   }
 
   UIRResolved *resolved_value = this->analyser->resolved_mapping.get(from);
+  if (resolved_value == nullptr) {
+    analyse(this->analyser, module, from);
+    resolved_value = this->analyser->resolved_mapping.get(from);
+  }
+
   if (resolved_value->kind == UIRResolvedKind::Literal) {
     return resolved_value->literal;
   } else if (from->kind == UIRValueKind::GlobalVariable) {
