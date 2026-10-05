@@ -230,8 +230,9 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     if (rir_aggregate_type->kind == RIRTypeKind::Slice) {
       if (rir_aggregate_type->slice.length > 0) {
         if (inst->field_at.index == 0) {
-          out = LLVMBuildLoad2(builder, typeToLLVM(codegen, ptr_type->id), ptr,
-                               "");
+          out = BuildAlloca(codegen, builder,
+                            LLVMPointerType(LLVMTypeOf(ptr), 0), "");
+          LLVMBuildStore(builder, ptr, out);
         }
         handled = true;
       }
