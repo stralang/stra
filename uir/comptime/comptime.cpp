@@ -3,6 +3,7 @@
 #include "../literal.hpp"
 #include "../types.hpp"
 #include "../uir.hpp"
+#include "common/debug.hpp"
 #include "containers.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
@@ -185,11 +186,27 @@ void execute(UIRComptime *state, UIRModule *module, UIRValue *inst) {
     return;
   }
   case UIRValueKind::LookupPtr: {
-    *(frame->add(inst)) = executeLookupPtr(state, module, frame, inst);
+    Option<UIRLiteral> lit = executeLookupPtr(state, module, frame, inst);
+    if (lit.isNone()) {
+      // Error
+      std::cerr << "Couldn't find member of name \"" << inst->lookup.member
+                << "\"\n";
+      std::abort();
+    }
+
+    *(frame->add(inst)) = lit.get();
     return;
   }
   case UIRValueKind::LookupValue: {
-    *(frame->add(inst)) = executeLookupValue(state, module, frame, inst);
+    Option<UIRLiteral> lit = executeLookupValue(state, module, frame, inst);
+    if (lit.isNone()) {
+      // Error
+      std::cerr << "Couldn't find member of name \"" << inst->lookup.member
+                << "\"\n";
+      std::abort();
+    }
+
+    *(frame->add(inst)) = lit.get();
     return;
   }
   case UIRValueKind::Return: {

@@ -13,8 +13,8 @@ struct UIRValue;
 // Forward declarations
 
 enum class UIRPlaceKind {
-  Inst,
-  Raw,
+  Inst, // Pointer to an instruction's data
+  Raw,  // Pointer to data
 };
 
 struct UIRPlace {

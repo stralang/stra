@@ -4,20 +4,38 @@
 #include "uir/literal.hpp"
 #include <cassert>
 
-UIRLiteral executeLookup(UIRComptime *state, UIRModule *module,
-                         ComptimeStackFrame *frame, UIRLiteral parent_lit,
-                         String *member) {
-  assert(0 && "TODO: Implement lookup for compile-time execution");
+Option<UIRLiteral> executeLookup(UIRComptime *state, UIRModule *module,
+                                 ComptimeStackFrame *frame,
+                                 UIRLiteral parent_lit, String *member) {
+  Option<Slice<UIRValue *>> opt_definitions;
+  if (parent_lit.data.kind == UIRRawDataKind::Namespace) {
+    UIRValue *_namespace = parent_lit.data._namespace;
+    opt_definitions = _namespace->_namespace.definitions->list.slice();
+  }
+
+  // Definitions
+  if (opt_definitions.isSome()) {
+    Slice<UIRValue *> definitions = opt_definitions.get();
+    for (size_t i = 0; i < definitions.len; i++) {
+      UIRValue *child = definitions.ptr[i];
+      if (child->name.compare(*member)) {
+        return state->getValue(frame, module, child);
+      }
+    }
+  }
+
+  return {};
 }
 
-UIRLiteral executeLookupPtr(UIRComptime *state, UIRModule *module,
-                            ComptimeStackFrame *frame, UIRValue *inst) {
+Option<UIRLiteral> executeLookupPtr(UIRComptime *state, UIRModule *module,
+                                    ComptimeStackFrame *frame, UIRValue *inst) {
   UIRLiteral parent_lit = state->getValue(frame, module, inst->lookup.parent);
   return executeLookup(state, module, frame, parent_lit, &inst->lookup.member);
 }
 
-UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
-                              ComptimeStackFrame *frame, UIRValue *inst) {
+Option<UIRLiteral> executeLookupValue(UIRComptime *state, UIRModule *module,
+                                      ComptimeStackFrame *frame,
+                                      UIRValue *inst) {
   UIRLiteral parent_lit = state->getValue(frame, module, inst->lookup.parent);
   if (parent_lit.data.kind == UIRRawDataKind::Pointer) {
     if (parent_lit.data.ptr.kind == UIRPlaceKind::Raw &&
@@ -25,8 +43,6 @@ UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
       // Dereference typeid
       parent_lit = {.data = *parent_lit.data.ptr.data};
     }
-  } else if (parent_lit.data.kind != UIRRawDataKind::TypeId) {
-    assert(0 && "Lookup expects TypeId or Pointer");
   }
 
   if (parent_lit.data.kind == UIRRawDataKind::TypeId) {
@@ -46,11 +62,18 @@ UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
         }
       }
     }
+  } else if (parent_lit.data.kind != UIRRawDataKind::Namespace) {
+    assert(0 && "Lookup expects TypeId, Namespace, or Pointer");
   }
 
   // Get data
-  UIRLiteral lit =
+  Option<UIRLiteral> opt_lit =
       executeLookup(state, module, frame, parent_lit, &inst->lookup.member);
+  if (opt_lit.isNone()) {
+    return {};
+  }
+
+  UIRLiteral lit = opt_lit.get();
   if (lit.data.kind == UIRRawDataKind::TypeId) {
     return lit;
   }
@@ -60,5 +83,5 @@ UIRLiteral executeLookupValue(UIRComptime *state, UIRModule *module,
 
   UIRPlace place = lit.data.ptr;
   assert(place.kind == UIRPlaceKind::Raw);
-  return {.data = *place.data, .lit_type = lit.lit_type};
+  return UIRLiteral{.data = *place.data, .lit_type = lit.lit_type};
 }
