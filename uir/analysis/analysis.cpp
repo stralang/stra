@@ -4,7 +4,6 @@
 #include "allocator.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
-#include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include <cassert>
@@ -60,18 +59,17 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
   return analyser->builder.buildConstant(out_type, rir_const);
 }
 
-void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
-  if (analyser->resolved_mapping.get(inst) != nullptr) {
+void analyse(UIRAnalyser *analyser, UIRValue *inst) {
+  if (analyser->resolved_mapping.get(inst->id) != nullptr) {
     return; // Already Analysed
   }
 
   switch (inst->kind) {
   case UIRValueKind::LocalVariable: {
-    UIRLiteral type_literal =
-        analyser->comptime_state.execute(module, inst->local_variable.type);
+    UIRValue *type_inst = analyser->ctx->getInst(inst->local_variable.type);
+    UIRLiteral type_literal = analyser->comptime_state.execute(type_inst);
     expect(type_literal.data.kind == UIRRawDataKind::TypeId,
-           inst->local_variable.type->source_location,
-           "Field type must be a typeid");
+           type_inst->source_location, "Field type must be a typeid");
 
     RIRTypeId type = analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
@@ -82,111 +80,126 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     RIRValueId out_id =
         analyser->builder.buildLocalVariable(type_literal.data._typeid);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Load: {
-    analyse(analyser, module, inst->load.ptr);
+    UIRValue *ptr_inst = analyser->ctx->getInst(inst->load.ptr);
+    analyse(analyser, ptr_inst);
+
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->load.ptr);
     assert(ptr_resolved->kind == UIRResolvedKind::Inst);
 
-    RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_resolved->inst);
-    RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
-    expect(ptr_type->kind == RIRTypeKind::Pointer,
-           inst->load.ptr->source_location, "!UIR! Can only load from pointer");
+    RIRValue *resolved_ptr_inst =
+        analyser->rir_ctx->getInst(ptr_resolved->inst);
+    RIRType *resolved_ptr_type =
+        analyser->rir_ctx->getType(resolved_ptr_inst->result);
+    expect(resolved_ptr_type->kind == RIRTypeKind::Pointer,
+           ptr_inst->source_location, "!UIR! Can only load from pointer");
 
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildLoad(ptr_resolved->inst, ptr_type->child);
+    RIRValueId out_id = analyser->builder.buildLoad(ptr_resolved->inst,
+                                                    resolved_ptr_type->child);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Store: {
-    analyse(analyser, module, inst->store.ptr);
-    analyse(analyser, module, inst->store.value);
-    UIRResolved *ptr_id =
-        analyser->resolved_mapping.get(inst->store.ptr); // FIXME: Confirm kind
+    UIRValue *ptr_inst = analyser->ctx->getInst(inst->store.ptr);
+    UIRValue *value_inst = analyser->ctx->getInst(inst->store.value);
+
+    analyse(analyser, ptr_inst);
+    analyse(analyser, value_inst);
+    UIRResolved *ptr_resolved =
+        analyser->resolved_mapping.get(ptr_inst->id); // FIXME: Confirm kind
 
     // Get ptr
-    RIRValue *ptr_inst = analyser->rir_ctx->getInst(ptr_id->inst);
-    RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
+    RIRValue *resolved_ptr_inst =
+        analyser->rir_ctx->getInst(ptr_resolved->inst);
+    RIRType *resolved_ptr_type =
+        analyser->rir_ctx->getType(resolved_ptr_inst->result);
 
     // Get value
     UIRResolved *resolved_value =
         analyser->resolved_mapping.get(inst->store.value);
 
-    RIRValueId value_inst_id =
-        getInstFromResolved(analyser, resolved_value, ptr_type->child);
-    RIRValue *value_inst = analyser->rir_ctx->getInst(value_inst_id);
+    RIRValueId value_resolved =
+        getInstFromResolved(analyser, resolved_value, resolved_ptr_type->child);
+    RIRValue *resolved_value_inst = analyser->rir_ctx->getInst(value_resolved);
 
     // Check types
-    value_inst = autoCast(analyser, value_inst, ptr_type->child);
-    expect(ptr_type->child == value_inst->result, inst->source_location,
-           "Cannot assign non-matching types");
+    resolved_value_inst =
+        autoCast(analyser, resolved_value_inst, resolved_ptr_type->child);
+    expect(resolved_ptr_type->child == resolved_value_inst->result,
+           inst->source_location, "Cannot assign non-matching types");
 
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildStore(ptr_inst->id, value_inst->id);
+    RIRValueId out_id = analyser->builder.buildStore(resolved_ptr_inst->id,
+                                                     resolved_value_inst->id);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Arg: {
-    UIRLiteral arg_literal =
-        analyser->comptime_state.execute(module, inst->arg.type);
+    UIRValue *type_inst = analyser->ctx->getInst(inst->arg.type);
+    UIRLiteral arg_literal = analyser->comptime_state.execute(type_inst);
     expect(arg_literal.data.kind == UIRRawDataKind::TypeId,
-           inst->arg.type->source_location, "Argument type must be typeid");
+           type_inst->source_location, "Argument type must be typeid");
 
     // Create Instruction
     RIRValueId out_id = analyser->builder.buildArg(arg_literal.data._typeid);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::BinOp: {
-    analyseBinary(analyser, module, inst);
+    analyseBinary(analyser, inst);
     break;
   }
   case UIRValueKind::UnaryOp: {
-    analyseUnary(analyser, module, inst);
+    analyseUnary(analyser, inst);
     break;
   }
   case UIRValueKind::Call: {
-    analyse(analyser, module, inst->call.callee);
+    UIRValue *callee_inst = analyser->ctx->getInst(inst->call.callee);
+    analyse(analyser, callee_inst);
 
-    UIRResolved *callee_id = analyser->resolved_mapping.get(
+    UIRResolved *callee_resolved = analyser->resolved_mapping.get(
         inst->call.callee); // FIXME: Confirm kind
-    RIRValue *callee = analyser->rir_ctx->getInst(callee_id->inst);
+    RIRValue *resolved_callee_inst =
+        analyser->rir_ctx->getInst(callee_resolved->inst);
 
     // Auto dereference
-    RIRType *callee_type = analyser->rir_ctx->getType(callee->result);
-    if (callee_type->kind == RIRTypeKind::Pointer) {
-      callee_type = analyser->rir_ctx->getType(callee_type->child);
+    RIRType *resolved_callee_type =
+        analyser->rir_ctx->getType(resolved_callee_inst->result);
+    if (resolved_callee_type->kind == RIRTypeKind::Pointer) {
+      resolved_callee_type =
+          analyser->rir_ctx->getType(resolved_callee_type->child);
     }
 
     // Get function
-    expect(callee_type->kind == RIRTypeKind::Function,
-           inst->call.callee->source_location,
-           "Callee must be a function. Got " << callee_type << "`");
+    expect(resolved_callee_type->kind == RIRTypeKind::Function,
+           callee_inst->source_location,
+           "Callee must be a function. Got " << resolved_callee_type << "`");
 
-    RIRType *fn_type = callee_type;
+    RIRType *fn_type = resolved_callee_type;
 
     // Arguments
     Slice<RIRValueId> arguments = Slice<RIRValueId>{
         .ptr = (RIRValueId *)analyser->allocator->alloc(
-            sizeof(RIRValueId) * callee_type->function.arguments.len),
-        .len = callee_type->function.arguments.len,
+            sizeof(RIRValueId) * resolved_callee_type->function.arguments.len),
+        .len = resolved_callee_type->function.arguments.len,
     };
 
     // Get receiver
     size_t initial_idx = 0;
     if (inst->call.receiver.isSome()) {
-      UIRValue *uir_receiver_inst = inst->call.receiver.get();
-      analyse(analyser, module, uir_receiver_inst);
+      UIRValue *uir_receiver_inst =
+          analyser->ctx->getInst(inst->call.receiver.get());
+      analyse(analyser, uir_receiver_inst);
 
       UIRResolved *receiver_resolved = analyser->resolved_mapping.get(
-          uir_receiver_inst); // FIXME: Confirm kind
+          uir_receiver_inst->id); // FIXME: Confirm kind
 
       bool receiver_is_valid =
           receiver_resolved->kind != UIRResolvedKind::Literal ||
@@ -214,7 +227,7 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
     // Analyse arguments
     for (size_t i = 0; i < inst->call.arguments.len; i++) {
-      UIRValue *uir_arg = inst->call.arguments.ptr[i];
+      UIRValue *uir_arg = analyser->ctx->getInst(inst->call.arguments.ptr[i]);
       if (i > fn_type->function.arguments.len - initial_idx) {
         expect(false, uir_arg->source_location, "Too many arguments");
         break;
@@ -225,82 +238,99 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       RIRType *expected_type = analyser->rir_ctx->getType(expected_type_id);
 
       // Get argument
-      analyse(analyser, module, uir_arg);
+      analyse(analyser, uir_arg);
       UIRResolved *arg_resolved =
-          analyser->resolved_mapping.get(uir_arg); // FIXME: Confirm kind
-      RIRValueId arg_id =
+          analyser->resolved_mapping.get(uir_arg->id); // FIXME: Confirm kind
+      RIRValueId resolved_arg_id =
           getInstFromResolved(analyser, arg_resolved, expected_type_id);
 
       // Cast and Compare
-      RIRValue *arg = analyser->rir_ctx->getInst(arg_id);
-      arg = autoCast(analyser, arg, expected_type_id);
-      expect(expected_type->compare(analyser->rir_ctx->types, arg->result),
+      RIRValue *resolved_arg_inst = analyser->rir_ctx->getInst(resolved_arg_id);
+      resolved_arg_inst =
+          autoCast(analyser, resolved_arg_inst, expected_type_id);
+      expect(expected_type->compare(analyser->rir_ctx->types,
+                                    resolved_arg_inst->result),
              uir_arg->source_location,
-             "Argument `" << arg->result << "` doesn't match expected `"
-                          << expected_type << "`");
+             "Argument `" << resolved_arg_inst->result
+                          << "` doesn't match expected `" << expected_type
+                          << "`");
 
-      arguments[i + initial_idx] = arg->id;
+      arguments[i + initial_idx] = resolved_arg_inst->id;
     }
     // Create Instruction
-    RIRValueId out_id = analyser->builder.buildCall(callee_id->inst, arguments,
-                                                    fn_type->function._return);
+    RIRValueId out_id = analyser->builder.buildCall(
+        resolved_callee_inst->id, arguments, fn_type->function._return);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Index: {
     // Analyse Pointer
-    analyse(analyser, module, inst->index.ptr);
-    UIRResolved *ptr_id =
-        analyser->resolved_mapping.get(inst->index.ptr); // FIXME: Confirm kind
-    RIRValue *ptr = analyser->rir_ctx->getInst(ptr_id->inst);
+    analyse(analyser, analyser->ctx->getInst(inst->index.ptr));
 
-    RIRType *ptr_type = analyser->rir_ctx->getType(ptr->result);
-    RIRType *ptr_child_type = analyser->rir_ctx->getType(ptr_type->child);
-    expect(ptr_child_type->kind == RIRTypeKind::Slice, inst->source_location,
-           "Cannot index into non-slice");
+    UIRResolved *ptr_resolved =
+        analyser->resolved_mapping.get(inst->index.ptr); // FIXME: Confirm kind
+    RIRValue *resolved_ptr_inst =
+        analyser->rir_ctx->getInst(ptr_resolved->inst);
+
+    RIRType *resolved_ptr_type =
+        analyser->rir_ctx->getType(resolved_ptr_inst->result);
+    RIRType *resolved_ptr_child_type =
+        analyser->rir_ctx->getType(resolved_ptr_type->child);
+    expect(resolved_ptr_child_type->kind == RIRTypeKind::Slice,
+           inst->source_location, "Cannot index into non-slice");
 
     // Analyse Index
-    analyse(analyser, module, inst->index.index);
+    UIRValue *index_inst = analyser->ctx->getInst(inst->index.index);
+    analyse(analyser, index_inst);
     UIRResolved *index_resolved =
         analyser->resolved_mapping.get(inst->index.index);
 
     RIRTypeId usize_type = analyser->rir_ctx->types->push(
         {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
-    RIRValueId index_id =
+    RIRValueId resolved_index_id =
         getInstFromResolved(analyser, index_resolved, usize_type);
-    RIRValue *index = analyser->rir_ctx->getInst(index_id);
+    RIRValue *resolved_index_inst =
+        analyser->rir_ctx->getInst(resolved_index_id);
 
     // Compare
-    RIRType *index_type = analyser->rir_ctx->getType(index->result);
+    RIRType *index_type =
+        analyser->rir_ctx->getType(resolved_index_inst->result);
     expect(index_type->kind == RIRTypeKind::Integer &&
                !index_type->integer.is_signed && index_type->integer.bits == -1,
-           inst->index.index->source_location, "Index must be of type `usize`");
+           index_inst->source_location, "Index must be of type `usize`");
 
     // Create Instruction
     RIRTypeId result = analyser->rir_ctx->types->push(
-        {.kind = RIRTypeKind::Pointer, .child = ptr_child_type->slice.child});
-    RIRValueId out_id =
-        analyser->builder.buildIndex(ptr->id, index->id, result);
+        {.kind = RIRTypeKind::Pointer,
+         .child = resolved_ptr_child_type->slice.child});
+    RIRValueId out_id = analyser->builder.buildIndex(
+        resolved_ptr_inst->id, resolved_index_inst->id, result);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Range: {
-    analyse(analyser, module, inst->range.ptr);
-    analyse(analyser, module, inst->range.start);
-    analyse(analyser, module, inst->range.end);
+    UIRValue *ptr_inst = analyser->ctx->getInst(inst->range.ptr);
+    UIRValue *start_inst = analyser->ctx->getInst(inst->range.start);
+    UIRValue *end_inst = analyser->ctx->getInst(inst->range.end);
+    analyse(analyser, ptr_inst);
+    analyse(analyser, start_inst);
+    analyse(analyser, end_inst);
 
     // Check Pointer
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->range.ptr);
     assert(ptr_resolved->kind == UIRResolvedKind::Inst);
 
-    RIRValue *ptr = analyser->rir_ctx->getInst(ptr_resolved->inst);
-    RIRType *ptr_type = analyser->rir_ctx->getType(ptr->result);
-    RIRType *ptr_child_type = analyser->rir_ctx->getType(ptr_type->child);
-    expect(ptr_child_type->kind == RIRTypeKind::Slice ||
-               ptr_child_type->kind == RIRTypeKind::Pointer,
-           inst->source_location, "Cannot range into non-slice/pointer");
+    RIRValue *resolved_ptr_inst =
+        analyser->rir_ctx->getInst(ptr_resolved->inst);
+    RIRType *resolved_ptr_type =
+        analyser->rir_ctx->getType(resolved_ptr_inst->result);
+    RIRType *resolved_ptr_child_type =
+        analyser->rir_ctx->getType(resolved_ptr_type->child);
+    expect(resolved_ptr_child_type->kind == RIRTypeKind::Slice ||
+               resolved_ptr_child_type->kind == RIRTypeKind::Pointer,
+           ptr_inst->source_location, "Cannot range into non-slice/pointer");
 
     // Check Index and Length
     RIRTypeId usize_ty = analyser->rir_ctx->types->push({
@@ -312,57 +342,62 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         analyser->resolved_mapping.get(inst->range.start);
     UIRResolved *end_resolved = analyser->resolved_mapping.get(inst->range.end);
 
-    RIRValueId start_id =
+    RIRValueId resolved_start_id =
         getInstFromResolved(analyser, start_resolved, usize_ty);
-    RIRValueId end_id = getInstFromResolved(analyser, end_resolved, usize_ty);
-    RIRValue *start = analyser->rir_ctx->getInst(start_id);
-    RIRValue *end = analyser->rir_ctx->getInst(end_id);
+    RIRValueId resolved_end_id =
+        getInstFromResolved(analyser, end_resolved, usize_ty);
+    RIRValue *resolved_start_inst =
+        analyser->rir_ctx->getInst(resolved_start_id);
+    RIRValue *resolved_end_inst = analyser->rir_ctx->getInst(resolved_end_id);
 
     // Check types
-    RIRType *start_type = analyser->rir_ctx->getType(start->result);
-    expect(start_type->kind == RIRTypeKind::Integer &&
-               !start_type->integer.is_signed && start_type->integer.bits == -1,
-           inst->range.start->source_location, "Range start must be `usize`");
+    RIRType *resolved_start_type =
+        analyser->rir_ctx->getType(resolved_start_inst->result);
+    expect(resolved_start_type->kind == RIRTypeKind::Integer &&
+               !resolved_start_type->integer.is_signed &&
+               resolved_start_type->integer.bits == -1,
+           start_inst->source_location, "Range start must be `usize`");
 
-    RIRType *end_type = analyser->rir_ctx->getType(end->result);
+    RIRType *end_type = analyser->rir_ctx->getType(resolved_end_inst->result);
     expect(end_type->kind == RIRTypeKind::Integer &&
                !end_type->integer.is_signed && end_type->integer.bits == -1,
-           inst->range.end->source_location, "Range end must be `usize`");
+           end_inst->source_location, "Range end must be `usize`");
 
     // Create Instruction
     RIRTypeId elem_type;
-    if (ptr_child_type->kind == RIRTypeKind::Pointer) {
-      elem_type = ptr_child_type->child;
+    if (resolved_ptr_child_type->kind == RIRTypeKind::Pointer) {
+      elem_type = resolved_ptr_child_type->child;
     } else {
-      elem_type = ptr_child_type->slice.child;
+      elem_type = resolved_ptr_child_type->slice.child;
     }
 
-    RIRValueId length_id = analyser->builder.buildBinOp(RIROpcode::Sub, end->id,
-                                                        start->id, usize_ty);
-    RIRValueId out_id =
-        analyser->builder.buildRange(ptr->id, start->id, length_id, elem_type);
+    RIRValueId length_id =
+        analyser->builder.buildBinOp(RIROpcode::Sub, resolved_end_inst->id,
+                                     resolved_start_inst->id, usize_ty);
+    RIRValueId out_id = analyser->builder.buildRange(
+        resolved_ptr_inst->id, resolved_start_inst->id, length_id, elem_type);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::LookupPtr: {
-    analyseLookupPtr(analyser, module, inst);
+    analyseLookupPtr(analyser, inst);
     break;
   }
   case UIRValueKind::LookupValue: {
-    analyseLookupValue(analyser, module, inst);
+    analyseLookupValue(analyser, inst);
     break;
   }
   case UIRValueKind::Aggregate: {
-    analyseAggregate(analyser, module, inst);
+    analyseAggregate(analyser, inst);
     break;
   }
   case UIRValueKind::Return: {
-    expect(inst->parent->parent->kind == UIRValueKind::Function,
-           inst->source_location,
+    UIRValue *parent_inst = analyser->ctx->getInst(inst->parent.get());
+    expect(parent_inst->kind == UIRValueKind::Function, inst->source_location,
            "A runtime return must be a child of a function");
-    UIRResolved *function_id =
-        analyser->resolved_mapping.get(inst->parent->parent);
+
+    UIRResolved *function_id = analyser->resolved_mapping.get(parent_inst->id);
     assert(function_id->kind == UIRResolvedKind::Inst);
 
     RIRValue *function = analyser->rir_ctx->getInst(function_id->inst);
@@ -375,30 +410,33 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       expect(expected_type->kind != RIRTypeKind::Void, inst->source_location,
              "Function expects return value");
     } else {
-      UIRValue *uir_value_inst = inst->ret.value.get();
-      analyse(analyser, module, uir_value_inst);
+      UIRValue *uir_value_inst = analyser->ctx->getInst(inst->ret.value.get());
+      analyse(analyser, uir_value_inst);
       UIRResolved *value_resolved =
-          analyser->resolved_mapping.get(uir_value_inst);
+          analyser->resolved_mapping.get(uir_value_inst->id);
 
-      RIRValueId value_inst_id =
+      RIRValueId resolved_value_id =
           getInstFromResolved(analyser, value_resolved, expected_type->id);
-      RIRValue *value_inst = analyser->rir_ctx->getInst(value_inst_id);
+      RIRValue *resolved_value_inst =
+          analyser->rir_ctx->getInst(resolved_value_id);
 
       // Cast and Compare
-      value_inst = autoCast(analyser, value_inst, expected_type->id);
-      expect(
-          expected_type->compare(analyser->rir_ctx->types, value_inst->result),
-          uir_value_inst->source_location,
-          "Unexpected return type. Got `"
-              << value_inst->result << "` Expected `" << expected_type << "`");
+      resolved_value_inst =
+          autoCast(analyser, resolved_value_inst, expected_type->id);
+      expect(expected_type->compare(analyser->rir_ctx->types,
+                                    resolved_value_inst->result),
+             uir_value_inst->source_location,
+             "Unexpected return type. Got `" << resolved_value_inst->result
+                                             << "` Expected `" << expected_type
+                                             << "`");
 
-      ret_value.setSome(value_inst->id);
+      ret_value.setSome(resolved_value_inst->id);
     }
 
     // Create Instruction
     RIRValueId out_id = analyser->builder.buildReturn(ret_value);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Branch: {
@@ -406,15 +444,18 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         analyser->resolved_block_mapping.get(inst->br); // FIXME: Confirm exists
     RIRValueId out_id = analyser->builder.buildBranch(*dest);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::CondBranch: {
-    analyse(analyser, module, inst->condbr.condition);
-    UIRResolved *condition_id =
+    UIRValue *condition_inst = analyser->ctx->getInst(inst->condbr.condition);
+    analyse(analyser, condition_inst);
+    UIRResolved *condition_resolved =
         analyser->resolved_mapping.get(inst->condbr.condition);
-    RIRValue *condition = analyser->rir_ctx->getInst(condition_id->inst);
-    RIRType *condition_type = analyser->rir_ctx->getType(condition->result);
+    RIRValue *resolved_condition =
+        analyser->rir_ctx->getInst(condition_resolved->inst);
+    RIRType *condition_type =
+        analyser->rir_ctx->getType(resolved_condition->result);
     expect(condition_type->kind == RIRTypeKind::Bool, inst->source_location,
            "Conditional must be Bool");
 
@@ -425,15 +466,16 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         inst->condbr._else); // FIXME: Confirm exists
 
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildCondBranch(condition_id->inst, *then, *_else);
+    RIRValueId out_id = analyser->builder.buildCondBranch(
+        resolved_condition->id, *then, *_else);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
   case UIRValueKind::Switch: {
-    analyse(analyser, module, inst->_switch.condition);
-    UIRResolved *condition_id = analyser->resolved_mapping.get(
+    UIRValue *condition_inst = analyser->ctx->getInst(inst->condbr.condition);
+    analyse(analyser, condition_inst);
+    UIRResolved *condition_resolved = analyser->resolved_mapping.get(
         inst->_switch.condition); // FIXME: Confirm kind
     // TODO: Eliminate dead-code if `condition_id` is a literal
 
@@ -442,18 +484,17 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
     // Create Switch Instruction
     RIRValueId out_id = analyser->builder.buildSwitch(
-        condition_id->inst, *default_dest, inst->_switch.onvals.len);
+        condition_resolved->inst, *default_dest, inst->_switch.onvals.len);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
 
     // Create Cases
     for (size_t i = 0; i < inst->_switch.onvals.len; i++) {
       // Get Constant
-      UIRValue *on_val = inst->_switch.onvals.ptr[i];
-      analyse(analyser, module, on_val);
+      UIRValue *on_val = analyser->ctx->getInst(inst->_switch.onvals.ptr[i]);
+      analyse(analyser, on_val);
 
-      UIRLiteral onval_literal =
-          analyser->comptime_state.execute(module, on_val);
+      UIRLiteral onval_literal = analyser->comptime_state.execute(on_val);
       RIRValueId constant_id = analyser->builder.buildConstant(
           onval_literal.lit_type.get(), {.kind = RIRConstantKind::Integer,
                                          .integer = onval_literal.data._int});
@@ -505,18 +546,18 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Create Instruction
     RIRValueId out_id = analyser->builder.buildAssembly(instructions);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
   }
 
   case UIRValueKind::Comptime: {
-    UIRLiteral literal = analyser->comptime_state.execute(module, inst);
+    UIRLiteral literal = analyser->comptime_state.execute(inst);
 
     switch (literal.data.kind) {
     case UIRRawDataKind::TypeId:
     case UIRRawDataKind::Namespace: {
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = literal});
       return;
     }
     }
@@ -529,23 +570,23 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       RIRValueId out_id =
           analyser->builder.buildConstant(literal.lit_type.get(), constant);
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+          inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     } else {
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = literal});
     }
     break;
   }
   case UIRValueKind::TypeOf: {
-    UIRLiteral literal = analyser->comptime_state.execute(module, inst);
+    UIRLiteral literal = analyser->comptime_state.execute(inst);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = literal});
     break;
   }
 
   case UIRValueKind::GlobalVariable:
   case UIRValueKind::Function: {
-    analyseGlobal(analyser, module, inst);
+    analyseGlobal(analyser, inst);
     break;
   }
   case UIRValueKind::Literal: {
@@ -558,10 +599,10 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       RIRValueId out_id =
           analyser->builder.buildConstant(literal.lit_type.get(), constant);
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+          inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     } else {
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Literal, .literal = literal});
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = literal});
     }
     break;
   }
@@ -569,9 +610,9 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIRValueKind::Enum:
   case UIRValueKind::Union:
   case UIRValueKind::Namespace: {
-    UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+    UIRLiteral lit = analyser->comptime_state.execute(inst);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     break;
   }
   default: {
@@ -583,25 +624,26 @@ void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
 }
 
-void analyseBlock(UIRAnalyser *analyser, UIRModule *module, UIRBlock *block) {
+void analyseBlock(UIRAnalyser *analyser, UIRBlock *block) {
   for (size_t i = 0; i < block->instructions.length; i++) {
-    analyse(analyser, module, block->instructions.getUnchecked(i));
+    UIRValueId inst_id = block->instructions.getUnchecked(i);
+    analyse(analyser, analyser->ctx->getInst(inst_id));
   }
 }
 
-void analyseScope(UIRAnalyser *analyser, UIRModule *module, UIRScope *scope) {
+void analyseScope(UIRAnalyser *analyser, UIRScope *scope) {
   for (size_t i = 0; i < scope->list.length; i++) {
-    analyse(analyser, module, scope->list.getUnchecked(i));
+    UIRValueId inst_id = scope->list.getUnchecked(i);
+    analyse(analyser, analyser->ctx->getInst(inst_id));
   }
 }
 
 RIRContext *UIRAnalyser::analyse() {
   for (size_t i = 0; i < this->ctx->modules.len(); i++) {
     UIRModule *uir_mod = this->ctx->modules.getPtrUnchecked(i);
-    RIRModule *rir_mod = this->rir_ctx->modules.getPtrUnchecked(i);
-    this->builder.module = rir_mod;
+    this->builder.module = this->rir_ctx->modules.getPtrUnchecked(i);
 
-    analyseScope(this, uir_mod, uir_mod->definitions);
+    analyseScope(this, this->ctx->getScope(uir_mod->definitions));
   }
   return this->rir_ctx;
 }

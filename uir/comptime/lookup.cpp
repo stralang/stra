@@ -4,22 +4,23 @@
 #include "uir/literal.hpp"
 #include <cassert>
 
-Option<UIRLiteral> executeLookup(UIRComptime *state, UIRModule *module,
-                                 ComptimeStackFrame *frame,
+Option<UIRLiteral> executeLookup(UIRComptime *state, ComptimeStackFrame *frame,
                                  UIRLiteral parent_lit, String *member) {
-  Option<Slice<UIRValue *>> opt_definitions;
+  Option<Slice<UIRValueId>> opt_definitions;
   if (parent_lit.data.kind == UIRRawDataKind::Namespace) {
     UIRValue *_namespace = parent_lit.data._namespace;
-    opt_definitions = _namespace->_namespace.definitions->list.slice();
+    UIRScope *definitions =
+        state->ctx->getScope(_namespace->_namespace.definitions);
+    opt_definitions = definitions->list.slice();
   }
 
   // Definitions
   if (opt_definitions.isSome()) {
-    Slice<UIRValue *> definitions = opt_definitions.get();
+    Slice<UIRValueId> definitions = opt_definitions.get();
     for (size_t i = 0; i < definitions.len; i++) {
-      UIRValue *child = definitions.ptr[i];
+      UIRValue *child = state->ctx->getInst(definitions.ptr[i]);
       if (child->name.compare(*member)) {
-        return state->getValue(frame, module, child);
+        return state->getValue(frame, child->id);
       }
     }
   }
@@ -27,16 +28,16 @@ Option<UIRLiteral> executeLookup(UIRComptime *state, UIRModule *module,
   return {};
 }
 
-Option<UIRLiteral> executeLookupPtr(UIRComptime *state, UIRModule *module,
+Option<UIRLiteral> executeLookupPtr(UIRComptime *state,
                                     ComptimeStackFrame *frame, UIRValue *inst) {
-  UIRLiteral parent_lit = state->getValue(frame, module, inst->lookup.parent);
-  return executeLookup(state, module, frame, parent_lit, &inst->lookup.member);
+  UIRLiteral parent_lit = state->getValue(frame, inst->lookup.parent);
+  return executeLookup(state, frame, parent_lit, &inst->lookup.member);
 }
 
-Option<UIRLiteral> executeLookupValue(UIRComptime *state, UIRModule *module,
+Option<UIRLiteral> executeLookupValue(UIRComptime *state,
                                       ComptimeStackFrame *frame,
                                       UIRValue *inst) {
-  UIRLiteral parent_lit = state->getValue(frame, module, inst->lookup.parent);
+  UIRLiteral parent_lit = state->getValue(frame, inst->lookup.parent);
   if (parent_lit.data.kind == UIRRawDataKind::Pointer) {
     if (parent_lit.data.ptr.kind == UIRPlaceKind::Raw &&
         parent_lit.data.ptr.data->kind == UIRRawDataKind::TypeId) {
@@ -68,7 +69,7 @@ Option<UIRLiteral> executeLookupValue(UIRComptime *state, UIRModule *module,
 
   // Get data
   Option<UIRLiteral> opt_lit =
-      executeLookup(state, module, frame, parent_lit, &inst->lookup.member);
+      executeLookup(state, frame, parent_lit, &inst->lookup.member);
   if (opt_lit.isNone()) {
     return {};
   }

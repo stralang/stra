@@ -5,7 +5,7 @@
 UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope) {
   UIRValue *record = addr(uirgen, node->_operator.lhs, scope);
   UIRValue *out =
-      uirgen->builder.buildLookupPtr(record, node->_operator.rhs->text);
+      uirgen->builder.buildLookupPtr(record->id, node->_operator.rhs->text);
   out->source_location = node->location;
   return out;
 }
@@ -19,7 +19,7 @@ UIRValue *genAssignment(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 
   UIRValue *lhs_ptr = addr(uirgen, node->_operator.lhs, scope);
-  UIRValue *out = uirgen->builder.buildStore(rhs_value, lhs_ptr);
+  UIRValue *out = uirgen->builder.buildStore(rhs_value->id, lhs_ptr->id);
   out->source_location = node->location;
   return out;
 }
@@ -31,7 +31,7 @@ UIRValue *genUnary(UIRGen *uirgen, Node *node, Symbol *scope) {
     return out;
   }
 
-  UIRValue *child_value = gen(uirgen, node->unary_operator.child, scope);
+  UIRValueId child_value = gen(uirgen, node->unary_operator.child, scope)->id;
   UIRValue *out = nullptr;
 
   switch (node->unary_operator.opcode) {
@@ -71,20 +71,20 @@ UIRValue *genBinary(UIRGen *uirgen, Node *node, Symbol *scope) {
   if (node->_operator.opcode == Operator::MemberAccess) {
     UIRValue *record = addr(uirgen, node->_operator.lhs, scope);
     UIRValue *out =
-        uirgen->builder.buildLookupValue(record, node->_operator.rhs->text);
+        uirgen->builder.buildLookupValue(record->id, node->_operator.rhs->text);
     out->source_location = node->location;
     return out;
   }
 
-  UIRValue *lhs_value = gen(uirgen, node->_operator.lhs, scope);
-  UIRValue *rhs_value;
+  UIRValueId lhs_value = gen(uirgen, node->_operator.lhs, scope)->id;
+  UIRValueId rhs_value;
   UIRValue *out = nullptr;
 
   if (node->_operator.opcode == Operator::As ||
       node->_operator.opcode == Operator::Bitcast) {
-    rhs_value = genComptime(uirgen, node->_operator.rhs, scope);
+    rhs_value = genComptime(uirgen, node->_operator.rhs, scope)->id;
   } else {
-    rhs_value = gen(uirgen, node->_operator.rhs, scope);
+    rhs_value = gen(uirgen, node->_operator.rhs, scope)->id;
   }
 
   switch (node->_operator.opcode) {

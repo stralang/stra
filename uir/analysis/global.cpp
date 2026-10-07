@@ -6,16 +6,16 @@
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
 
-void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
+void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
   switch (inst->kind) {
   case UIRValueKind::GlobalVariable: {
     // Type
     Option<RIRTypeId> typeId = {};
     if (inst->global_variable.type.isSome()) {
       // Get Type
-      UIRValue *type_inst = inst->global_variable.type.get();
-      UIRLiteral type_literal =
-          analyser->comptime_state.execute(module, type_inst);
+      UIRValue *type_inst =
+          analyser->ctx->getInst(inst->global_variable.type.get());
+      UIRLiteral type_literal = analyser->comptime_state.execute(type_inst);
       typeId.setSome(type_literal.data._typeid);
 
       expect(type_literal.data.kind == UIRRawDataKind::TypeId,
@@ -25,17 +25,17 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Analyse Constant
     if (inst->global_variable.constant.isSome()) {
       // Get Initial
-      UIRValue *const_inst = inst->global_variable.constant.get();
-      UIRLiteral const_literal =
-          analyser->comptime_state.execute(module, const_inst);
+      UIRValue *const_inst =
+          analyser->ctx->getInst(inst->global_variable.constant.get());
+      UIRLiteral const_literal = analyser->comptime_state.execute(const_inst);
       analyser->resolved_mapping.insert(
-          const_inst,
+          const_inst->id,
           {.kind = UIRResolvedKind::Literal, .literal = const_literal});
 
       if (const_literal.data.kind == UIRRawDataKind::TypeId) {
         // Generate Virtual Variable
         UIRResolved *const_resolved =
-            analyser->resolved_mapping.get(const_inst);
+            analyser->resolved_mapping.get(const_inst->id);
         const_resolved->literal.lit_type =
             analyser->rir_ctx->types->push({.kind = RIRTypeKind::TypeId});
 
@@ -51,7 +51,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
 
         // Create mapping
         analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Literal, .literal = out_lit});
+            inst->id, {.kind = UIRResolvedKind::Literal, .literal = out_lit});
       } else {
         // Generate Real Variable
         RIRType *type = nullptr;
@@ -87,13 +87,13 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         RIRValueId out_id = analyser->builder.buildGlobalVariable(
             typeId.get(), constant, inst->name);
         analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+            inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
     } else {
       RIRValueId out_id =
           analyser->builder.buildGlobalVariable(typeId.get(), {}, inst->name);
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+          inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     }
     break;
   }
@@ -102,31 +102,29 @@ void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     Option<RIRBlock *> prev_block = analyser->builder.block;
 
     // Build and Map Function
-    UIRLiteral type = analyser->comptime_state.execute(module, inst);
+    UIRLiteral type = analyser->comptime_state.execute(inst);
     RIRValueId fn_inst_id = analyser->builder.buildFunction(
         type.data._typeid, inst->function.undefined, inst->name);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 
     // Analyse Body
-    if (inst->function.globals != nullptr) {
-      analyseScope(analyser, module, inst->function.globals);
-
+    if (inst->function.blocks.length > 0) {
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        UIRBlock *uir_block = inst->function.blocks.getUnchecked(i);
+        UIRBlockId uir_block = inst->function.blocks.getUnchecked(i);
         RIRBlockId rir_block = analyser->builder.appendBlock(fn_inst_id);
         analyser->resolved_block_mapping.insert(uir_block, rir_block);
         analyser->builder.block.setSome(analyser->rir_ctx->getBlock(rir_block));
       }
 
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
-        UIRBlock *uir_block = inst->function.blocks.getUnchecked(i);
+        UIRBlockId uir_block = inst->function.blocks.getUnchecked(i);
         RIRBlockId rir_block_id =
             *analyser->resolved_block_mapping.get(uir_block);
         analyser->builder.block.setSome(
             analyser->rir_ctx->getBlock(rir_block_id));
 
-        analyseBlock(analyser, module, uir_block);
+        analyseBlock(analyser, analyser->ctx->getBlock(uir_block));
       }
     }
 

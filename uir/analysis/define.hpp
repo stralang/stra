@@ -15,17 +15,16 @@
     analyser->error_count += 1;                                                \
   }
 
-void analyseBlock(UIRAnalyser *analyser, UIRModule *module, UIRBlock *block);
-void analyseScope(UIRAnalyser *analyser, UIRModule *module, UIRScope *scope);
+void analyseBlock(UIRAnalyser *analyser, UIRBlock *block);
+void analyseScope(UIRAnalyser *analyser, UIRScope *scope);
 
-void analyse(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
-void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
-void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
-void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
-void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
-                        UIRValue *inst);
-void analyseGlobal(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
-void analyseAggregate(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst);
+void analyse(UIRAnalyser *analyser, UIRValue *inst);
+void analyseBinary(UIRAnalyser *analyser, UIRValue *inst);
+void analyseUnary(UIRAnalyser *analyser, UIRValue *inst);
+void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst);
+void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst);
+void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst);
+void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst);
 
 RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
                                Option<RIRTypeId> default_type);

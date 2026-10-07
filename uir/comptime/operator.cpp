@@ -9,10 +9,10 @@
 #include <cmath>
 #include <iostream>
 
-UIRLiteral executeCastAs(UIRComptime *state, UIRModule *module,
-                         ComptimeStackFrame *frame, UIRValue *inst) {
-  UIRLiteral src = state->getValue(frame, module, inst->binop.lhs);
-  UIRLiteral dstt = state->getValue(frame, module, inst->binop.rhs);
+UIRLiteral executeCastAs(UIRComptime *state, ComptimeStackFrame *frame,
+                         UIRValue *inst) {
+  UIRLiteral src = state->getValue(frame, inst->binop.lhs);
+  UIRLiteral dstt = state->getValue(frame, inst->binop.rhs);
   assert(dstt.data.kind == UIRRawDataKind::TypeId);
 
   // Get types
@@ -71,14 +71,14 @@ UIRLiteral executeCastAs(UIRComptime *state, UIRModule *module,
   std::abort();
 }
 
-UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
-                         ComptimeStackFrame *frame, UIRValue *inst) {
+UIRLiteral executeBinary(UIRComptime *state, ComptimeStackFrame *frame,
+                         UIRValue *inst) {
   if (inst->binop.opcode == UIROpcode::As) {
-    return executeCastAs(state, module, frame, inst);
+    return executeCastAs(state, frame, inst);
   }
 
-  UIRLiteral lhs = state->getValue(frame, module, inst->binop.lhs);
-  UIRLiteral rhs = state->getValue(frame, module, inst->binop.rhs);
+  UIRLiteral lhs = state->getValue(frame, inst->binop.lhs);
+  UIRLiteral rhs = state->getValue(frame, inst->binop.rhs);
 
   // Get types
   RIRType *lhs_type = nullptr;

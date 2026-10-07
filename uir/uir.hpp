@@ -18,6 +18,19 @@ struct UIRBlock;
 struct UIRScope;
 // Forward declarations
 
+struct UIRValueId {
+  uint32_t module;
+  uint32_t local;
+};
+struct UIRBlockId {
+  uint32_t module;
+  uint32_t local;
+};
+struct UIRScopeId {
+  uint32_t module;
+  uint32_t local;
+};
+
 enum class UIRValueKind : std::uint16_t {
   Nop,
 
@@ -92,7 +105,7 @@ struct UIRAssembly {
   struct Operand {
     enum { Input, Return, Register } kind;
     union {
-      UIRValue *uir;
+      UIRValueId uir;
       String reg;
     };
   };
@@ -102,144 +115,143 @@ struct UIRAssembly {
 };
 
 struct UIRInlineComptime {
-  ArrayList<UIRBlock *> blocks;
+  ArrayList<UIRBlockId> blocks;
 
-  UIRBlock *appendBlock(String name);
+  UIRBlockId appendBlock(String name);
 };
 
 struct UIRFunction {
-  Slice<UIRValue *> parameter_types;
-  UIRValue *return_type;
-  UIRScope *globals;
-  ArrayList<UIRBlock *> blocks;
+  Slice<UIRValueId> parameter_types;
+  UIRValueId return_type;
+  ArrayList<UIRBlockId> blocks;
   bool undefined;
 
-  UIRBlock *appendBlock(String name);
+  UIRBlockId appendBlock(String name);
 };
 
 struct UIRSlice {
-  UIRValue *element;
-  UIRValue *length;
+  UIRValueId element;
+  Option<UIRValueId> length;
   bool is_pointer;
 };
 
 struct UIRStruct {
   struct Field {
     String name;
-    UIRValue *type;
+    UIRValueId type;
   };
 
   Slice<Field> fields;
-  UIRScope *definitions;
+  UIRScopeId definitions;
 };
 
 struct UIREnum {
   struct Member {
     String name;
-    UIRValue *constant;
+    Option<UIRValueId> constant;
   };
 
-  UIRValue *repr_type;
+  UIRValueId repr_type;
   Slice<Member> members;
-  UIRScope *definitions;
+  UIRScopeId definitions;
 };
 struct UIRUnion {
-  UIRValue *repr_type;
+  UIRValueId repr_type;
   Slice<UIRStruct::Field> variants;
-  UIRScope *definitions;
+  UIRScopeId definitions;
 };
 
 struct UIRNamespace {
-  UIRScope *definitions;
+  UIRScopeId definitions;
 };
 
 struct UIRValue {
-  size_t id;
+  UIRValueId id;
   String name;
   SrcLoc source_location;
 
   UIRValueKind kind = UIRValueKind::Nop;
-  UIRBlock *parent = nullptr;
+  Option<UIRValueId> parent = {};
 
   union {
     struct {
-      UIRValue *type;
+      UIRValueId type;
     } local_variable;
     struct {
-      UIRValue *ptr;
+      UIRValueId ptr;
     } load;
     struct {
-      UIRValue *value;
-      UIRValue *ptr;
+      UIRValueId value;
+      UIRValueId ptr;
     } store;
     struct {
-      UIRValue *type;
+      UIRValueId type;
     } arg;
     struct {
       UIROpcode opcode;
-      UIRValue *lhs;
-      UIRValue *rhs;
+      UIRValueId lhs;
+      UIRValueId rhs;
     } binop;
     struct {
       UIROpcode opcode;
-      UIRValue *value;
+      UIRValueId value;
     } unaryop;
     struct {
-      UIRValue *callee;
-      Slice<UIRValue *> arguments;
-      Option<UIRValue *>
+      UIRValueId callee;
+      Slice<UIRValueId> arguments;
+      Option<UIRValueId>
           receiver; // NOTE: this is only valid after type checking
     } call;
     struct {
-      UIRValue *ptr;
-      UIRValue *index;
+      UIRValueId ptr;
+      UIRValueId index;
     } index;
     struct {
-      UIRValue *ptr;
-      UIRValue *start;
-      UIRValue *end;
+      UIRValueId ptr;
+      UIRValueId start;
+      UIRValueId end;
     } range;
     struct {
-      UIRValue *parent;
+      UIRValueId parent;
       String member;
     } lookup;
     struct {
-      UIRValue *type;
+      UIRValueId type;
       Slice<String> names; // `len = 0` is a list/unnamed initializer
-      Slice<UIRValue *> values;
+      Slice<UIRValueId> values;
     } aggregate;
     struct {
-      UIRValue *type;
-      Option<UIRValue *> value;
+      UIRValueId type;
+      Option<UIRValueId> value;
     } ret;
-    UIRBlock *br;
+    UIRBlockId br;
     struct {
-      UIRValue *condition;
-      UIRBlock *then;
-      UIRBlock *_else;
+      UIRValueId condition;
+      UIRBlockId then;
+      UIRBlockId _else;
     } condbr;
     struct {
-      UIRValue *condition;
-      UIRBlock *default_block;
-      Slice<UIRValue *> onvals;
-      Slice<UIRBlock *> blocks;
+      UIRValueId condition;
+      UIRBlockId default_block;
+      Slice<UIRValueId> onvals;
+      Slice<UIRBlockId> blocks;
       size_t slots;
     } _switch;
     Slice<UIRAssembly> assembly;
 
     UIRInlineComptime comptime;
-    UIRValue *_typeof;
-    UIRValue *alias;
+    UIRValueId _typeof;
+    UIRValueId alias;
 
     struct {
-      Option<UIRValue *> type;
-      Option<UIRValue *> constant; // set to `null` for default
+      Option<UIRValueId> type;
+      Option<UIRValueId> constant; // set to `null` for default
       bool undefined;
     } global_variable;
     UIRFunction function;
 
     UIRLiteral literal;
-    UIRValue *pointer;
+    UIRValueId pointer;
     UIRSlice slice;
     UIRStruct _struct;
     UIREnum _enum;
@@ -249,22 +261,23 @@ struct UIRValue {
 };
 
 struct UIRBlock {
-  size_t id;
+  UIRBlockId id;
   String name;
-  UIRValue *parent;
-  ArrayList<UIRValue *> instructions;
+  UIRValueId parent;
+  ArrayList<UIRValueId> instructions;
 
-  bool hasTerminator();
+  bool hasTerminator(UIRContext *ctx);
 };
 
 struct UIRScope {
-  UIRValue *owner = nullptr;
-  ArrayList<UIRValue *> list;
+  UIRScopeId id;
+  Option<UIRValueId> owner = {};
+  ArrayList<UIRValueId> list;
 };
 
 struct UIRModule {
-  size_t next_id = 0;
-  UIRScope *definitions;
+  uint32_t id;
+  UIRScopeId definitions;
 
   ArenaList<UIRValue> instructions;
   ArenaList<UIRBlock> blocks;
@@ -283,4 +296,9 @@ struct UIRContext {
 
   void init(Allocator *allocator, Allocator *arena_allocator);
   void deinit();
+
+  UIRValue *getInst(UIRValueId id);
+  UIRBlock *getBlock(UIRBlockId id);
+  UIRScope *getScope(UIRScopeId id);
+  RIRType *getType(RIRTypeId id);
 };

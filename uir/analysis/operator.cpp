@@ -5,18 +5,21 @@
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
 
-void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
-  analyse(analyser, module, inst->binop.lhs);
-  analyse(analyser, module, inst->binop.rhs);
+void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
+  UIRValue *lhs_inst = analyser->ctx->getInst(inst->binop.lhs);
+  UIRValue *rhs_inst = analyser->ctx->getInst(inst->binop.rhs);
+  analyse(analyser, lhs_inst);
+  analyse(analyser, rhs_inst);
+
   UIRResolved *lhs_resolved = analyser->resolved_mapping.get(inst->binop.lhs);
   UIRResolved *rhs_resolved = analyser->resolved_mapping.get(inst->binop.rhs);
 
   // Execute comptime
   if (lhs_resolved->kind == UIRResolvedKind::Literal &&
       rhs_resolved->kind == UIRResolvedKind::Literal) {
-    UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+    UIRLiteral lit = analyser->comptime_state.execute(inst);
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     return;
   }
 
@@ -38,7 +41,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Make literal typed
     expect(compareRawDataToType(analyser, lhs_resolved->literal.data.kind,
                                 rhs->result),
-           inst->binop.lhs->source_location, "LHS literal must match RHS type");
+           lhs_inst->source_location, "LHS literal must match RHS type");
 
     lhs_type = rhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,
@@ -51,17 +54,17 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       switch (inst->binop.opcode) {
       case UIROpcode::As:
       case UIROpcode::Bitcast: {
-        expect(lhs_type->kind != RIRTypeKind::TypeId,
-               inst->binop.lhs->source_location, "LHS must not be a type");
+        expect(lhs_type->kind != RIRTypeKind::TypeId, lhs_inst->source_location,
+               "LHS must not be a type");
         expect(rhs_resolved->literal.data.kind == UIRRawDataKind::TypeId,
-               inst->binop.rhs->source_location, "RHS must be a type");
+               rhs_inst->source_location, "RHS must be a type");
 
         // `As` cast restrictions
         if (inst->binop.opcode == UIROpcode::Bitcast) {
           RIRValueId out_id = analyser->builder.buildCast(
               lhs->id, rhs_resolved->literal.data._typeid, true);
           analyser->resolved_mapping.insert(
-              inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+              inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
           break;
         }
 
@@ -107,7 +110,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
         RIRValueId out_id = analyser->builder.buildCast(
             lhs->id, rhs_resolved->literal.data._typeid, false);
         analyser->resolved_mapping.insert(
-            inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+            inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
         break;
       }
       }
@@ -117,7 +120,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     // Make literal typed
     expect(compareRawDataToType(analyser, rhs_resolved->literal.data.kind,
                                 lhs->result),
-           inst->binop.lhs->source_location, "RHS literal must match LHS type");
+           lhs_inst->source_location, "RHS literal must match LHS type");
 
     rhs_type = lhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,
@@ -140,12 +143,12 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
     if (lhs_primitive->kind != RIRTypeKind::Integer &&
         lhs_primitive->kind != RIRTypeKind::Float &&
         lhs_primitive->kind != RIRTypeKind::Pointer) {
-      expect(false, inst->binop.lhs->source_location,
+      expect(false, lhs_inst->source_location,
              "LHS must be of Integer, Float, Pointer, or SIMD.");
     }
 
     expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
-           inst->binop.rhs->source_location, "LHS cannot operate with RHS");
+           rhs_inst->source_location, "LHS cannot operate with RHS");
 
     out_id = analyser->builder.buildBinOp((RIROpcode)inst->binop.opcode,
                                           lhs->id, rhs->id, lhs->result);
@@ -155,10 +158,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIROpcode::And: {
     expect(lhs_primitive->kind == RIRTypeKind::Integer ||
                lhs_primitive->kind == RIRTypeKind::Bool,
-           inst->binop.lhs->source_location,
+           lhs_inst->source_location,
            "LHS must be a Bool or Integer. Got `" << lhs_primitive << "`");
     expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
-           inst->binop.rhs->source_location,
+           rhs_inst->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -170,10 +173,10 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIROpcode::LeftShift:
   case UIROpcode::RightShift: {
     expect(lhs_primitive->kind == RIRTypeKind::Integer,
-           inst->binop.lhs->source_location,
+           lhs_inst->source_location,
            "LHS must be an Integer. Got `" << lhs_primitive << "`");
     expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
-           inst->binop.rhs->source_location,
+           rhs_inst->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -184,7 +187,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIROpcode::EqualTo:
   case UIROpcode::NotEqualTo: {
     expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
-           inst->binop.rhs->source_location,
+           rhs_inst->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -200,13 +203,13 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIROpcode::GreaterThenOrEqualTo: {
     if (lhs_primitive->kind != RIRTypeKind::Integer &&
         lhs_primitive->kind != RIRTypeKind::Float) {
-      expect(false, inst->binop.lhs->source_location,
+      expect(false, lhs_inst->source_location,
              "LHS must be of Integer, Float, or SIMD. Got `" << lhs_primitive
                                                              << "`");
     }
 
     expect(lhs_primitive->compare(analyser->rir_ctx->types, rhs_primitive->id),
-           inst->binop.rhs->source_location,
+           rhs_inst->source_location,
            "LHS `" << lhs_primitive << "` cannot operate with RHS `"
                    << rhs_primitive << "`");
 
@@ -219,17 +222,19 @@ void analyseBinary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
 
   analyser->resolved_mapping.insert(
-      inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }
 
-void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
-  analyse(analyser, module, inst->unaryop.value);
+void analyseUnary(UIRAnalyser *analyser, UIRValue *inst) {
+  UIRValue *value_inst = analyser->ctx->getInst(inst->unaryop.value);
+  analyse(analyser, value_inst);
+
   UIRResolved *child_resolved =
       analyser->resolved_mapping.get(inst->unaryop.value);
 
   // Comptime
   if (child_resolved->kind == UIRResolvedKind::Literal) {
-    UIRLiteral lit = analyser->comptime_state.execute(module, inst);
+    UIRLiteral lit = analyser->comptime_state.execute(inst);
 
     if (lit.lit_type.isSome()) {
       RIRConstant rir_const =
@@ -237,10 +242,10 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
       RIRValueId out_id =
           analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+          inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     } else {
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Literal, .literal = lit});
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     }
     return;
   }
@@ -254,7 +259,7 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   case UIROpcode::Minus: {
     if (child_primitive->kind != RIRTypeKind::Integer &&
         child_primitive->kind != RIRTypeKind::Float) {
-      expect(false, inst->unaryop.value->source_location,
+      expect(false, value_inst->source_location,
              "Child must be of Integer, Float, or SIMD. Got `"
                  << child_primitive << "`");
     }
@@ -273,7 +278,7 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIROpcode::LogicalNot: {
     expect(child_primitive->kind == RIRTypeKind::Bool,
-           inst->unaryop.value->source_location,
+           value_inst->source_location,
            "Child must be Bool. Got `" << child_primitive << "`");
     out_id = analyser->builder.buildUnaryOp((RIROpcode)inst->binop.opcode,
                                             child->id, child->result);
@@ -281,7 +286,7 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
   case UIROpcode::BitwiseNot: {
     expect(child_primitive->kind == RIRTypeKind::Integer,
-           inst->unaryop.value->source_location,
+           value_inst->source_location,
            "Child must be Integer. Got `" << child_primitive << "`");
 
     out_id = analyser->builder.buildUnaryOp((RIROpcode)inst->binop.opcode,
@@ -291,5 +296,5 @@ void analyseUnary(UIRAnalyser *analyser, UIRModule *module, UIRValue *inst) {
   }
 
   analyser->resolved_mapping.insert(
-      inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }

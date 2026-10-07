@@ -8,10 +8,10 @@
 #include "uir/comptime/define.hpp"
 #include <cassert>
 
-Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
-                                  UIRValue *inst) {
+Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   // Get parent info
-  analyse(analyser, module, inst->lookup.parent);
+  UIRValue *parent_inst = analyser->ctx->getInst(inst->lookup.parent);
+  analyse(analyser, parent_inst);
   UIRResolved parent_resolved =
       *analyser->resolved_mapping.get(inst->lookup.parent);
 
@@ -23,7 +23,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
   } else if (parent_resolved.kind == UIRResolvedKind::Literal) {
     analyser->comptime_state.pushStack();
     Option<UIRLiteral> opt_lit =
-        executeLookupPtr(&analyser->comptime_state, module,
+        executeLookupPtr(&analyser->comptime_state,
                          analyser->comptime_state.currentStack(), inst);
     analyser->comptime_state.popStack();
 
@@ -97,7 +97,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
     }
   } else if (ptr_type->kind == RIRTypeKind::Struct) {
     UIRValue *struct_inst = analyser->type_extras.get(ptr_type->id)->creator;
-    definitions = struct_inst->_struct.definitions;
+    definitions = analyser->ctx->getScope(struct_inst->_struct.definitions);
 
     for (size_t i = 0; i < struct_inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
@@ -109,7 +109,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
     }
   } else if (ptr_type->kind == RIRTypeKind::Enum) {
     UIRValue *enum_inst = analyser->type_extras.get(ptr_type->id)->creator;
-    definitions = enum_inst->_enum.definitions;
+    definitions = analyser->ctx->getScope(enum_inst->_enum.definitions);
   }
 
   if (sub_type.isSome()) {
@@ -128,10 +128,11 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
   // Definitions
   if (definitions != nullptr) {
     for (size_t i = 0; i < definitions->list.length; i++) {
-      UIRValue *child = definitions->list.getUnchecked(i);
+      UIRValue *child =
+          analyser->ctx->getInst(definitions->list.getUnchecked(i));
       if (child->name.compare(*member)) {
-        analyse(analyser, module, child);
-        return *analyser->resolved_mapping.get(child);
+        analyse(analyser, child);
+        return *analyser->resolved_mapping.get(child->id);
       }
     }
   }
@@ -141,9 +142,8 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRModule *module,
   return out;
 }
 
-void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
-                      UIRValue *inst) {
-  Option<UIRResolved> resolved = analyseLookup(analyser, module, inst);
+void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst) {
+  Option<UIRResolved> resolved = analyseLookup(analyser, inst);
   if (resolved.isNone()) {
     // Error
     expect(false, inst->source_location,
@@ -151,12 +151,11 @@ void analyseLookupPtr(UIRAnalyser *analyser, UIRModule *module,
     return;
   }
 
-  analyser->resolved_mapping.insert(inst, resolved.get());
+  analyser->resolved_mapping.insert(inst->id, resolved.get());
 }
 
-void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
-                        UIRValue *inst) {
-  Option<UIRResolved> opt_resolved = analyseLookup(analyser, module, inst);
+void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
+  Option<UIRResolved> opt_resolved = analyseLookup(analyser, inst);
   if (opt_resolved.isSome()) {
     UIRResolved resolved = opt_resolved.get();
 
@@ -176,7 +175,7 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
           analyser->builder.buildLoad(result_inst->id, result_type->child);
 
       analyser->resolved_mapping.insert(
-          inst, {.kind = UIRResolvedKind::Inst, .inst = loaded_result});
+          inst->id, {.kind = UIRResolvedKind::Inst, .inst = loaded_result});
       return;
     }
 
@@ -194,14 +193,13 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
     }
 
     analyser->resolved_mapping.insert(
-        inst, {.kind = UIRResolvedKind::Literal, .literal = result_lit});
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = result_lit});
     return;
   }
 
   analyser->comptime_state.pushStack();
-  Option<UIRLiteral> out_lit =
-      executeLookupValue(&analyser->comptime_state, module,
-                         analyser->comptime_state.currentStack(), inst);
+  Option<UIRLiteral> out_lit = executeLookupValue(
+      &analyser->comptime_state, analyser->comptime_state.currentStack(), inst);
   analyser->comptime_state.popStack();
 
   if (out_lit.isNone()) {
@@ -212,5 +210,5 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRModule *module,
   }
 
   analyser->resolved_mapping.insert(
-      inst, {.kind = UIRResolvedKind::Literal, .literal = out_lit.get()});
+      inst->id, {.kind = UIRResolvedKind::Literal, .literal = out_lit.get()});
 }

@@ -1,40 +1,58 @@
 #include "builder.hpp"
 #include "uir.hpp"
 
-UIRBlock *UIRBuilder::appendBlock(UIRValue *parent, String name) {
-  size_t idx = this->module->blocks.len();
+UIRScope *UIRBuilder::createScope() {
+  UIRScope raw_scope = {
+      .id = {this->module->id, (uint32_t)this->module->scopes.len()},
+  };
+  raw_scope.list.init(this->module->allocator, 8);
+
+  this->module->scopes.push(raw_scope);
+  return this->context->getScope(raw_scope.id);
+}
+
+UIRBlock *UIRBuilder::createBlock(String name) {
   UIRBlock raw_block = {
-      .id = idx,
+      .id = {this->module->id, (uint32_t)this->module->blocks.len()},
       .name = name,
-      .parent = parent,
   };
   raw_block.instructions.init(this->module->allocator, 32);
 
   this->module->blocks.push(raw_block);
-  UIRBlock *block = this->module->blocks.getPtrUnchecked(idx);
+  UIRBlock *block = this->context->getBlock(raw_block.id);
+  return block;
+}
 
-  if (parent->kind == UIRValueKind::Function) {
-    parent->function.blocks.push(block);
-  } else if (parent->kind == UIRValueKind::Comptime) {
-    parent->comptime.blocks.push(block);
+UIRBlock *UIRBuilder::appendBlock(UIRValueId parent, String name) {
+  UIRBlock *block = this->createBlock(name);
+
+  UIRValue *parent_inst = this->context->getInst(parent);
+  if (parent_inst->kind == UIRValueKind::Function) {
+    block->parent = parent;
+    parent_inst->function.blocks.push(block->id);
+  } else if (parent_inst->kind == UIRValueKind::Comptime) {
+    block->parent = parent;
+    parent_inst->comptime.blocks.push(block->id);
   }
   return block;
 }
 
 UIRValue *UIRBuilder::insert(UIRValue inst, bool global, String name) {
-  size_t idx = this->module->instructions.len();
-  inst.id = idx;
+  inst.id = {this->module->id, (uint32_t)this->module->instructions.len()};
   inst.name = name;
 
   this->module->instructions.push(inst);
-  UIRValue *ptr_inst = this->module->instructions.getPtrUnchecked(idx);
+  UIRValue *ptr_inst = this->context->getInst(inst.id);
 
   *ptr_inst = inst;
-  if (this->block != nullptr) {
-    ptr_inst->parent = this->block;
-    this->block->instructions.push(ptr_inst);
-  } else if (this->scope != nullptr) {
-    this->scope->list.push(ptr_inst);
+  if (this->block.isSome()) {
+    UIRBlock *block = this->block.get();
+    ptr_inst->parent = block->parent;
+    block->instructions.push(ptr_inst->id);
+  } else if (this->scope.isSome()) {
+    UIRScope *scope = this->scope.get();
+    ptr_inst->parent = scope->owner;
+    scope->list.push(ptr_inst->id);
   } else {
     std::cerr << "Block or Scope must be provided to insert instruction.\n";
     std::abort();
@@ -42,65 +60,66 @@ UIRValue *UIRBuilder::insert(UIRValue inst, bool global, String name) {
   return ptr_inst;
 }
 
-UIRValue *UIRBuilder::buildLocalVariable(UIRValue *type, String name) {
+UIRValue *UIRBuilder::buildLocalVariable(UIRValueId type, String name) {
   UIRValue inst = {.kind = UIRValueKind::LocalVariable};
   inst.local_variable = {type};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildLoad(UIRValue *ptr, String name) {
+UIRValue *UIRBuilder::buildLoad(UIRValueId ptr, String name) {
   UIRValue inst = {.kind = UIRValueKind::Load};
   inst.load.ptr = ptr;
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildStore(UIRValue *value, UIRValue *ptr) {
+UIRValue *UIRBuilder::buildStore(UIRValueId value, UIRValueId ptr) {
   UIRValue inst = {.kind = UIRValueKind::Store};
   inst.store = {.value = value, .ptr = ptr};
   return this->insert(inst);
 }
 
-UIRValue *UIRBuilder::buildArg(UIRValue *type, String name) {
+UIRValue *UIRBuilder::buildArg(UIRValueId type, String name) {
   UIRValue inst = {.kind = UIRValueKind::Arg};
   inst.arg.type = type;
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildBinOp(UIRValue *lhs, UIRValue *rhs, UIROpcode opcode,
-                                 String name) {
+UIRValue *UIRBuilder::buildBinOp(UIRValueId lhs, UIRValueId rhs,
+                                 UIROpcode opcode, String name) {
   UIRValue inst = {.kind = UIRValueKind::BinOp};
   inst.binop = {.opcode = opcode, .lhs = lhs, .rhs = rhs};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildUnaryOp(UIRValue *value, UIROpcode opcode,
+UIRValue *UIRBuilder::buildUnaryOp(UIRValueId value, UIROpcode opcode,
                                    String name) {
   UIRValue inst = {.kind = UIRValueKind::UnaryOp};
   inst.unaryop = {.opcode = opcode, .value = value};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildCall(UIRValue *callee, Slice<UIRValue *> arguments,
-                                Option<UIRValue *> receiver, String name) {
+UIRValue *UIRBuilder::buildCall(UIRValueId callee, Slice<UIRValueId> arguments,
+                                Option<UIRValueId> receiver, String name) {
   UIRValue inst = {.kind = UIRValueKind::Call};
   inst.call = {.callee = callee, .arguments = arguments, .receiver = receiver};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildIndex(UIRValue *ptr, UIRValue *index, String name) {
+UIRValue *UIRBuilder::buildIndex(UIRValueId ptr, UIRValueId index,
+                                 String name) {
   UIRValue inst = {.kind = UIRValueKind::Index};
   inst.index = {.ptr = ptr, .index = index};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildRange(UIRValue *ptr, UIRValue *start, UIRValue *end,
-                                 String name) {
+UIRValue *UIRBuilder::buildRange(UIRValueId ptr, UIRValueId start,
+                                 UIRValueId end, String name) {
   UIRValue inst = {.kind = UIRValueKind::Range};
   inst.range = {ptr, start, end};
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildLookupPtr(UIRValue *parent, String member,
+UIRValue *UIRBuilder::buildLookupPtr(UIRValueId parent, String member,
                                      String name) {
   UIRValue inst = {.kind = UIRValueKind::LookupPtr};
   inst.lookup.parent = parent;
@@ -108,7 +127,7 @@ UIRValue *UIRBuilder::buildLookupPtr(UIRValue *parent, String member,
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildLookupValue(UIRValue *parent, String member,
+UIRValue *UIRBuilder::buildLookupValue(UIRValueId parent, String member,
                                        String name) {
   UIRValue inst = {.kind = UIRValueKind::LookupValue};
   inst.lookup.parent = parent;
@@ -116,34 +135,34 @@ UIRValue *UIRBuilder::buildLookupValue(UIRValue *parent, String member,
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildAggregate(UIRValue *type, Slice<String> names,
-                                     Slice<UIRValue *> values, String name) {
+UIRValue *UIRBuilder::buildAggregate(UIRValueId type, Slice<String> names,
+                                     Slice<UIRValueId> values, String name) {
   UIRValue inst = {.kind = UIRValueKind::Aggregate};
   inst.aggregate = {.type = type, .names = names, .values = values};
   return this->insert(inst, false, name);
 }
 
 // If `value` is null then this returns `void`
-UIRValue *UIRBuilder::buildReturn(Option<UIRValue *> value) {
+UIRValue *UIRBuilder::buildReturn(Option<UIRValueId> value) {
   UIRValue inst = {.kind = UIRValueKind::Return};
   inst.ret = {.value = value};
   return this->insert(inst);
 }
 
-UIRValue *UIRBuilder::buildBr(UIRBlock *block) {
+UIRValue *UIRBuilder::buildBr(UIRBlockId block) {
   UIRValue inst = {.kind = UIRValueKind::Branch};
   inst.br = block;
   return this->insert(inst);
 }
 
-UIRValue *UIRBuilder::buildCondBr(UIRValue *condition, UIRBlock *then,
-                                  UIRBlock *_else) {
+UIRValue *UIRBuilder::buildCondBr(UIRValueId condition, UIRBlockId then,
+                                  UIRBlockId _else) {
   UIRValue inst = {.kind = UIRValueKind::CondBranch};
   inst.condbr = {.condition = condition, .then = then, ._else = _else};
   return this->insert(inst);
 }
 
-UIRValue *UIRBuilder::buildSwitch(UIRValue *value, UIRBlock *default_block,
+UIRValue *UIRBuilder::buildSwitch(UIRValueId value, UIRBlockId default_block,
                                   size_t cases) {
   UIRValue inst = {.kind = UIRValueKind::Switch};
   inst._switch.condition = value;
@@ -153,15 +172,15 @@ UIRValue *UIRBuilder::buildSwitch(UIRValue *value, UIRBlock *default_block,
       this->module->allocator->allocZeroed(sizeof(void *) * cases);
   uint8_t *blocks_ptr =
       this->module->allocator->allocZeroed(sizeof(void *) * cases);
-  inst._switch.onvals = {.ptr = (UIRValue **)onval_ptr, .len = cases};
-  inst._switch.blocks = {.ptr = (UIRBlock **)blocks_ptr, .len = cases};
+  inst._switch.onvals = {.ptr = (UIRValueId *)onval_ptr, .len = cases};
+  inst._switch.blocks = {.ptr = (UIRBlockId *)blocks_ptr, .len = cases};
   inst._switch.slots = 0;
 
   return this->insert(inst);
 }
 
-void UIRBuilder::addCase(UIRValue *switch_inst, UIRValue *onval,
-                         UIRBlock *then) {
+void UIRBuilder::addCase(UIRValue *switch_inst, UIRValueId onval,
+                         UIRBlockId then) {
   assert(switch_inst->kind == UIRValueKind::Switch &&
          "Cannot add switch case to non-switch instruction");
   assert(switch_inst->_switch.slots < switch_inst->_switch.onvals.len &&
@@ -182,22 +201,22 @@ UIRValue *UIRBuilder::buildComptime(String name) {
   UIRValue inst = {.kind = UIRValueKind::Comptime};
   return this->insert(inst, false, name);
 }
-UIRValue *UIRBuilder::buildTypeOf(UIRValue *value, String name) {
+UIRValue *UIRBuilder::buildTypeOf(UIRValueId value, String name) {
   UIRValue inst = {.kind = UIRValueKind::TypeOf};
   inst._typeof = value;
   return this->insert(inst, true, name);
 }
 
-UIRValue *UIRBuilder::buildGlobalVariable(Option<UIRValue *> type,
-                                          Option<UIRValue *> constant,
+UIRValue *UIRBuilder::buildGlobalVariable(Option<UIRValueId> type,
+                                          Option<UIRValueId> constant,
                                           String name) {
   UIRValue inst = {.kind = UIRValueKind::GlobalVariable};
   inst.global_variable = {type, constant};
   return this->insert(inst, true, name);
 }
 
-UIRValue *UIRBuilder::buildFunction(Slice<UIRValue *> parameters,
-                                    UIRValue *return_type, String name) {
+UIRValue *UIRBuilder::buildFunction(Slice<UIRValueId> parameters,
+                                    UIRValueId return_type, String name) {
   UIRValue inst = {.kind = UIRValueKind::Function};
   inst.function = {
       .parameter_types = parameters,
@@ -211,13 +230,13 @@ UIRValue *UIRBuilder::buildLiteral(UIRLiteral literal, String name) {
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildPointer(UIRValue *child_type, String name) {
+UIRValue *UIRBuilder::buildPointer(UIRValueId child_type, String name) {
   UIRValue inst = {.kind = UIRValueKind::Pointer};
   inst.pointer = child_type;
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildSlice(UIRValue *element, UIRValue *length,
+UIRValue *UIRBuilder::buildSlice(UIRValueId element, Option<UIRValueId> length,
                                  bool is_pointer, String name) {
   UIRValue inst = {.kind = UIRValueKind::Slice};
   inst.slice = {.element = element, .length = length, .is_pointer = is_pointer};
@@ -230,7 +249,7 @@ UIRValue *UIRBuilder::buildStruct(Slice<UIRStruct::Field> fields, String name) {
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildEnum(UIRValue *repr_type,
+UIRValue *UIRBuilder::buildEnum(UIRValueId repr_type,
                                 Slice<UIREnum::Member> members, String name) {
   UIRValue inst = {.kind = UIRValueKind::Enum};
   inst._enum.repr_type = repr_type;
@@ -238,7 +257,7 @@ UIRValue *UIRBuilder::buildEnum(UIRValue *repr_type,
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildUnion(UIRValue *repr_type,
+UIRValue *UIRBuilder::buildUnion(UIRValueId repr_type,
                                  Slice<UIRStruct::Field> variants,
                                  String name) {
   UIRValue inst = {.kind = UIRValueKind::Union};

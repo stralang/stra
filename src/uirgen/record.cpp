@@ -6,8 +6,8 @@ void genList(UIRGen *uirgen, ArrayList<Node *> *list, Symbol *scope,
              UIRScope *out) {
   out->list.init(uirgen->module->allocator, list->length);
 
-  UIRBlock *prev_block = uirgen->builder.block;
-  UIRScope *prev_scope = uirgen->builder.scope;
+  Option<UIRBlock *> prev_block = uirgen->builder.block;
+  Option<UIRScope *> prev_scope = uirgen->builder.scope;
   uirgen->builder.block = nullptr;
   uirgen->builder.scope = out;
 
@@ -39,7 +39,7 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope) {
     Node *ast = node->_struct.fields.getUnchecked(i);
     UIRStruct::Field *uir = fields.ptr + i;
     uir->name = ast->field.name;
-    uir->type = gen(uirgen, ast->field.type, struct_symbol);
+    uir->type = gen(uirgen, ast->field.type, struct_symbol)->id;
   }
 
   // Build Instruction
@@ -54,10 +54,9 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope) {
   value->source_location = node->location;
 
   // Definitions
-  value->_struct.definitions =
-      (UIRScope *)uirgen->module->allocator->alloc(sizeof(UIRScope));
-  genList(uirgen, &node->_struct.body, struct_symbol,
-          value->_struct.definitions);
+  UIRScope *definitions = uirgen->builder.createScope();
+  value->_struct.definitions = definitions->id;
+  genList(uirgen, &node->_struct.body, struct_symbol, definitions);
 
   return value;
 }
@@ -92,9 +91,9 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
     UIREnum::Member *uir = members.ptr + i;
     uir->name = ast->member.name;
     if (ast->member.value != nullptr) {
-      uir->constant = gen(uirgen, ast->member.value, enum_symbol);
+      uir->constant = gen(uirgen, ast->member.value, enum_symbol)->id;
     } else {
-      uir->constant = nullptr;
+      uir->constant = {};
     }
   }
 
@@ -103,16 +102,16 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
   UIRValue *value;
   if (cached != nullptr) {
     value = *cached;
-    value->_enum = {.repr_type = repr_type, .members = members};
+    value->_enum = {.repr_type = repr_type->id, .members = members};
   } else {
-    value = uirgen->builder.buildEnum(repr_type, members, {.ptr = nullptr});
+    value = uirgen->builder.buildEnum(repr_type->id, members, {.ptr = nullptr});
   }
   value->source_location = node->location;
 
   // Definitions
-  value->_enum.definitions =
-      (UIRScope *)uirgen->module->allocator->alloc(sizeof(UIRScope));
-  genList(uirgen, &node->_enum.body, enum_symbol, value->_enum.definitions);
+  UIRScope *definitions = uirgen->builder.createScope();
+  value->_enum.definitions = definitions->id;
+  genList(uirgen, &node->_enum.body, enum_symbol, definitions);
 
   return value;
 }
@@ -133,7 +132,7 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
     Node *ast = node->_union.variants.getUnchecked(i);
     UIRStruct::Field *uir = variants.ptr + i;
     uir->name = ast->field.name;
-    uir->type = gen(uirgen, ast->field.type, union_symbol);
+    uir->type = gen(uirgen, ast->field.type, union_symbol)->id;
   }
 
   // Build Instruction
@@ -141,16 +140,17 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
   UIRValue *value;
   if (cached != nullptr) {
     value = *cached;
-    value->_union = {.repr_type = repr_type, .variants = variants};
+    value->_union = {.repr_type = repr_type->id, .variants = variants};
   } else {
-    value = uirgen->builder.buildUnion(repr_type, variants, {.ptr = nullptr});
+    value =
+        uirgen->builder.buildUnion(repr_type->id, variants, {.ptr = nullptr});
   }
   value->source_location = node->location;
 
   // Definitions
-  value->_union.definitions =
-      (UIRScope *)uirgen->module->allocator->alloc(sizeof(UIRScope));
-  genList(uirgen, &node->_union.body, union_symbol, value->_union.definitions);
+  UIRScope *definitions = uirgen->builder.createScope();
+  value->_union.definitions = definitions->id;
+  genList(uirgen, &node->_union.body, union_symbol, definitions);
 
   return value;
 }
@@ -167,10 +167,10 @@ UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 
   value->source_location = node->location;
-  value->_namespace.definitions =
-      (UIRScope *)uirgen->module->allocator->alloc(sizeof(UIRScope));
 
-  genList(uirgen, &node->children, namespace_symbol,
-          value->_namespace.definitions);
+  UIRScope *definitions = uirgen->builder.createScope();
+  value->_namespace.definitions = definitions->id;
+  genList(uirgen, &node->children, namespace_symbol, definitions);
+
   return value;
 }

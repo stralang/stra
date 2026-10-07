@@ -16,18 +16,18 @@ Option<size_t> getFieldIndex(UIRValue *_struct, String name) {
   return {};
 }
 
-void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
-                      UIRValue *inst) {
+void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
   assert(inst->kind == UIRValueKind::Aggregate);
 
   // Get Type
-  analyse(analyser, module, inst->aggregate.type);
+  UIRValue *type_inst = analyser->ctx->getInst(inst->aggregate.type);
+  analyse(analyser, type_inst);
+
   UIRResolved *type_resolved =
       analyser->resolved_mapping.get(inst->aggregate.type);
   assert(type_resolved->kind == UIRResolvedKind::Literal);
   expect(type_resolved->literal.data.kind == UIRRawDataKind::TypeId,
-         inst->aggregate.type->source_location,
-         "Initializer type must be typeid");
+         type_inst->source_location, "Initializer type must be typeid");
 
   RIRTypeId aggregate_type_id = type_resolved->literal.data._typeid;
   RIRType *aggregate_type = analyser->rir_ctx->getType(aggregate_type_id);
@@ -36,12 +36,10 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
   UIRValue *struct_inst = nullptr;
   if (inst->aggregate.names.ptr == nullptr) {
     expect(aggregate_type->kind == RIRTypeKind::Slice,
-           inst->aggregate.type->source_location,
-           "Cannot list initialize non-slice");
+           type_inst->source_location, "Cannot list initialize non-slice");
   } else {
     expect(aggregate_type->kind == RIRTypeKind::Struct,
-           inst->aggregate.type->source_location,
-           "Cannot name initialize non-struct");
+           type_inst->source_location, "Cannot name initialize non-struct");
     struct_inst = analyser->type_extras.get(aggregate_type_id)->creator;
   }
 
@@ -65,10 +63,12 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
     }
 
     // Get Value
-    UIRValue *value = inst->aggregate.values.ptr[i];
-    analyse(analyser, module, value);
+    UIRValue *value_inst =
+        analyser->ctx->getInst(inst->aggregate.values.ptr[i]);
+    analyse(analyser, value_inst);
 
-    UIRResolved *value_resolved = analyser->resolved_mapping.get(value);
+    UIRResolved *value_resolved =
+        analyser->resolved_mapping.get(value_inst->id);
     RIRValueId out_id =
         getInstFromResolved(analyser, value_resolved, expected_type);
 
@@ -76,7 +76,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
     RIRValue *out_inst = analyser->rir_ctx->getInst(out_id);
     RIRType *out_type = analyser->rir_ctx->getType(out_inst->result);
     expect(out_type->compare(analyser->rir_ctx->types, expected_type),
-           value->source_location,
+           value_inst->source_location,
            "Initializer value doesn't match element type");
 
     // Set value
@@ -88,5 +88,5 @@ void analyseAggregate(UIRAnalyser *analyser, UIRModule *module,
   RIRValueId out_id =
       analyser->builder.buildAggregate(aggregate_type_id, out_values);
   analyser->resolved_mapping.insert(
-      inst, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }

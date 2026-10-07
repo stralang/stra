@@ -4,7 +4,7 @@
 
 void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
   Symbol *if_scope = scope->findSymbolByNode(node);
-  UIRValue *parent_define = uirgen->builder.block->parent;
+  UIRValueId parent_define = uirgen->builder.block.get()->parent;
 
   // Blocks
   UIRBlock *then_block =
@@ -21,9 +21,9 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
   UIRValue *condition = gen(uirgen, node->_if.conditional, scope);
 
   if (else_block != nullptr) {
-    uirgen->builder.buildCondBr(condition, then_block, else_block);
+    uirgen->builder.buildCondBr(condition->id, then_block->id, else_block->id);
   } else {
-    uirgen->builder.buildCondBr(condition, then_block, merge_block);
+    uirgen->builder.buildCondBr(condition->id, then_block->id, merge_block->id);
   }
 
   // Then
@@ -36,9 +36,9 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
     uirgen->builder.block = then_block;
     gen(uirgen, node->_if.body, if_scope);
 
-    if (!uirgen->builder.block->hasTerminator()) {
+    if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
       injectDefer(uirgen, if_scope, false);
-      uirgen->builder.buildBr(merge_block);
+      uirgen->builder.buildBr(merge_block->id);
     }
 
     // Reset Defer
@@ -61,9 +61,9 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
     gen(uirgen, node->_if._else, else_scope);
 
-    if (!uirgen->builder.block->hasTerminator()) {
+    if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
       injectDefer(uirgen, else_scope, false);
-      uirgen->builder.buildBr(merge_block);
+      uirgen->builder.buildBr(merge_block->id);
     }
 
     // Reset Defer
@@ -77,14 +77,14 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
 
 void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
   Symbol *for_scope = scope->findSymbolByNode(node);
-  UIRValue *parent_define = uirgen->builder.block->parent;
+  UIRValueId parent_define = uirgen->builder.block.get()->parent;
 
   // `for-in` Init
   bool range_loop = node->_for.conditional->kind == NodeKind::In;
   if (range_loop) {
     UIRBlock *init_block =
         uirgen->builder.appendBlock(parent_define, str("for_init"));
-    uirgen->builder.buildBr(init_block);
+    uirgen->builder.buildBr(init_block->id);
     uirgen->builder.block = init_block;
 
     UIRValue *initial =
@@ -101,14 +101,14 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
       };
       type = uirgen->builder.buildLiteral(literal);
     } else {
-      type = uirgen->builder.buildTypeOf(initial);
+      type = uirgen->builder.buildTypeOf(initial->id);
     }
 
     UIRValue *field = uirgen->builder.buildLocalVariable(
-        type, node->_for.conditional->in.name);
+        type->id, node->_for.conditional->in.name);
     field->source_location = node->_for.conditional->location;
 
-    uirgen->builder.buildStore(initial, field);
+    uirgen->builder.buildStore(initial->id, field->id);
     uirgen->node_to_value.insert(node->_for.conditional, field);
   }
 
@@ -121,7 +121,7 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
       uirgen->builder.appendBlock(parent_define, str("for_merge"));
   UIRBlock *continue_block = condition_block;
 
-  uirgen->builder.buildBr(condition_block);
+  uirgen->builder.buildBr(condition_block->id);
 
   // Conditional
   uirgen->builder.block = condition_block;
@@ -129,7 +129,7 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
   if (range_loop) {
     // `for-in` Conditional
     UIRValue *lhs_ptr = *uirgen->node_to_value.get(node->_for.conditional);
-    UIRValue *lhs = uirgen->builder.buildLoad(lhs_ptr);
+    UIRValue *lhs = uirgen->builder.buildLoad(lhs_ptr->id);
     UIRValue *rhs =
         gen(uirgen, node->_for.conditional->in.range->range.max, for_scope);
 
@@ -138,12 +138,12 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
             ? UIROpcode::LessThenOrEqualTo
             : UIROpcode::LessThen;
 
-    condition = uirgen->builder.buildBinOp(lhs, rhs, opcode);
+    condition = uirgen->builder.buildBinOp(lhs->id, rhs->id, opcode);
   } else {
     condition = gen(uirgen, node->_for.conditional, for_scope);
   }
 
-  uirgen->builder.buildCondBr(condition, do_block, merge_block);
+  uirgen->builder.buildCondBr(condition->id, do_block->id, merge_block->id);
 
   // `for-in` Increment
   if (range_loop) {
@@ -153,13 +153,14 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
     uirgen->builder.block = increment_block;
 
     UIRValue *ptr = *uirgen->node_to_value.get(node->_for.conditional);
-    UIRValue *idx = uirgen->builder.buildLoad(ptr);
+    UIRValue *idx = uirgen->builder.buildLoad(ptr->id);
     UIRValue *one = uirgen->builder.buildLiteral(
         {.data = {.kind = UIRRawDataKind::Int, ._int = 1}});
-    UIRValue *result = uirgen->builder.buildBinOp(idx, one, UIROpcode::Add);
-    uirgen->builder.buildStore(result, ptr);
+    UIRValue *result =
+        uirgen->builder.buildBinOp(idx->id, one->id, UIROpcode::Add);
+    uirgen->builder.buildStore(result->id, ptr->id);
 
-    uirgen->builder.buildBr(condition_block);
+    uirgen->builder.buildBr(condition_block->id);
   }
 
   // Body
@@ -172,9 +173,9 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
     uirgen->builder.block = do_block;
     gen(uirgen, node->_for.body, for_scope);
 
-    if (!uirgen->builder.block->hasTerminator()) {
+    if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
       injectDefer(uirgen, for_scope, false);
-      uirgen->builder.buildBr(continue_block);
+      uirgen->builder.buildBr(continue_block->id);
     }
 
     // Reset Defer
@@ -187,13 +188,13 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
 }
 
 void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
-  UIRValue *parent_define = uirgen->builder.block->parent;
+  UIRValueId parent_define = uirgen->builder.block.get()->parent;
   UIRBlock *merge_block =
       uirgen->builder.appendBlock(parent_define, str("switch_merge"));
 
   // Cases
   UIRValue *value = gen(uirgen, node->_switch.conditional, scope);
-  UIRValue *_switch = uirgen->builder.buildSwitch(value, merge_block,
+  UIRValue *_switch = uirgen->builder.buildSwitch(value->id, merge_block->id,
                                                   node->_switch.cases.length);
   _switch->source_location = node->location;
 
@@ -214,9 +215,9 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
       uirgen->builder.block = case_block;
       gen(uirgen, _case->_case.body, case_scope);
 
-      if (!uirgen->builder.block->hasTerminator()) {
+      if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
         injectDefer(uirgen, case_scope, false);
-        uirgen->builder.buildBr(merge_block);
+        uirgen->builder.buildBr(merge_block->id);
       }
 
       // Reset Defer
@@ -226,7 +227,7 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
 
     // Add
     UIRValue *constant = gen(uirgen, _case->_case.constant, scope);
-    uirgen->builder.addCase(_switch, constant, case_block);
+    uirgen->builder.addCase(_switch, constant->id, case_block->id);
   }
 
   // Merge

@@ -37,8 +37,8 @@ struct UIRAnalyser {
   RIRContext *rir_ctx;
   RIRBuilder builder;
 
-  HashMap<UIRValue *, UIRResolved> resolved_mapping;
-  HashMap<UIRBlock *, RIRBlockId> resolved_block_mapping;
+  HashMap<UIRValueId, UIRResolved> resolved_mapping;
+  HashMap<UIRBlockId, RIRBlockId> resolved_block_mapping;
   HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
 
   // Misc

@@ -1,25 +1,26 @@
 #include "uirgen.hpp"
-#include "../print.hpp"
+#include "common/debug.hpp"
 #include "define.hpp"
 #include "src/ast.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
-#include <functional>
-#include <iostream>
 
 UIRValue *genComptime(UIRGen *uirgen, Node *child, Symbol *scope) {
   UIRValue *value = uirgen->builder.buildComptime(str("comptime"));
   value->comptime.blocks.init(uirgen->allocator, 32);
 
-  UIRBlock *prev_block = uirgen->builder.block;
-  uirgen->builder.block = uirgen->builder.appendBlock(value, str("entry"));
+  Option<UIRBlock *> prev_block = uirgen->builder.block;
+  Option<UIRScope *> prev_scope = uirgen->builder.scope;
+  uirgen->builder.block = uirgen->builder.appendBlock(value->id, str("entry"));
+  uirgen->builder.scope = nullptr;
 
   UIRValue *output = gen(uirgen, child, scope);
-  if (!uirgen->builder.block->hasTerminator()) {
-    uirgen->builder.buildReturn(output);
+  if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
+    uirgen->builder.buildReturn(output->id);
   }
 
   uirgen->builder.block = prev_block;
+  uirgen->builder.scope = prev_scope;
   return value;
 }
 
@@ -68,14 +69,15 @@ UIRValue *addr(UIRGen *uirgen, Node *node, Symbol *scope) {
     if (node->index.index->kind == NodeKind::Range) {
       UIRValue *offset = gen(uirgen, node->index.index->range.min, scope);
       UIRValue *length = gen(uirgen, node->index.index->range.max, scope);
-      UIRValue *new_slice = uirgen->builder.buildRange(ptr, offset, length);
+      UIRValue *new_slice =
+          uirgen->builder.buildRange(ptr->id, offset->id, length->id);
 
-      UIRValue *ty = uirgen->builder.buildTypeOf(new_slice);
-      out = uirgen->builder.buildLocalVariable(ty, str("tmp_uir_intern"));
-      uirgen->builder.buildStore(new_slice, out);
+      UIRValue *ty = uirgen->builder.buildTypeOf(new_slice->id);
+      out = uirgen->builder.buildLocalVariable(ty->id, str("tmp_uir_intern"));
+      uirgen->builder.buildStore(new_slice->id, out->id);
     } else {
       UIRValue *index = gen(uirgen, node->index.index, scope);
-      out = uirgen->builder.buildIndex(ptr, index);
+      out = uirgen->builder.buildIndex(ptr->id, index->id);
     }
 
     out->source_location = node->location;
@@ -102,20 +104,22 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     size_t old_defer_boundary = uirgen->defer_local_boundary;
 
     // Blocks
-    UIRValue *parent = uirgen->builder.block->parent;
-    UIRBlock *body_block = uirgen->builder.appendBlock(parent, str("scope"));
+    UIRValue *parent =
+        uirgen->ctx->getInst(uirgen->builder.block.get()->parent);
+    UIRBlock *body_block =
+        uirgen->builder.appendBlock(parent->id, str("scope"));
     UIRBlock *merge_block =
-        uirgen->builder.appendBlock(parent, str("scope_merge"));
+        uirgen->builder.appendBlock(parent->id, str("scope_merge"));
 
     // Generate Body
-    uirgen->builder.buildBr(body_block);
+    uirgen->builder.buildBr(body_block->id);
     uirgen->builder.block = body_block;
     for (size_t i = 0; i < node->children.length; i++) {
       gen(uirgen, node->children.getUnchecked(i), block_scope);
     }
 
     injectDefer(uirgen, block_scope, false);
-    uirgen->builder.buildBr(merge_block);
+    uirgen->builder.buildBr(merge_block->id);
     uirgen->builder.block = merge_block;
 
     // Reset Defer
@@ -152,7 +156,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       return *value;
     }
 
-    UIRValue *out = uirgen->builder.buildLoad(*value, {.ptr = nullptr});
+    UIRValue *out = uirgen->builder.buildLoad((*value)->id, {.ptr = nullptr});
     out->source_location = node->location;
     return out;
   }
@@ -216,14 +220,15 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       if (node->field.type != nullptr) {
         type = genComptime(uirgen, node->field.type, field_symbol);
       } else {
-        type = uirgen->builder.buildTypeOf(initial, {.ptr = nullptr});
+        type = uirgen->builder.buildTypeOf(initial->id, {.ptr = nullptr});
       }
 
-      field = uirgen->builder.buildLocalVariable(type, node->field.name);
+      field = uirgen->builder.buildLocalVariable(type->id, node->field.name);
       uirgen->node_to_value.insert(node, field);
 
       if (initial != nullptr) {
-        UIRValue *store_inst = uirgen->builder.buildStore(initial, field);
+        UIRValue *store_inst =
+            uirgen->builder.buildStore(initial->id, field->id);
         store_inst->source_location = node->location;
       }
     } else if (node->field.initial != nullptr &&
@@ -238,11 +243,11 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
 
       if (node->field.type != nullptr) {
         field->global_variable.type =
-            genComptime(uirgen, node->field.type, field_symbol);
+            genComptime(uirgen, node->field.type, field_symbol)->id;
       }
       if (node->field.initial != nullptr) {
         field->global_variable.constant =
-            genComptime(uirgen, node->field.initial, field_symbol);
+            genComptime(uirgen, node->field.initial, field_symbol)->id;
       }
       field->global_variable.undefined = node->field.undefined;
     }
@@ -254,15 +259,15 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     Symbol *fn_symbol = scope->findSymbolByNode(node);
 
     // Parameter Types
-    Slice<UIRValue *> parameters = {
-        .ptr = (UIRValue **)uirgen->allocator->allocZeroed(
-            sizeof(UIRValue *) * node->function.parameters.length),
+    Slice<UIRValueId> parameters = {
+        .ptr = (UIRValueId *)uirgen->allocator->allocZeroed(
+            sizeof(UIRValueId) * node->function.parameters.length),
         .len = node->function.parameters.length,
     };
 
     for (size_t i = 0; i < node->function.parameters.length; i++) {
       Node *arg = node->function.parameters.getUnchecked(i);
-      parameters.ptr[i] = genComptime(uirgen, arg->field.type, fn_symbol);
+      parameters.ptr[i] = genComptime(uirgen, arg->field.type, fn_symbol)->id;
     }
 
     // Return Type
@@ -285,27 +290,23 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     if (cache != nullptr) {
       value = *cache; // Pre-generated
       value->function.parameter_types = parameters;
-      value->function.return_type = return_type;
+      value->function.return_type = return_type->id;
     } else {
-      value = uirgen->builder.buildFunction(parameters, return_type, str(""));
+      value =
+          uirgen->builder.buildFunction(parameters, return_type->id, str(""));
     }
     value->source_location = node->location;
 
     // Body
     value->function.undefined = node->function.undefined;
     if (node->function.body != nullptr) {
-      uirgen->module->scopes.push({.owner = value});
-      UIRScope *globals = uirgen->module->scopes.back();
-      globals->list.init(uirgen->builder.module->allocator, 32);
-      value->function.globals = globals;
-
       value->function.blocks.init(uirgen->allocator, 32);
-      UIRBlock *entry_block = uirgen->builder.appendBlock(value, str("entry"));
+      UIRBlock *entry_block =
+          uirgen->builder.appendBlock(value->id, str("entry"));
 
-      UIRBlock *prev_block = uirgen->builder.block;
-      UIRScope *prev_scope = uirgen->builder.scope;
+      Option<UIRBlock *> prev_block = uirgen->builder.block;
+      Option<UIRScope *> prev_scope = uirgen->builder.scope;
       uirgen->builder.block = entry_block;
-      uirgen->builder.scope = globals;
 
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
@@ -320,9 +321,9 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       gen(uirgen, node->function.body, fn_symbol);
 
       // Inject void return
-      if (!uirgen->builder.block->hasTerminator()) {
+      if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
         injectDefer(uirgen, fn_symbol, false);
-        uirgen->builder.buildReturn(nullptr);
+        uirgen->builder.buildReturn({});
       }
 
       // End
@@ -347,13 +348,13 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Slice: {
     UIRValue *element = gen(uirgen, node->slice.type, scope);
-    UIRValue *length = nullptr;
+    Option<UIRValueId> length_id;
     if (node->slice.length != nullptr) {
-      length = gen(uirgen, node->slice.length, scope);
+      length_id = gen(uirgen, node->slice.length, scope)->id;
     }
 
     UIRValue *out = uirgen->builder.buildSlice(
-        element, length, node->slice.is_pointer, {.ptr = nullptr});
+        element->id, length_id, node->slice.is_pointer, {.ptr = nullptr});
     out->source_location = node->location;
     return out;
   }
@@ -368,25 +369,25 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Call: {
     UIRValue *callee = addr(uirgen, node->call.callee, scope);
-    Slice<UIRValue *> arguments = {
-        .ptr = (UIRValue **)uirgen->allocator->allocZeroed(
-            sizeof(UIRValue *) * node->call.arguments.length),
+    Slice<UIRValueId> arguments = {
+        .ptr = (UIRValueId *)uirgen->allocator->allocZeroed(
+            sizeof(UIRValueId) * node->call.arguments.length),
         .len = node->call.arguments.length,
     };
 
     // Receiver
-    UIRValue *receiver = nullptr;
+    Option<UIRValueId> receiver = {};
     if (node->call.callee->_operator.opcode == Operator::MemberAccess) {
-      receiver = addr(uirgen, node->call.callee->_operator.lhs, scope);
+      receiver = addr(uirgen, node->call.callee->_operator.lhs, scope)->id;
     }
 
     // Arguments
     for (size_t i = 0; i < arguments.len; i++) {
       arguments.ptr[i] =
-          gen(uirgen, node->call.arguments.getUnchecked(i), scope);
+          gen(uirgen, node->call.arguments.getUnchecked(i), scope)->id;
     }
 
-    UIRValue *out = uirgen->builder.buildCall(callee, arguments, receiver,
+    UIRValue *out = uirgen->builder.buildCall(callee->id, arguments, receiver,
                                               {.ptr = nullptr});
     out->source_location = node->location;
     return out;
@@ -400,22 +401,23 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       if (node->index.index->range.mode == NodeRange::EqualTo) {
         UIRValue *increment = uirgen->builder.buildLiteral(
             {.data = {.kind = UIRRawDataKind::Int, ._int = 1}});
-        end = uirgen->builder.buildBinOp(end, increment, UIROpcode::Add);
+        end =
+            uirgen->builder.buildBinOp(end->id, increment->id, UIROpcode::Add);
       }
 
-      UIRValue *out = uirgen->builder.buildRange(ptr, start, end);
+      UIRValue *out = uirgen->builder.buildRange(ptr->id, start->id, end->id);
       out->source_location = node->location;
       return out;
     }
     UIRValue *ptr = addr(uirgen, node, scope);
-    return uirgen->builder.buildLoad(ptr);
+    return uirgen->builder.buildLoad(ptr->id);
   }
   case NodeKind::Initializer: {
     UIRValue *record_type =
         genComptime(uirgen, node->initializer.record, scope);
-    Slice<UIRValue *> values = {
-        .ptr = (UIRValue **)uirgen->allocator->allocZeroed(
-            sizeof(UIRValue *) * node->initializer.setters.length),
+    Slice<UIRValueId> values = {
+        .ptr = (UIRValueId *)uirgen->allocator->allocZeroed(
+            sizeof(UIRValueId) * node->initializer.setters.length),
         .len = node->initializer.setters.length,
     };
     Slice<String> names = {.ptr = nullptr, .len = 0};
@@ -434,14 +436,15 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       Node *setter = node->initializer.setters.getUnchecked(i);
       if (names.ptr != nullptr) {
         names.ptr[i] = setter->member.name;
-        values.ptr[i] = gen(uirgen, setter->member.value, scope);
+        values.ptr[i] = gen(uirgen, setter->member.value, scope)->id;
       } else {
-        values.ptr[i] = gen(uirgen, setter, scope);
+        values.ptr[i] = gen(uirgen, setter, scope)->id;
       }
     }
 
     // Create instruction
-    UIRValue *out = uirgen->builder.buildAggregate(record_type, names, values);
+    UIRValue *out =
+        uirgen->builder.buildAggregate(record_type->id, names, values);
     out->source_location = node->location;
     return out;
   }
@@ -449,9 +452,9 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     injectDefer(uirgen, scope, true);
 
     // Generate value
-    UIRValue *ret_value = nullptr;
+    Option<UIRValueId> ret_value = {};
     if (node->child != nullptr) {
-      ret_value = gen(uirgen, node->child, scope);
+      ret_value = gen(uirgen, node->child, scope)->id;
     }
 
     // Build
@@ -509,10 +512,10 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
 
         if (arg->kind == NodeAssembly::Argument::Input) {
           operand->kind = UIRAssembly::Operand::Input;
-          operand->uir = gen(uirgen, arg->node, scope);
+          operand->uir = gen(uirgen, arg->node, scope)->id;
         } else if (arg->kind == NodeAssembly::Argument::Return) {
           operand->kind = UIRAssembly::Operand::Return;
-          operand->uir = addr(uirgen, arg->node, scope);
+          operand->uir = addr(uirgen, arg->node, scope)->id;
         }
       }
     }
@@ -547,8 +550,8 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
     UIRValue *field = nullptr;
     if (node->field.initial != nullptr &&
         node->field.initial->kind == NodeKind::Function) {
-      field = uirgen->builder.buildFunction({.ptr = nullptr}, nullptr,
-                                            node->field.name);
+      field =
+          uirgen->builder.buildFunction({.ptr = nullptr}, {}, node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Struct) {
@@ -556,21 +559,19 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Enum) {
-      field = uirgen->builder.buildEnum(nullptr, {.ptr = nullptr},
-                                        node->field.name);
+      field = uirgen->builder.buildEnum({}, {.ptr = nullptr}, node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Union) {
-      field = uirgen->builder.buildUnion(nullptr, {.ptr = nullptr},
-                                         node->field.name);
+      field =
+          uirgen->builder.buildUnion({}, {.ptr = nullptr}, node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Namespace) {
       field = uirgen->builder.buildNamespace(node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else {
-      field = uirgen->builder.buildGlobalVariable(nullptr, nullptr,
-                                                  node->field.name);
+      field = uirgen->builder.buildGlobalVariable({}, {}, node->field.name);
     }
 
     uirgen->node_to_value.insert(node, field);
@@ -585,9 +586,12 @@ void UIRGen::generate() {
   this->module->init(this->allocator, this->allocator);
 
   this->node_to_value.init(this->allocator, 32);
+
+  this->builder.context = this->ctx;
   this->builder.module = this->module;
-  this->builder.scope = this->module->definitions;
+  this->builder.scope = this->builder.createScope();
   this->builder.block = nullptr;
+  this->module->definitions = this->builder.scope.get()->id;
 
   genDeclaration(this, this->ast, this->symbol);
   gen(this, this->ast, this->symbol);

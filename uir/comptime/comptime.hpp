@@ -9,7 +9,7 @@ struct UIRAnalyser; // Forward Declaration
 struct UIRComptime; // Forward Declaration
 
 struct ComptimeStackFrame {
-  HashMap<UIRValue *, size_t> lookup;
+  HashMap<UIRValueId, size_t> lookup;
   ArrayList<UIRLiteral *> values;
   DynamicArena arena;
   size_t arg_count = 0;
@@ -21,16 +21,16 @@ struct ComptimeStackFrame {
     return ptr;
   }
 
-  UIRLiteral *add(UIRValue *inst) {
-    if (inst != nullptr) {
+  UIRLiteral *add(Option<UIRValueId> inst) {
+    if (inst.isSome()) {
       // Second allocation check
-      size_t *cache = this->lookup.get(inst);
+      size_t *cache = this->lookup.get(inst.get());
       if (cache != nullptr) {
         return this->values.getUnchecked(*cache);
       }
 
       // Insert
-      this->lookup.insert(inst, this->values.length);
+      this->lookup.insert(inst.get(), this->values.length);
     }
 
     UIRLiteral *lit = (UIRLiteral *)this->arena.alloc(sizeof(UIRLiteral));
@@ -47,7 +47,7 @@ struct UIRComptime {
   UIRAnalyser *analyser;
   UIRContext *ctx;
 
-  UIRLiteral execute(UIRModule *module, UIRValue *inst);
+  UIRLiteral execute(UIRValue *inst);
 
   void init(Allocator *allocator, DynamicArena *arena);
   void deinit();
@@ -56,6 +56,5 @@ struct UIRComptime {
   void popStack();
   ComptimeStackFrame *currentStack();
 
-  UIRLiteral getValue(ComptimeStackFrame *frame, UIRModule *module,
-                      UIRValue *from);
+  UIRLiteral getValue(ComptimeStackFrame *frame, UIRValueId from);
 };

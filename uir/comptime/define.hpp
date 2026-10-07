@@ -4,17 +4,15 @@
 #include "../uir.hpp"
 #include "comptime.hpp"
 
-void executeProgram(UIRComptime *state, UIRModule *module,
-                    UIRBlock *entrypoint);
+void executeProgram(UIRComptime *state, UIRBlockId entrypoint_id);
 
-void execute(UIRComptime *state, UIRModule *module, UIRValue *inst);
-UIRLiteral **executeGetReturn(UIRComptime *state, UIRModule *module,
-                              UIRValue *inst);
-UIRLiteral executeBinary(UIRComptime *state, UIRModule *module,
-                         ComptimeStackFrame *frame, UIRValue *inst);
+void execute(UIRComptime *state, UIRValue *inst);
+UIRLiteral **executeGetReturn(UIRComptime *state, UIRValue *inst);
+UIRLiteral executeBinary(UIRComptime *state, ComptimeStackFrame *frame,
+                         UIRValue *inst);
 
-Option<UIRLiteral> executeLookupPtr(UIRComptime *state, UIRModule *module,
+Option<UIRLiteral> executeLookupPtr(UIRComptime *state,
                                     ComptimeStackFrame *frame, UIRValue *inst);
-Option<UIRLiteral> executeLookupValue(UIRComptime *state, UIRModule *module,
+Option<UIRLiteral> executeLookupValue(UIRComptime *state,
                                       ComptimeStackFrame *frame,
                                       UIRValue *inst);
