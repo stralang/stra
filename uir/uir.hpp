@@ -235,7 +235,6 @@ struct UIRValue {
       UIRBlockId default_block;
       Slice<UIRValueId> onvals;
       Slice<UIRBlockId> blocks;
-      size_t slots;
     } _switch;
     Slice<UIRAssembly> assembly;
 

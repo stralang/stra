@@ -52,8 +52,7 @@ struct UIRBuilder {
                         UIRBlockId _else);
 
   UIRValue *buildSwitch(UIRValueId value, UIRBlockId default_block,
-                        size_t cases);
-  void addCase(UIRValue *switch_inst, UIRValueId onval, UIRBlockId then);
+                        Slice<UIRValueId> onvals, Slice<UIRBlockId> blocks);
 
   UIRValue *buildAssembly(Slice<UIRAssembly> instructions,
                           String name = {.ptr = nullptr});

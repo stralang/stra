@@ -479,6 +479,13 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
         inst->_switch.condition); // FIXME: Confirm kind
     // TODO: Eliminate dead-code if `condition_id` is a literal
 
+    RIRType *expected_type = analyser->rir_ctx->getType(
+        analyser->rir_ctx->getInst(condition_resolved->inst)->result);
+    expect(expected_type->kind == RIRTypeKind::Integer ||
+               expected_type->kind == RIRTypeKind::Enum,
+           condition_inst->source_location,
+           "Condtional must be Integer or Enum");
+
     RIRBlockId *default_dest = analyser->resolved_block_mapping.get(
         inst->_switch.default_block); // FIXME: Confirm exists
 
@@ -495,9 +502,18 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
       analyse(analyser, on_val);
 
       UIRLiteral onval_literal = analyser->comptime_state.execute(on_val);
+      if (onval_literal.lit_type.isSome()) {
+        expect(expected_type->compare(analyser->rir_ctx->types,
+                                      onval_literal.lit_type.get()),
+               on_val->source_location,
+               "Switch On_Val type `" << onval_literal.lit_type.get()
+                                      << "` doesn't match condition type `"
+                                      << expected_type->id << "`");
+      }
+
       RIRValueId constant_id = analyser->builder.buildConstant(
-          onval_literal.lit_type.get(), {.kind = RIRConstantKind::Integer,
-                                         .integer = onval_literal.data._int});
+          expected_type->id, {.kind = RIRConstantKind::Integer,
+                              .integer = onval_literal.data._int});
 
       // Add Case
       RIRBlockId *dest = analyser->resolved_block_mapping.get(

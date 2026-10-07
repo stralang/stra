@@ -163,32 +163,15 @@ UIRValue *UIRBuilder::buildCondBr(UIRValueId condition, UIRBlockId then,
 }
 
 UIRValue *UIRBuilder::buildSwitch(UIRValueId value, UIRBlockId default_block,
-                                  size_t cases) {
+                                  Slice<UIRValueId> onvals,
+                                  Slice<UIRBlockId> blocks) {
   UIRValue inst = {.kind = UIRValueKind::Switch};
   inst._switch.condition = value;
   inst._switch.default_block = default_block;
-
-  uint8_t *onval_ptr =
-      this->module->allocator->allocZeroed(sizeof(void *) * cases);
-  uint8_t *blocks_ptr =
-      this->module->allocator->allocZeroed(sizeof(void *) * cases);
-  inst._switch.onvals = {.ptr = (UIRValueId *)onval_ptr, .len = cases};
-  inst._switch.blocks = {.ptr = (UIRBlockId *)blocks_ptr, .len = cases};
-  inst._switch.slots = 0;
+  inst._switch.onvals = onvals;
+  inst._switch.blocks = blocks;
 
   return this->insert(inst);
-}
-
-void UIRBuilder::addCase(UIRValue *switch_inst, UIRValueId onval,
-                         UIRBlockId then) {
-  assert(switch_inst->kind == UIRValueKind::Switch &&
-         "Cannot add switch case to non-switch instruction");
-  assert(switch_inst->_switch.slots < switch_inst->_switch.onvals.len &&
-         "Switch instruction is already full");
-
-  switch_inst->_switch.onvals[switch_inst->_switch.slots] = onval;
-  switch_inst->_switch.blocks[switch_inst->_switch.slots] = then;
-  switch_inst->_switch.slots += 1;
 }
 
 UIRValue *UIRBuilder::buildAssembly(Slice<UIRAssembly> instructions,

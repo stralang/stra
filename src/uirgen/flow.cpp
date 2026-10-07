@@ -195,13 +195,20 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
   UIRBlock *merge_block =
       uirgen->builder.appendBlock(parent_define, str("switch_merge"));
 
-  // Cases
+  // Conditional
   UIRValue *value = gen(uirgen, node->_switch.conditional, scope);
-  UIRValue *_switch = uirgen->builder.buildSwitch(value->id, merge_block->id,
-                                                  node->_switch.cases.length);
-  _switch->source_location = node->location;
 
   // Cases
+  Slice<UIRValueId> onvals = {
+      .ptr = (UIRValueId *)uirgen->allocator->allocZeroed(
+          sizeof(void *) * node->_switch.cases.length),
+      .len = node->_switch.cases.length};
+  Slice<UIRBlockId> blocks = {
+      .ptr = (UIRBlockId *)uirgen->allocator->allocZeroed(
+          sizeof(void *) * node->_switch.cases.length),
+      .len = node->_switch.cases.length};
+
+  UIRBlock *parent_block = uirgen->builder.block.get();
   for (size_t i = 0; i < node->_switch.cases.length; i++) {
     Node *_case = node->_switch.cases.data.ptr[i];
     Symbol *case_scope = scope->findSymbolByNode(_case);
@@ -230,9 +237,17 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
 
     // Add
+    uirgen->builder.block = parent_block;
     UIRValue *constant = gen(uirgen, _case->_case.constant, scope);
-    uirgen->builder.addCase(_switch, constant->id, case_block->id);
+    onvals[i] = constant->id;
+    blocks[i] = case_block->id;
   }
+
+  // Final switch instruction
+  uirgen->builder.block = parent_block;
+  UIRValue *_switch =
+      uirgen->builder.buildSwitch(value->id, merge_block->id, onvals, blocks);
+  _switch->source_location = node->location;
 
   // Merge
   uirgen->builder.block = merge_block;

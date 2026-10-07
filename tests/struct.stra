@@ -2,7 +2,7 @@ Addition :: struct {
   a: i32,
   b: i32,
 
-  result :: fn(self: &Addition) i32 {
+  result :: fn(self: ^Addition) i32 {
     return self.a + self.b;
   }
 }
