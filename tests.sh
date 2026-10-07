@@ -14,6 +14,7 @@ check() {
 
 check if 0
 check for 0
+check defer 0
 check int_cast 0
 check float_cast 0
 check slice_cast 0

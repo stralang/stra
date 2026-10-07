@@ -31,6 +31,7 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Set Defer
     size_t old_defer_len = uirgen->defer_stack_len;
     size_t old_defer_boundary = uirgen->defer_local_boundary;
+    uirgen->defer_local_boundary = old_defer_len;
 
     // Body
     uirgen->builder.block = then_block;
@@ -51,6 +52,7 @@ void genIf(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Set Defer
     size_t old_defer_len = uirgen->defer_stack_len;
     size_t old_defer_boundary = uirgen->defer_local_boundary;
+    uirgen->defer_local_boundary = old_defer_len;
 
     // Body
     uirgen->builder.block = else_block;
@@ -168,6 +170,7 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Set Defer
     size_t old_defer_len = uirgen->defer_stack_len;
     size_t old_defer_boundary = uirgen->defer_local_boundary;
+    uirgen->defer_local_boundary = old_defer_len;
 
     // Do
     uirgen->builder.block = do_block;
@@ -208,6 +211,7 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope) {
       // Set Defer
       size_t old_defer_len = uirgen->defer_stack_len;
       size_t old_defer_boundary = uirgen->defer_local_boundary;
+      uirgen->defer_local_boundary = old_defer_len;
 
       // Body
       case_block =
