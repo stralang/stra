@@ -40,6 +40,7 @@ struct UIRAnalyser {
   HashMap<UIRValueId, UIRResolved> resolved_mapping;
   HashMap<UIRBlockId, RIRBlockId> resolved_block_mapping;
   HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
+  HashMap<UIRValueId, String> mangled_name_cache;
 
   // Misc
   DynamicArena arena;

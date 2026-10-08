@@ -6,7 +6,44 @@
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
 
+String getMangledName(UIRAnalyser *analyser, UIRValue *inst) {
+  String parent_mangled_name;
+  if (inst->parent.isSome()) {
+    String *cached = analyser->mangled_name_cache.get(inst->parent.get());
+    if (cached != nullptr) {
+      parent_mangled_name = *cached;
+    } else {
+      UIRValue *parent = analyser->ctx->getInst(inst->parent.get());
+      parent_mangled_name = getMangledName(analyser, parent);
+    }
+  } else if (inst->name.compare("main")) {
+    return inst->name;
+  } else {
+    // TODO: Get Module name
+    parent_mangled_name =
+        String{.ptr = (uint8_t *)"TEST", .len = sizeof(char) * 4};
+  }
+
+  std::string len_str = std::to_string(inst->name.len);
+  String mangled_name = {
+      .ptr = analyser->allocator->alloc(parent_mangled_name.len +
+                                        len_str.size() + inst->name.len),
+      .len = parent_mangled_name.len + len_str.size() + inst->name.len,
+  };
+
+  memcpy(mangled_name.ptr, parent_mangled_name.ptr, parent_mangled_name.len);
+  memcpy(mangled_name.ptr + parent_mangled_name.len, len_str.data(),
+         len_str.size());
+  memcpy(mangled_name.ptr + parent_mangled_name.len + len_str.size(),
+         inst->name.ptr, inst->name.len);
+
+  analyser->mangled_name_cache.insert(inst->id, mangled_name);
+  return mangled_name;
+}
+
 void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
+  String link_name = getMangledName(analyser, inst);
+
   switch (inst->kind) {
   case UIRValueKind::GlobalVariable: {
     // Type
@@ -85,13 +122,13 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
         RIRConstant constant =
             uirRawDataToRIRConstant(analyser->allocator, const_literal.data);
         RIRValueId out_id = analyser->builder.buildGlobalVariable(
-            typeId.get(), constant, inst->name);
+            typeId.get(), constant, link_name);
         analyser->resolved_mapping.insert(
             inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
     } else {
       RIRValueId out_id =
-          analyser->builder.buildGlobalVariable(typeId.get(), {}, inst->name);
+          analyser->builder.buildGlobalVariable(typeId.get(), {}, link_name);
       analyser->resolved_mapping.insert(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     }
@@ -104,7 +141,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
     // Build and Map Function
     UIRLiteral type = analyser->comptime_state.execute(inst);
     RIRValueId fn_inst_id = analyser->builder.buildFunction(
-        type.data._typeid, inst->function.undefined, inst->name);
+        type.data._typeid, inst->function.undefined, link_name);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 

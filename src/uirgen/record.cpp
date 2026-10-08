@@ -55,6 +55,7 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope) {
 
   // Definitions
   UIRScope *definitions = uirgen->builder.createScope();
+  definitions->owner = value->id;
   value->_struct.definitions = definitions->id;
   genList(uirgen, &node->_struct.body, struct_symbol, definitions);
 
@@ -110,6 +111,7 @@ UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope) {
 
   // Definitions
   UIRScope *definitions = uirgen->builder.createScope();
+  definitions->owner = value->id;
   value->_enum.definitions = definitions->id;
   genList(uirgen, &node->_enum.body, enum_symbol, definitions);
 
@@ -149,6 +151,7 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
 
   // Definitions
   UIRScope *definitions = uirgen->builder.createScope();
+  definitions->owner = value->id;
   value->_union.definitions = definitions->id;
   genList(uirgen, &node->_union.body, union_symbol, definitions);
 
@@ -169,6 +172,7 @@ UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope) {
   value->source_location = node->location;
 
   UIRScope *definitions = uirgen->builder.createScope();
+  definitions->owner = value->id;
   value->_namespace.definitions = definitions->id;
   genList(uirgen, &node->children, namespace_symbol, definitions);
 

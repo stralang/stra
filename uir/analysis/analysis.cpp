@@ -676,6 +676,7 @@ void UIRAnalyser::init(Allocator *allocator) {
   this->resolved_mapping.init(allocator, 4096);
   this->resolved_block_mapping.init(allocator, 512);
   this->type_extras.init(allocator, 512);
+  this->mangled_name_cache.init(allocator, 128);
 
   this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
   this->rir_ctx->init(allocator, allocator);
@@ -694,4 +695,5 @@ void UIRAnalyser::deinit() {
   this->resolved_mapping.deinit();
   this->resolved_block_mapping.deinit();
   this->type_extras.deinit();
+  this->mangled_name_cache.deinit();
 }
