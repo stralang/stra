@@ -19,9 +19,8 @@ String getMangledName(UIRAnalyser *analyser, UIRValue *inst) {
   } else if (inst->name.compare("main")) {
     return inst->name;
   } else {
-    // TODO: Get Module name
     parent_mangled_name =
-        String{.ptr = (uint8_t *)"TEST", .len = sizeof(char) * 4};
+        analyser->ctx->modules.getPtr(inst->id.module)->mangling_name;
   }
 
   std::string len_str = std::to_string(inst->name.len);

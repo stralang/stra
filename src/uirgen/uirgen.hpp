@@ -37,6 +37,6 @@ struct UIRGen {
   void (*error_func)(SrcLoc srcloc, String msg);
   void (*warning_func)(SrcLoc srcloc, String msg);
 
-  void generate();
+  void generate(String mangling_name);
   void deinit();
 };

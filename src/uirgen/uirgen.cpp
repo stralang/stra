@@ -581,10 +581,11 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 }
 
-void UIRGen::generate() {
+void UIRGen::generate(String mangling_name) {
   this->ctx->modules.push({});
   this->module = this->ctx->modules.back();
   this->module->init(this->allocator, this->allocator);
+  this->module->mangling_name = mangling_name;
 
   this->node_to_value.init(this->allocator, 32);
 

@@ -282,6 +282,7 @@ struct UIRModule {
   ArenaList<UIRBlock> blocks;
   ArenaList<UIRScope> scopes;
 
+  String mangling_name;
   Allocator *allocator;
 
   void init(Allocator *allocator, Allocator *arena_allocator);

@@ -520,7 +520,7 @@ int main(int argc, const char **argv) {
         .error_func = &error_handler,
         .warning_func = &warning_handler,
     };
-    file->uir.generate();
+    file->uir.generate(file->root->mangled_name);
 
     uirgen_error_count += file->uir.error_count;
     uirgen_warning_count += file->uir.warning_count;
