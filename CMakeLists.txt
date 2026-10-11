@@ -14,7 +14,6 @@ add_executable(stra
   src/uirgen/operator.cpp
   src/uirgen/flow.cpp
   src/uirgen/record.cpp
-  src/uirgen/convert.cpp
   src/uirgen/builtin.cpp
 
   src/codegen/codegen.cpp

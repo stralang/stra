@@ -1,6 +1,7 @@
 #include "uirgen.hpp"
 #include "common/debug.hpp"
 #include "define.hpp"
+#include "rir/type.hpp"
 #include "src/ast.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
@@ -201,8 +202,16 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     slice_lit.data = {.kind = UIRRawDataKind::Slice, .values = real_text};
     return uirgen->builder.buildLiteral(slice_lit);
   }
-  case NodeKind::Value: {
-    return valueToUIR(uirgen, &node->value);
+  case NodeKind::Integer: {
+    UIRRawData raw_data = {.kind = UIRRawDataKind::Int, ._int = node->_int};
+    return uirgen->builder.buildLiteral({.data = raw_data});
+  }
+  case NodeKind::Float: {
+    UIRRawData raw_data = {
+        .kind = UIRRawDataKind::Float,
+        ._float = node->_float,
+    };
+    return uirgen->builder.buildLiteral({.data = raw_data});
   }
   case NodeKind::Field: {
     // Get Symbol

@@ -312,8 +312,11 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::RawString: {
     return os << "Raw String";
   }
-  case NodeKind::Value: {
-    return os << "Value";
+  case NodeKind::Integer: {
+    return os << "Integer";
+  }
+  case NodeKind::Float: {
+    return os << "Float";
   }
   case NodeKind::Field: {
     return os << "Field";
@@ -437,31 +440,12 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << " \"" << node->text << "\"\n";
     break;
   }
-  case NodeKind::Value: {
-    switch (node->value.type->kind) {
-    case TypeKind::Bool: {
-      os << " `" << (bool)node->value.data.integer << "`\n";
-      break;
-    }
-    case TypeKind::Integer: {
-      os << " `" << node->value.data.integer << "`\n";
-      break;
-    }
-    case TypeKind::Float: {
-      os << " `" << node->value.data._float << "`\n";
-      break;
-    }
-    case TypeKind::Slice: {
-      if (node->value.type->slice.type->kind == TypeKind::Integer &&
-          node->value.type->slice.type->integer.bits == 8) {
-        os << " \"" << node->text << "\"\n";
-      } else {
-        os << " Cannot print value; slice of type `"
-           << *node->value.type->slice.type << "`\n";
-      }
-      break;
-    }
-    }
+  case NodeKind::Integer: {
+    os << " `" << node->_int << "`\n";
+    break;
+  }
+  case NodeKind::Float: {
+    os << " `" << node->_float << "`\n";
     break;
   }
   case NodeKind::Field: {

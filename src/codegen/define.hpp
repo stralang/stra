@@ -29,9 +29,9 @@ void genFunctionBody(CodeGenModule *codegen, LLVMBuilderRef builder,
 LLVMValueRef genCall(CodeGenModule *codegen, LLVMBuilderRef builder,
                      RIRValue *inst);
 
-LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
-                            Node *builtin_name, Value *callee,
-                            Slice<LLVMValueRef> args);
+// LLVMValueRef genCallBuiltin(CodeGenModule *codegen, LLVMBuilderRef builder,
+//                             Node *builtin_name, Value *callee,
+//                             Slice<LLVMValueRef> args);
 
 // Assembly
 LLVMValueRef genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder,

@@ -27,7 +27,8 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
   }
   case NodeKind::Name:
   case NodeKind::RawString:
-  case NodeKind::Value: {
+  case NodeKind::Integer:
+  case NodeKind::Float: {
     break;
   }
   case NodeKind::Field: {

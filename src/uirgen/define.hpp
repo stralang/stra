@@ -26,8 +26,6 @@ UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope);
 
 UIRValue *genBuiltin(UIRGen *uirgen, String name);
 
-UIRValue *valueToUIR(UIRGen *uirgen, Value *value);
-
 #define expect(ok, srcloc, msg)                                                \
   if (!(ok)) {                                                                 \
     std::ostringstream os;                                                     \

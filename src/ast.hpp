@@ -1,10 +1,7 @@
 #pragma once
 
-#include "allocator.hpp"
 #include "containers.hpp"
 #include "token.hpp"
-#include "tokenizer.hpp"
-#include "uir/types.hpp"
 #include <cstdint>
 
 struct Node;
@@ -142,28 +139,15 @@ struct NodeAssembly {
   ArrayList<Instruction> instructions;
 };
 
-struct Value {
-  Type *type;
-  bool has_data;
-  enum { Direct, Indirect } addressing;
-  union {
-    Type *type_value;
-    String text;
-    bool _bool;
-    int64_t integer;
-    double _float;
-    Node *node;
-    Symbol *symbol;
-    Value *ptr;
-  } data;
-};
-
 enum class NodeKind {
   Compound,
   Block,
   Name,
+
   RawString,
-  Value,
+  Integer,
+  Float,
+
   Field,
   Function,
   Struct,
@@ -203,7 +187,6 @@ struct Node {
   Token token;
   SrcLoc location;
   SrcLoc end_location;
-  Value value;
 
   Node *doc_comments;
   Node *line_comments;
@@ -212,6 +195,8 @@ struct Node {
   union {
     ArrayList<Node *> children;
     String text;
+    int64_t _int;
+    double _float;
     Node *child;
     NodeField field;
     NodeFunction function;

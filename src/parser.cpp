@@ -356,41 +356,20 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
     break;
   }
   case TokenKind::Integer: {
-    out->kind = NodeKind::Value;
-    out->value.has_data = true;
-    out->value.data.integer = parser->cur_token.integer;
-
-    // Setup Type
-    Type t = {.kind = TypeKind::Integer};
-    t.integer = {.is_untyped = true, .is_signed = out->value.data.integer < 0};
-    out->value.type = parser->type_cache->get(t);
-
+    out->kind = NodeKind::Integer;
+    out->_int = parser->cur_token.integer;
     parser->nextToken();
     break;
   }
   case TokenKind::Float: {
-    out->kind = NodeKind::Value;
-    out->value.has_data = true;
-    out->value.data._float = parser->cur_token._float;
-
-    // Setup Type
-    Type t = {.kind = TypeKind::Float};
-    t._float = {.is_untyped = true};
-    out->value.type = parser->type_cache->get(t);
-
+    out->kind = NodeKind::Float;
+    out->_float = parser->cur_token._float;
     parser->nextToken();
     break;
   }
   case TokenKind::Char: {
-    out->kind = NodeKind::Value;
-    out->value.has_data = true;
-    out->value.data.integer = parser->cur_token.integer;
-
-    // Setup Type
-    Type t = {.kind = TypeKind::Integer};
-    t.integer = {.is_untyped = false, .is_signed = false, .bits = 8};
-    out->value.type = parser->type_cache->get(t);
-
+    out->kind = NodeKind::Integer;
+    out->_int = parser->cur_token.integer;
     parser->nextToken();
     break;
   }
