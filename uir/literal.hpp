@@ -1,15 +1,14 @@
 #pragma once
 
+#include "id.hpp"
 #include "optional.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
-#include "types.hpp"
 #include <cstdint>
 
 // Forward declarations
 struct UIRLiteral;
 struct UIRRawData;
-struct UIRValue;
 // Forward declarations
 
 enum class UIRPlaceKind {
@@ -45,7 +44,7 @@ struct UIRRawData {
     UIRPlace ptr;
     Slice<UIRRawData> values;
     RIRTypeId _typeid;
-    UIRValue *_namespace;
+    UIRScopeId _namespace;
   };
 };
 

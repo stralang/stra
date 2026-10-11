@@ -3,6 +3,7 @@
 #include "allocator.hpp"
 #include "arenalist.hpp"
 #include "containers.hpp"
+#include "id.hpp"
 #include "literal.hpp"
 #include "optional.hpp"
 #include "rir/type.hpp"
@@ -17,19 +18,6 @@ struct UIRValue;
 struct UIRBlock;
 struct UIRScope;
 // Forward declarations
-
-struct UIRValueId {
-  uint32_t module;
-  uint32_t local;
-};
-struct UIRBlockId {
-  uint32_t module;
-  uint32_t local;
-};
-struct UIRScopeId {
-  uint32_t module;
-  uint32_t local;
-};
 
 enum class UIRValueKind : std::uint16_t {
   Nop,

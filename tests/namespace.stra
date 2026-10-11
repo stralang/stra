@@ -1,0 +1,8 @@
+Ns :: {
+  value: i32 = 100;
+}
+
+main :: fn() i32 {
+  local := Ns.value + 10;
+  return !(local == 110) as i32;
+}

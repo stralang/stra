@@ -24,6 +24,7 @@ check alignof 0
 check function 0
 check struct 0
 check enum 0
+check namespace 0
 check slice 0
 
 rm test.out

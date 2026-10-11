@@ -115,7 +115,8 @@ std::ostream &operator<<(std::ostream &os, const UIRRawData &raw_data) {
     return os << "#" << raw_data._typeid;
   }
   case UIRRawDataKind::Namespace: {
-    return os << raw_data._namespace;
+    return os << "Scope " << raw_data._namespace.module << "."
+              << raw_data._namespace.local;
   }
   }
   return os;

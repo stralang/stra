@@ -1,4 +1,3 @@
-#include "common/debug.hpp"
 #include "define.hpp"
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
@@ -8,9 +7,7 @@ Option<UIRLiteral> executeLookup(UIRComptime *state, ComptimeStackFrame *frame,
                                  UIRLiteral parent_lit, String *member) {
   Option<Slice<UIRValueId>> opt_definitions;
   if (parent_lit.data.kind == UIRRawDataKind::Namespace) {
-    UIRValue *_namespace = parent_lit.data._namespace;
-    UIRScope *definitions =
-        state->ctx->getScope(_namespace->_namespace.definitions);
+    UIRScope *definitions = state->ctx->getScope(parent_lit.data._namespace);
     opt_definitions = definitions->list.slice();
   }
 

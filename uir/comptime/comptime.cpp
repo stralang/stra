@@ -438,7 +438,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
   }
   case UIRValueKind::Namespace: {
     UIRLiteral *lit_out = frame->add(inst->id);
-    lit_out->data = {.kind = UIRRawDataKind::Namespace, ._namespace = inst};
+    lit_out->data = {.kind = UIRRawDataKind::Namespace,
+                     ._namespace = inst->_namespace.definitions};
     return;
     // Type raw_type = {.kind = TypeKind::Namespace};
     // raw_type._namespace.inst = inst;
