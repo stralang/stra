@@ -3,10 +3,8 @@
 #include "allocator.hpp"
 #include "ast.hpp"
 #include "containers.hpp"
-#include "token.hpp"
 #include <cstddef>
 #include <cstring>
-#include <string>
 
 struct Symbol {
   bool location_aware;
@@ -15,8 +13,6 @@ struct Symbol {
   String *name;
 
   ArrayList<Symbol *> children;
-
-  String mangled_name;
 
   Symbol *getSymbolInScope(String *name, SrcLoc *location) {
     for (size_t i = 0; i < this->children.length; i++) {
@@ -139,48 +135,12 @@ struct Symbol {
     return this->parent->findDuplicateField(name, original, depth + 1);
   }
 
-  String mangleName(Allocator *allocator) {
-    if (this->mangled_name.ptr != nullptr) {
-      return this->mangled_name;
-    }
-
-    if (node->kind == NodeKind::Field && node->field.name.compare("main")) {
-      this->mangled_name = *this->name;
-      return this->mangled_name;
-    }
-
-    String s = {.ptr = nullptr, .len = 0};
-    if (this->parent != nullptr) {
-      s = this->parent->mangleName(allocator);
-    }
-
-    this->mangled_name = s;
-    if (this->name != nullptr) {
-      std::string len_str = std::to_string(this->name->len);
-      char *text = (char *)allocator->allocZeroed(s.len + len_str.size() +
-                                                  this->name->len);
-      if (s.ptr != nullptr) {
-        memcpy(text, s.ptr, s.len);
-      }
-
-      memcpy(text + s.len, len_str.data(), len_str.size());
-      memcpy(text + s.len + len_str.size(), this->name->ptr, this->name->len);
-
-      s.ptr = (uint8_t *)text;
-      s.len = s.len + len_str.size() + this->name->len;
-    }
-
-    this->mangled_name = s;
-    return this->mangled_name;
-  }
-
   void init(Allocator *allocator, bool location_aware, Symbol *parent) {
     this->location_aware = location_aware;
     this->parent = parent;
     this->node = nullptr;
     this->children.init(allocator, 8);
     this->name = nullptr;
-    this->mangled_name = {.ptr = nullptr, .len = 0};
 
     parent->children.push(this);
   }

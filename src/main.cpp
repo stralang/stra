@@ -155,6 +155,7 @@ struct SourceFile {
   String fullpath;
   uint64_t hashcode;
   String filename;
+  String mangling_name;
 
   Symbol *root;
   ASTParser parser;
@@ -437,11 +438,11 @@ int main(int argc, const char **argv) {
     // Setup symbol mangled name
     {
       std::string len_str = std::to_string(file->filename.len);
-      file->root->mangled_name.len = len_str.size() + file->filename.len;
-      file->root->mangled_name.ptr =
-          (uint8_t *)global_allocator.allocZeroed(file->root->mangled_name.len);
-      memcpy(file->root->mangled_name.ptr, len_str.data(), len_str.size());
-      memcpy(file->root->mangled_name.ptr + len_str.size(), file->filename.ptr,
+      file->mangling_name.len = len_str.size() + file->filename.len;
+      file->mangling_name.ptr =
+          (uint8_t *)global_allocator.allocZeroed(file->mangling_name.len);
+      memcpy(file->mangling_name.ptr, len_str.data(), len_str.size());
+      memcpy(file->mangling_name.ptr + len_str.size(), file->filename.ptr,
              file->filename.len);
     }
 
@@ -522,7 +523,7 @@ int main(int argc, const char **argv) {
   size_t uirgen_warning_count = 0;
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    file->uir = ctx.newModule(file->root->mangled_name);
+    file->uir = ctx.newModule(file->mangling_name);
     UIRGen gen = {
         .ast = file->parser.ast,
         .symbol = file->root,
