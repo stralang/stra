@@ -385,7 +385,7 @@ int main(int argc, const char **argv) {
   }
 
   size_t total_parse_errors = 0;
-  size_t file_idx = 0;
+  uint32_t file_idx = 0;
   while (file_idx < files.len()) {
     SourceFile *file = files.getPtrUnchecked(file_idx);
     std::string cpp_fullpath_str((const char *)file->fullpath.ptr,
@@ -457,6 +457,7 @@ int main(int argc, const char **argv) {
       {
         Hasher hasher;
         hasher.hash_raw(import_path.ptr, import_path.len);
+        hasher.hash(&file_idx);
         import_path_hashcode = hasher.state;
       }
 

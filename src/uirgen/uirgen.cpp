@@ -250,6 +250,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
                 node->field.initial->kind == NodeKind::Namespace ||
                 node->field.initial->kind == NodeKind::Import)) {
       field = gen(uirgen, node->field.initial, field_symbol);
+      field->name = node->field.name;
     } else {
       field = *uirgen->node_to_value.get(node); // Pre-generated
 
@@ -593,6 +594,7 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Import) {
       field = genImport(uirgen, node->field.initial, scope);
+      field->name = node->field.name;
       uirgen->node_to_value.insert(node->field.initial, field);
     } else {
       field = uirgen->builder.buildGlobalVariable({}, {}, node->field.name);

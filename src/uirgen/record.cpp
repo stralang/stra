@@ -183,6 +183,7 @@ UIRValue *genImport(UIRGen *uirgen, Node *node, Symbol *scope) {
   String import_path = node->import.path;
   Hasher hasher;
   hasher.hash_raw(import_path.ptr, import_path.len);
+  hasher.hash(&uirgen->module->id);
   uint64_t path_hash = hasher.state;
 
   uint32_t module_id = *uirgen->import_path_to_module->get(path_hash);
