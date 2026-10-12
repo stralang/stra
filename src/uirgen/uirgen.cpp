@@ -1,5 +1,6 @@
 #include "uirgen.hpp"
 #include "common/debug.hpp"
+#include "containers.hpp"
 #include "define.hpp"
 #include "rir/type.hpp"
 #include "src/ast.hpp"
@@ -246,7 +247,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
                 node->field.initial->kind == NodeKind::Struct ||
                 node->field.initial->kind == NodeKind::Enum ||
                 node->field.initial->kind == NodeKind::Union ||
-                node->field.initial->kind == NodeKind::Namespace)) {
+                node->field.initial->kind == NodeKind::Namespace ||
+                node->field.initial->kind == NodeKind::Import)) {
       field = gen(uirgen, node->field.initial, field_symbol);
     } else {
       field = *uirgen->node_to_value.get(node); // Pre-generated
@@ -355,6 +357,14 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Namespace: {
     return genNamespace(uirgen, node, scope);
+  }
+  case NodeKind::Import: {
+    UIRValue **cache = uirgen->node_to_value.get(node);
+    if (cache != nullptr) {
+      return *cache;
+    }
+
+    return genImport(uirgen, node, scope);
   }
   case NodeKind::Slice: {
     UIRValue *element = gen(uirgen, node->slice.type, scope);
@@ -580,6 +590,10 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
                node->field.initial->kind == NodeKind::Namespace) {
       field = uirgen->builder.buildNamespace(node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
+    } else if (node->field.initial != nullptr &&
+               node->field.initial->kind == NodeKind::Import) {
+      field = genImport(uirgen, node->field.initial, scope);
+      uirgen->node_to_value.insert(node->field.initial, field);
     } else {
       field = uirgen->builder.buildGlobalVariable({}, {}, node->field.name);
     }
@@ -590,19 +604,16 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
 }
 
-void UIRGen::generate(String mangling_name) {
-  this->ctx->modules.push({});
-  this->module = this->ctx->modules.back();
-  this->module->init(this->allocator, this->allocator);
-  this->module->mangling_name = mangling_name;
+void UIRGen::generate(UIRModule *module) {
+  this->module = module;
 
   this->node_to_value.init(this->allocator, 32);
 
   this->builder.context = this->ctx;
   this->builder.module = this->module;
-  this->builder.scope = this->builder.createScope();
+  this->builder.scope =
+      this->module->scopes.getPtr(this->module->definitions.local);
   this->builder.block = nullptr;
-  this->module->definitions = this->builder.scope.get()->id;
 
   genDeclaration(this, this->ast, this->symbol);
   gen(this, this->ast, this->symbol);

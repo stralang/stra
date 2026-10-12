@@ -1,0 +1,5 @@
+importee :: import "importee.stra";
+
+main :: fn() i32 {
+  return !(importee.value == 100) as i32;
+}

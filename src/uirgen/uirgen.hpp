@@ -19,6 +19,7 @@ struct UIRGen {
 
   // Caches
   HashMap<Node *, UIRValue *> node_to_value;
+  HashMap<uint64_t, uint32_t> *import_path_to_module;
 
   // Defer
   Node *defer_stack[64];
@@ -37,6 +38,6 @@ struct UIRGen {
   void (*error_func)(SrcLoc srcloc, String msg);
   void (*warning_func)(SrcLoc srcloc, String msg);
 
-  void generate(String mangling_name);
+  void generate(UIRModule *module);
   void deinit();
 };

@@ -158,7 +158,7 @@ struct SourceFile {
 
   Symbol *root;
   ASTParser parser;
-  UIRGen uir;
+  UIRModule *uir;
 };
 struct SourceFiles {
   ArrayList<SourceFile> list;
@@ -356,7 +356,7 @@ int main(int argc, const char **argv) {
 
   // Compile
   SourceFiles files;
-  HashMap<uint64_t, size_t> path_to_file;
+  HashMap<uint64_t, uint32_t> path_to_file;
 
   files.init(&global_allocator);
   path_to_file.init(&global_allocator, 64);
@@ -451,6 +451,13 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < file->parser.imports.length; i++) {
       Node *import = file->parser.imports.data.ptr[i];
       String import_path = import->import.path;
+      uint64_t import_path_hashcode = 0;
+
+      {
+        Hasher hasher;
+        hasher.hash_raw(import_path.ptr, import_path.len);
+        import_path_hashcode = hasher.state;
+      }
 
       std::string cpp_path((const char *)import_path.ptr, import_path.len);
       std::string fullpath_str =
@@ -464,6 +471,7 @@ int main(int argc, const char **argv) {
       if (import_idx != nullptr) {
         SourceFile *import_file = files.getPtrUnchecked(*import_idx);
         import->import.scope = import_file->root;
+        path_to_file.insert(import_path_hashcode, *import_idx);
         continue;
       }
 
@@ -474,6 +482,7 @@ int main(int argc, const char **argv) {
       };
       memcpy(out.ptr, fullpath_str.data(),
              fullpath_str.length() * sizeof(char));
+      path_to_file.insert(import_path_hashcode, files.len());
       import->import.scope = files.push(out);
     }
 
@@ -503,27 +512,30 @@ int main(int argc, const char **argv) {
   RIRTypeContext type_ctx;
   type_ctx.init(&global_allocator, &global_allocator);
 
-  // UIR
+  // Prepare UIR Context
   UIRContext ctx;
   ctx.init(&global_allocator, &global_allocator);
   ctx.types = &type_ctx;
 
+  // Generate UIR
   size_t uirgen_error_count = 0;
   size_t uirgen_warning_count = 0;
   for (size_t i = 0; i < files.len(); i++) {
     SourceFile *file = files.getPtrUnchecked(i);
-    file->uir = UIRGen{
+    file->uir = ctx.newModule(file->root->mangled_name);
+    UIRGen gen = {
         .ast = file->parser.ast,
         .symbol = file->root,
         .allocator = &global_allocator,
+        .import_path_to_module = &path_to_file,
         .ctx = &ctx,
         .error_func = &error_handler,
         .warning_func = &warning_handler,
     };
-    file->uir.generate(file->root->mangled_name);
+    gen.generate(file->uir);
 
-    uirgen_error_count += file->uir.error_count;
-    uirgen_warning_count += file->uir.warning_count;
+    uirgen_error_count += gen.error_count;
+    uirgen_warning_count += gen.warning_count;
   }
 
   if (uirgen_warning_count > 0) {
@@ -543,7 +555,7 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < files.len(); i++) {
       SourceFile *file = files.getPtrUnchecked(i);
       std::cout << "---- " << file->fullpath << " ----\n";
-      printModule(std::cout, &ctx, file->uir.module);
+      printModule(std::cout, &ctx, file->uir);
     }
     return 0;
   }

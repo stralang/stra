@@ -9,6 +9,10 @@ LLVMValueRef getReference(CodeGenModule *codegen, RIRValueId value_id);
 void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst);
 void genDeclaration(CodeGenModule *codegen, RIRValueId inst);
 
+// External reference
+LLVMValueRef genExternal(CodeGenModule *codegen, LLVMBuilderRef builder,
+                         RIRValue *inst);
+
 // Conversion
 LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
                        const char *name = nullptr);

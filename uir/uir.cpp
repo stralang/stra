@@ -1,7 +1,6 @@
 #include "uir.hpp"
 #include "allocator.hpp"
 #include <cstdlib>
-#include <iostream>
 
 void UIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
@@ -17,10 +16,14 @@ void UIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
   this->blocks.init(allocator, arena_allocator, sizeof(UIRBlock) * 1024);
   this->scopes.init(allocator, arena_allocator, sizeof(UIRScope) * 256);
 
-  // FIXME:
-  // this->definitions = this->scopes.getPtrUnchecked(0);
-  // this->definitions->list.init(allocator, 32);
-  // this->definitions->owner = nullptr;
+  // Add root scope
+  UIRScope root_scope = {
+      .id = {.module = this->id, .local = (uint32_t)this->scopes.len()},
+  };
+  root_scope.list.init(allocator, 32);
+
+  this->definitions = root_scope.id;
+  this->scopes.push(root_scope);
 }
 
 void UIRModule::deinit() {
@@ -40,6 +43,17 @@ bool UIRBlock::hasTerminator(UIRContext *ctx) {
   }
 
   return false;
+}
+
+UIRModule *UIRContext::newModule(String mangling_name) {
+  UIRModule mod = {
+      .id = (uint32_t)this->modules.len(),
+      .mangling_name = mangling_name,
+  };
+  mod.init(this->allocator, this->allocator);
+
+  this->modules.push(mod);
+  return this->modules.back();
 }
 
 UIRValue *UIRContext::getInst(UIRValueId id) {

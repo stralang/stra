@@ -157,8 +157,8 @@ struct Symbol {
     this->mangled_name = s;
     if (this->name != nullptr) {
       std::string len_str = std::to_string(this->name->len);
-      char *text =
-          (char *)allocator->allocZeroed(s.len + len_str.size() + this->name->len);
+      char *text = (char *)allocator->allocZeroed(s.len + len_str.size() +
+                                                  this->name->len);
       if (s.ptr != nullptr) {
         memcpy(text, s.ptr, s.len);
       }

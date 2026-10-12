@@ -178,3 +178,17 @@ UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope) {
 
   return value;
 }
+
+UIRValue *genImport(UIRGen *uirgen, Node *node, Symbol *scope) {
+  String import_path = node->import.path;
+  Hasher hasher;
+  hasher.hash_raw(import_path.ptr, import_path.len);
+  uint64_t path_hash = hasher.state;
+
+  uint32_t module_id = *uirgen->import_path_to_module->get(path_hash);
+  return uirgen->builder.buildLiteral(
+      {.data = {
+           .kind = UIRRawDataKind::Namespace,
+           ._namespace = {.module = module_id, .local = 0},
+       }});
+}

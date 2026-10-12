@@ -6,6 +6,7 @@
 #include "define.hpp"
 #include "passes.hpp"
 #include "rir/constant.hpp"
+#include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include "uir/literal.hpp"
 #include "uir/types.hpp"
@@ -30,7 +31,39 @@ LLVMValueRef getReference(CodeGenModule *codegen, RIRValueId value_id) {
     return constantToLLVM(codegen, &value->constant.value, value->result);
   }
 
-  return *codegen->inst_to_llvm.get(value_id);
+  LLVMValueRef *opt_value = codegen->inst_to_llvm.get(value_id);
+  if (opt_value != nullptr) {
+    return *codegen->inst_to_llvm.get(value_id);
+  } else if (value->id.module != codegen->rir_module->id) {
+    LLVMValueRef ext = genExternal(codegen, codegen->builder, value);
+    codegen->inst_to_llvm.insert(value_id, ext);
+    return ext;
+  }
+
+  assert(0 && "Could not get reference to instruction");
+}
+
+LLVMValueRef genExternal(CodeGenModule *codegen, LLVMBuilderRef builder,
+                         RIRValue *inst) {
+  switch (inst->kind) {
+  case RIRValueKind::GlobalVariable: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->global_variable.type);
+    LLVMValueRef global = LLVMAddGlobal(codegen->mod, ty, "");
+    LLVMSetValueName2(global, (const char *)inst->global_variable.link_name.ptr,
+                      inst->global_variable.link_name.len);
+    return global;
+  }
+  case RIRValueKind::Function: {
+    LLVMTypeRef ty = typeToLLVM(codegen, inst->function.type);
+    LLVMValueRef func = LLVMAddFunction(codegen->mod, "", ty);
+    LLVMSetValueName2(func, (const char *)inst->function.link_name.ptr,
+                      inst->function.link_name.len);
+    return func;
+  }
+  }
+
+  std::cerr << "Couldn't generate external reference\n";
+  std::abort();
 }
 
 void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {

@@ -23,6 +23,7 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genNamespace(UIRGen *uirgen, Node *node, Symbol *scope);
+UIRValue *genImport(UIRGen *uirgen, Node *node, Symbol *scope);
 
 UIRValue *genBuiltin(UIRGen *uirgen, String name);
 

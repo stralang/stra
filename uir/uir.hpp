@@ -285,6 +285,8 @@ struct UIRContext {
   void init(Allocator *allocator, Allocator *arena_allocator);
   void deinit();
 
+  UIRModule *newModule(String mangling_name);
+
   UIRValue *getInst(UIRValueId id);
   UIRBlock *getBlock(UIRBlockId id);
   UIRScope *getScope(UIRScopeId id);

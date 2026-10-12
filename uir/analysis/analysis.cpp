@@ -64,6 +64,9 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     return; // Already Analysed
   }
 
+  RIRModule *prev_mod = analyser->builder.module;
+  analyser->builder.module = analyser->rir_ctx->modules.getPtr(inst->id.module);
+
   switch (inst->kind) {
   case UIRValueKind::LocalVariable: {
     UIRValue *type_inst = analyser->ctx->getInst(inst->local_variable.type);
@@ -638,20 +641,34 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     break;
   }
   }
+
+  analyser->builder.module = prev_mod;
 }
 
 void analyseBlock(UIRAnalyser *analyser, UIRBlock *block) {
+  RIRModule *prev_mod = analyser->builder.module;
+  analyser->builder.module =
+      analyser->rir_ctx->modules.getPtr(block->id.module);
+
   for (size_t i = 0; i < block->instructions.length; i++) {
     UIRValueId inst_id = block->instructions.getUnchecked(i);
     analyse(analyser, analyser->ctx->getInst(inst_id));
   }
+
+  analyser->builder.module = prev_mod;
 }
 
 void analyseScope(UIRAnalyser *analyser, UIRScope *scope) {
+  RIRModule *prev_mod = analyser->builder.module;
+  analyser->builder.module =
+      analyser->rir_ctx->modules.getPtr(scope->id.module);
+
   for (size_t i = 0; i < scope->list.length; i++) {
     UIRValueId inst_id = scope->list.getUnchecked(i);
     analyse(analyser, analyser->ctx->getInst(inst_id));
   }
+
+  analyser->builder.module = prev_mod;
 }
 
 RIRContext *UIRAnalyser::analyse() {
