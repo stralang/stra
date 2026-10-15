@@ -322,8 +322,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       value->function.parameter_types = parameters;
       value->function.return_type = return_type->id;
     } else {
-      value =
-          uirgen->builder.buildFunction(parameters, return_type->id, str(""));
+      value = uirgen->builder.buildFunction(parameters, return_type->id,
+                                            node->function.comptime, str(""));
     }
     value->source_location = node->location;
 
@@ -588,8 +588,9 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
     UIRValue *field = nullptr;
     if (node->field.initial != nullptr &&
         node->field.initial->kind == NodeKind::Function) {
-      field =
-          uirgen->builder.buildFunction({.ptr = nullptr}, {}, node->field.name);
+      field = uirgen->builder.buildFunction(
+          {.ptr = nullptr}, {}, node->field.initial->function.comptime,
+          node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Struct) {

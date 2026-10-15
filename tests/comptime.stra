@@ -1,0 +1,8 @@
+comptime_add :: comptime fn(a: i32, b: i32) i32 {
+  return a + b;
+}
+
+main :: fn() i32 {
+  result := comptime comptime_add(1, 2);
+  return !(result == 3) as i32;
+}

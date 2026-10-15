@@ -23,6 +23,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst);
 void analyseUnary(UIRAnalyser *analyser, UIRValue *inst);
 void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst);
 void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst);
+void analyseCall(UIRAnalyser *analyser, UIRValue *inst);
 void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst);
 void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst);
 

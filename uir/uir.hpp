@@ -114,6 +114,7 @@ struct UIRFunction {
   UIRValueId return_type;
   ArrayList<UIRBlockId> blocks;
   bool undefined;
+  bool comptime;
   UIRAttributes attributes;
 
   UIRBlockId appendBlock(String name);

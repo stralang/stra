@@ -199,11 +199,13 @@ UIRValue *UIRBuilder::buildGlobalVariable(Option<UIRValueId> type,
 }
 
 UIRValue *UIRBuilder::buildFunction(Slice<UIRValueId> parameters,
-                                    UIRValueId return_type, String name) {
+                                    UIRValueId return_type, bool comptime,
+                                    String name) {
   UIRValue inst = {.kind = UIRValueKind::Function};
   inst.function = {
       .parameter_types = parameters,
       .return_type = return_type,
+      .comptime = comptime,
   };
   return this->insert(inst, true, name);
 }

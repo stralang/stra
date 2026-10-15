@@ -8,6 +8,7 @@ add_library(uir STATIC
   analysis/analysis.cpp
   analysis/operator.cpp
   analysis/lookup.cpp
+  analysis/call.cpp
   analysis/global.cpp
   analysis/aggregate.cpp
   analysis/types.cpp

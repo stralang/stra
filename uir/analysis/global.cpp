@@ -176,6 +176,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
     break;
   }
   case UIRValueKind::Function: {
+    if (inst->function.comptime) {
+      break;
+    }
+
     // Save builder state
     Option<RIRBlock *> prev_block = analyser->builder.block;
 

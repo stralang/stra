@@ -63,7 +63,7 @@ struct UIRBuilder {
   UIRValue *buildGlobalVariable(Option<UIRValueId> type,
                                 Option<UIRValueId> constant, String name);
   UIRValue *buildFunction(Slice<UIRValueId> parameters, UIRValueId return_type,
-                          String name);
+                          bool comptime, String name);
 
   UIRValue *buildLiteral(UIRLiteral literal, String name = {.ptr = nullptr});
 
