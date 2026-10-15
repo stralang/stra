@@ -4,44 +4,86 @@
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
+#include "uir/attributes.hpp"
 #include "uir/literal.hpp"
 
-String getMangledName(UIRAnalyser *analyser, UIRValue *inst) {
-  String parent_mangled_name;
-  if (inst->parent.isSome()) {
-    String *cached = analyser->mangled_name_cache.get(inst->parent.get());
-    if (cached != nullptr) {
-      parent_mangled_name = *cached;
-    } else {
-      UIRValue *parent = analyser->ctx->getInst(inst->parent.get());
-      parent_mangled_name = getMangledName(analyser, parent);
-    }
-  } else if (inst->name.compare("main")) {
-    return inst->name;
-  } else {
-    parent_mangled_name =
-        analyser->ctx->modules.getPtr(inst->id.module)->mangling_name;
+String getLinkName(UIRAnalyser *analyser, UIRValue *inst) {
+  // Get attributes
+  UIRAttributes *attributes = nullptr;
+  switch (inst->kind) {
+  case UIRValueKind::GlobalVariable: {
+    attributes = &inst->global_variable.attributes;
+    break;
+  }
+  case UIRValueKind::Function: {
+    attributes = &inst->function.attributes;
+    break;
+  }
+  case UIRValueKind::Struct: {
+    attributes = &inst->_struct.attributes;
+    break;
+  }
+  case UIRValueKind::Enum: {
+    attributes = &inst->_enum.attributes;
+    break;
+  }
+  case UIRValueKind::Union: {
+    attributes = &inst->_union.attributes;
+    break;
+  }
+  case UIRValueKind::Namespace: {
+    attributes = &inst->_namespace.attributes;
+    break;
+  }
   }
 
-  std::string len_str = std::to_string(inst->name.len);
-  String mangled_name = {
-      .ptr = analyser->allocator->alloc(parent_mangled_name.len +
-                                        len_str.size() + inst->name.len),
-      .len = parent_mangled_name.len + len_str.size() + inst->name.len,
-  };
+  // Get Link Name
+  String link_name;
+  if (attributes == nullptr || attributes->link_name.isAbsent()) {
+    // Get mangled name
+    String parent_mangled_name;
+    if (inst->parent.isSome()) {
+      String *cached = analyser->mangled_name_cache.get(inst->parent.get());
+      if (cached != nullptr) {
+        parent_mangled_name = *cached;
+      } else {
+        UIRValue *parent = analyser->ctx->getInst(inst->parent.get());
+        parent_mangled_name = getLinkName(analyser, parent);
+      }
+    } else if (inst->name.compare("main")) {
+      return inst->name;
+    } else {
+      parent_mangled_name =
+          analyser->ctx->modules.getPtr(inst->id.module)->mangling_name;
+    }
 
-  memcpy(mangled_name.ptr, parent_mangled_name.ptr, parent_mangled_name.len);
-  memcpy(mangled_name.ptr + parent_mangled_name.len, len_str.data(),
-         len_str.size());
-  memcpy(mangled_name.ptr + parent_mangled_name.len + len_str.size(),
-         inst->name.ptr, inst->name.len);
+    std::string len_str = std::to_string(inst->name.len);
+    String mangled_name = {
+        .ptr = analyser->allocator->alloc(parent_mangled_name.len +
+                                          len_str.size() + inst->name.len),
+        .len = parent_mangled_name.len + len_str.size() + inst->name.len,
+    };
 
-  analyser->mangled_name_cache.insert(inst->id, mangled_name);
-  return mangled_name;
+    memcpy(mangled_name.ptr, parent_mangled_name.ptr, parent_mangled_name.len);
+    memcpy(mangled_name.ptr + parent_mangled_name.len, len_str.data(),
+           len_str.size());
+    memcpy(mangled_name.ptr + parent_mangled_name.len + len_str.size(),
+           inst->name.ptr, inst->name.len);
+
+    link_name = mangled_name;
+  } else if (attributes->link_name.isStub()) {
+    link_name = inst->name;
+  } else if (attributes->link_name.isInline()) {
+    link_name = attributes->link_name.get();
+  }
+
+  // Cache and return
+  analyser->mangled_name_cache.insert(inst->id, link_name);
+  return link_name;
 }
 
 void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
-  String link_name = getMangledName(analyser, inst);
+  String link_name = getLinkName(analyser, inst);
 
   switch (inst->kind) {
   case UIRValueKind::GlobalVariable: {

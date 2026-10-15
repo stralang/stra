@@ -9,6 +9,7 @@
 #include "rir/type.hpp"
 #include "srcloc.hpp"
 #include "types.hpp"
+#include "uir/attributes.hpp"
 #include <cassert>
 #include <cstdint>
 
@@ -113,6 +114,7 @@ struct UIRFunction {
   UIRValueId return_type;
   ArrayList<UIRBlockId> blocks;
   bool undefined;
+  UIRAttributes attributes;
 
   UIRBlockId appendBlock(String name);
 };
@@ -131,6 +133,7 @@ struct UIRStruct {
 
   Slice<Field> fields;
   UIRScopeId definitions;
+  UIRAttributes attributes;
 };
 
 struct UIREnum {
@@ -142,15 +145,18 @@ struct UIREnum {
   UIRValueId repr_type;
   Slice<Member> members;
   UIRScopeId definitions;
+  UIRAttributes attributes;
 };
 struct UIRUnion {
   UIRValueId repr_type;
   Slice<UIRStruct::Field> variants;
   UIRScopeId definitions;
+  UIRAttributes attributes;
 };
 
 struct UIRNamespace {
   UIRScopeId definitions;
+  UIRAttributes attributes;
 };
 
 struct UIRValue {
@@ -164,6 +170,7 @@ struct UIRValue {
   union {
     struct {
       UIRValueId type;
+      UIRAttributes attributes;
     } local_variable;
     struct {
       UIRValueId ptr;
@@ -234,6 +241,7 @@ struct UIRValue {
       Option<UIRValueId> type;
       Option<UIRValueId> constant; // set to `null` for default
       bool undefined;
+      UIRAttributes attributes;
     } global_variable;
     UIRFunction function;
 

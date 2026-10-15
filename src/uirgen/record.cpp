@@ -1,4 +1,5 @@
 #include "define.hpp"
+#include "uir/attributes.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
 

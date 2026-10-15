@@ -1,0 +1,8 @@
+@(link_name) strlen :: fn(s: ^u8) usize ---;
+
+main :: fn() i32 {
+  s := "Hello, World!\0";
+  len := strlen(s.ptr);
+
+  return !(len == 13) as i32;
+}

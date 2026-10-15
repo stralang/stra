@@ -4,6 +4,7 @@
 #include "define.hpp"
 #include "rir/type.hpp"
 #include "src/ast.hpp"
+#include "uir/attributes.hpp"
 #include "uir/literal.hpp"
 #include "uir/uir.hpp"
 
@@ -218,7 +219,9 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Get Symbol
     Symbol *field_symbol = scope->findSymbolByNode(node);
 
-    // TODO: Add attributes
+    // Generate attributes
+    UIRAttributes attributes =
+        genAttributes(uirgen, node->field.attributes, field_symbol);
 
     // Generate field
     UIRValue *field = nullptr;
@@ -235,6 +238,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       }
 
       field = uirgen->builder.buildLocalVariable(type->id, node->field.name);
+      field->local_variable.attributes = attributes;
       uirgen->node_to_value.insert(node, field);
 
       if (initial != nullptr) {
@@ -251,8 +255,21 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
                 node->field.initial->kind == NodeKind::Import)) {
       field = gen(uirgen, node->field.initial, field_symbol);
       field->name = node->field.name;
+
+      if (node->field.initial->kind == NodeKind::Function) {
+        field->function.attributes = attributes;
+      } else if (node->field.initial->kind == NodeKind::Struct) {
+        field->_struct.attributes = attributes;
+      } else if (node->field.initial->kind == NodeKind::Enum) {
+        field->_enum.attributes = attributes;
+      } else if (node->field.initial->kind == NodeKind::Union) {
+        field->_union.attributes = attributes;
+      } else if (node->field.initial->kind == NodeKind::Namespace) {
+        field->_namespace.attributes = attributes;
+      }
     } else {
       field = *uirgen->node_to_value.get(node); // Pre-generated
+      field->global_variable.attributes = attributes;
 
       if (node->field.type != nullptr) {
         field->global_variable.type =

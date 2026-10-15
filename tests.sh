@@ -27,6 +27,7 @@ check enum 0
 check namespace 0
 check slice 0
 check import 0
+check link_name 0
 
 rm test.out
 if [ $fail_count -ne 0 ]; then
