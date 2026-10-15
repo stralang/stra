@@ -16,3 +16,5 @@ Option<UIRLiteral> executeLookupPtr(UIRComptime *state,
 Option<UIRLiteral> executeLookupValue(UIRComptime *state,
                                       ComptimeStackFrame *frame,
                                       UIRValue *inst);
+
+void executeBuiltinCall(UIRComptime *state, UIRValue *inst);

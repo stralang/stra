@@ -177,7 +177,11 @@ void execute(UIRComptime *state, UIRValue *inst) {
       state->currentStack()->inject(value);
     }
 
-    executeProgram(state, function->function.blocks.get(0));
+    if (!function->function.undefined) {
+      executeProgram(state, function->function.blocks.get(0));
+    } else {
+      executeBuiltinCall(state, function);
+    }
 
     UIRLiteral result = **state->currentStack()->values.back();
     state->popStack();

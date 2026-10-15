@@ -3,8 +3,16 @@
 
 void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   UIRValue *callee_inst = analyser->ctx->getInst(inst->call.callee);
-  if (callee_inst->kind == UIRValueKind::Function) {
-    expect(!callee_inst->function.comptime, inst->source_location,
+  if (callee_inst->kind == UIRValueKind::Function &&
+      callee_inst->function.comptime) {
+    if (callee_inst->function.attributes.implied_comptime) {
+      UIRLiteral lit = analyser->comptime_state.execute(inst);
+      analyser->resolved_mapping.insert(
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+      return;
+    }
+
+    expect(false, inst->source_location,
            "Cannot runtime analyse call to compile-time only function");
   }
 

@@ -15,8 +15,26 @@ UIRAttributes genAttributes(UIRGen *uirgen, Node *node, Symbol *scope) {
       } else {
         out.link_name.setInline(attr->member.value->text);
       }
+      continue;
+    }
+
+    if (attr->member.name.compare("builtin")) {
+      if (attr->member.value == nullptr) {
+        out.builtin.setStub();
+      } else {
+        out.builtin.setInline(attr->member.value->text);
+      }
+      continue;
+    }
+
+    if (attr->member.name.compare("implied_comptime")) {
+      out.implied_comptime = true;
+      continue;
     }
   }
+
+  expect(!out.implied_comptime || !out.builtin.isAbsent(), node->location,
+         "Attributes cannot contain `implied_comptime` without `builtin`");
 
   return out;
 }
