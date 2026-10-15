@@ -1,25 +1,51 @@
 #include "define.hpp"
+#include "rir/constant.hpp"
+#include "uir/analysis/analysis.hpp"
 #include "uir/uir.hpp"
+
+void analyseComptimeCall(UIRAnalyser *analyser, UIRValue *inst,
+                         UIRValue *callee_inst) {
+  if (callee_inst->function.attributes.implied_comptime) {
+    UIRLiteral lit = analyser->comptime_state.execute(inst);
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+    return;
+  }
+
+  expect(false, inst->source_location,
+         "Cannot runtime analyse call to compile-time only function");
+}
 
 void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   UIRValue *callee_inst = analyser->ctx->getInst(inst->call.callee);
   if (callee_inst->kind == UIRValueKind::Function &&
       callee_inst->function.comptime) {
-    if (callee_inst->function.attributes.implied_comptime) {
-      UIRLiteral lit = analyser->comptime_state.execute(inst);
-      analyser->resolved_mapping.insert(
-          inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
-      return;
-    }
-
-    expect(false, inst->source_location,
-           "Cannot runtime analyse call to compile-time only function");
+    analyseComptimeCall(analyser, inst, callee_inst);
+    return;
   }
 
   analyse(analyser, callee_inst);
 
+  // Get Callee
   UIRResolved *callee_resolved =
-      analyser->resolved_mapping.get(inst->call.callee); // FIXME: Confirm kind
+      analyser->resolved_mapping.get(inst->call.callee);
+
+  if (callee_resolved->kind == UIRResolvedKind::Literal) {
+    // Handle function literal
+    callee_inst =
+        analyser->ctx->getInst(callee_resolved->literal.data.function);
+    if (callee_inst->kind == UIRValueKind::Function &&
+        callee_inst->function.comptime) {
+      analyseComptimeCall(analyser, inst, callee_inst);
+      return;
+    }
+
+    analyse(analyser, callee_inst);
+    callee_resolved =
+        analyser->resolved_mapping.get(callee_resolved->literal.data.function);
+  }
+
+  assert(callee_resolved->kind == UIRResolvedKind::Inst);
   RIRValue *resolved_callee_inst =
       analyser->rir_ctx->getInst(callee_resolved->inst);
 
@@ -52,20 +78,23 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
         analyser->ctx->getInst(inst->call.receiver.get());
     analyse(analyser, uir_receiver_inst);
 
-    UIRResolved *receiver_resolved = analyser->resolved_mapping.get(
-        uir_receiver_inst->id); // FIXME: Confirm kind
+    UIRResolved *receiver_resolved =
+        analyser->resolved_mapping.get(uir_receiver_inst->id);
 
+    // The receiver is only valid if it is not a TypeId or Namespace
     bool receiver_is_valid =
         receiver_resolved->kind != UIRResolvedKind::Literal ||
-        receiver_resolved->literal.data.kind != UIRRawDataKind::TypeId;
+        (receiver_resolved->literal.data.kind != UIRRawDataKind::TypeId &&
+         receiver_resolved->literal.data.kind != UIRRawDataKind::Namespace);
 
     if (receiver_is_valid) {
       expect(fn_type->function.arguments.len >= 1,
              uir_receiver_inst->source_location,
              "Receiver expects method with atleast 1 argument");
 
-      RIRValue *receiver_inst =
-          analyser->rir_ctx->getInst(receiver_resolved->inst);
+      RIRValueId receiver_inst_id = getInstFromResolved(
+          analyser, receiver_resolved, fn_type->function.arguments.ptr[0]);
+      RIRValue *receiver_inst = analyser->rir_ctx->getInst(receiver_inst_id);
       RIRType *expected_type =
           analyser->rir_ctx->getType(fn_type->function.arguments.ptr[0]);
       expect(expected_type->compare(analyser->rir_ctx->types,
@@ -74,7 +103,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
              "Receiver `" << receiver_inst->result << "` doesn't match `"
                           << expected_type->id << "`");
 
-      arguments[initial_idx] = receiver_resolved->inst;
+      arguments[initial_idx] = receiver_inst->id;
       initial_idx = 1;
     }
   }
