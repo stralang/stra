@@ -164,10 +164,9 @@ void execute(UIRComptime *state, UIRValue *inst) {
     if (callee_inst->kind == UIRValueKind::Function) {
       function = callee_inst;
     } else {
-      // FIXME:
-      // UIRLiteral fn = state->getValue(frame, module, inst->call.callee);
-      // assert(fn.kind == UIRLiteralKind::Instruction);
-      // function = fn.instruction;
+      UIRLiteral fn = state->getValue(frame, inst->call.callee);
+      assert(fn.data.kind == UIRRawDataKind::Function);
+      function = state->ctx->getInst(fn.data.function);
     }
 
     // Inject Arguments
@@ -573,7 +572,16 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
     return *frame->values.getUnchecked(*opt_idx);
   }
 
+  // Get Instruction
   UIRValue *from_inst = this->ctx->getInst(from);
+  if (from_inst->kind == UIRValueKind::Function) {
+    return {.data = {.kind = UIRRawDataKind::Function, .function = from}};
+  } else if (from_inst->kind == UIRValueKind::Namespace) {
+    return {.data = {.kind = UIRRawDataKind::Namespace,
+                     ._namespace = from_inst->_namespace.definitions}};
+  }
+
+  // Get Resolved data
   UIRResolved *resolved_value = this->analyser->resolved_mapping.get(from);
   if (resolved_value == nullptr) {
     analyse(this->analyser, from_inst);

@@ -32,6 +32,7 @@ enum class UIRRawDataKind {
   Pointer,
   Slice,
   TypeId,
+  Function,
   Namespace,
 };
 
@@ -44,6 +45,7 @@ struct UIRRawData {
     UIRPlace ptr;
     Slice<UIRRawData> values;
     RIRTypeId _typeid;
+    UIRValueId function;
     UIRScopeId _namespace;
   };
 };
