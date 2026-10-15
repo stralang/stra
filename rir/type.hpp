@@ -80,6 +80,11 @@ public:
   size_t len() { return this->list.len(); }
 
   RIRTypeId push(RIRType type) {
+    if (type.kind == RIRTypeKind::Struct || type.kind == RIRTypeKind::Enum ||
+        type.kind == RIRTypeKind::Union) {
+      type.id = this->list.len();
+    }
+
     type.makeHashcode();
     RIRTypeId *original = this->hash_mapping.get(type.hashcode);
     if (original != nullptr) {
