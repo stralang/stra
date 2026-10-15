@@ -1,6 +1,4 @@
 #include "codegen.hpp"
-#include "../environment.hpp"
-#include "../print.hpp"
 #include "abi/general.hpp"
 #include "containers.hpp"
 #include "define.hpp"
@@ -8,9 +6,7 @@
 #include "rir/constant.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
-#include "uir/literal.hpp"
-#include "uir/types.hpp"
-#include "uir/uir.hpp"
+#include "uir/environment.hpp"
 #include "llvm-c/Core.h"
 #include "llvm-c/Error.h"
 #include "llvm-c/Target.h"
@@ -23,7 +19,6 @@
 #include <cstring>
 #include <iostream>
 #include <llvm-c/TargetMachine.h>
-#include <sstream>
 
 LLVMValueRef getReference(CodeGenModule *codegen, RIRValueId value_id) {
   RIRValue *value = codegen->rir_context->getInst(value_id);

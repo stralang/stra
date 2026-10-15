@@ -1,7 +1,6 @@
 #include "allocator.hpp"
 #include "codegen/codegen.hpp"
 #include "containers.hpp"
-#include "environment.hpp"
 #include "helper.hpp"
 #include "parser.hpp"
 #include "print.hpp"
@@ -9,10 +8,10 @@
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include "symbol.hpp"
-#include "token.hpp"
 #include "tokenizer.hpp"
 #include "uir/analysis/analysis.hpp"
 #include "uir/debug.hpp"
+#include "uir/environment.hpp"
 #include "uir/uir.hpp"
 #include "uirgen/uirgen.hpp"
 #include <cstddef>
@@ -565,6 +564,7 @@ int main(int argc, const char **argv) {
   // Analysis
   UIRAnalyser analyser = {
       .ctx = &ctx,
+      .environment = &environment,
       .error_func = &error_handler,
       .warning_func = &warning_handler,
   };

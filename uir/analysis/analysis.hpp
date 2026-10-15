@@ -5,9 +5,9 @@
 #include "allocator.hpp"
 #include "containers.hpp"
 #include "rir/builder.hpp"
-#include "rir/constant.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
+#include "uir/environment.hpp"
 #include "uir/literal.hpp"
 
 enum class UIRResolvedKind {
@@ -43,6 +43,7 @@ struct UIRAnalyser {
   HashMap<UIRValueId, String> mangled_name_cache;
 
   // Misc
+  Environment *environment;
   DynamicArena arena;
   Allocator *allocator;
 

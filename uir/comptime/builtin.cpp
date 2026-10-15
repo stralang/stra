@@ -1,3 +1,4 @@
+#include "../analysis/analysis.hpp"
 #include "define.hpp"
 #include "uir/comptime/comptime.hpp"
 #include "uir/literal.hpp"
@@ -21,7 +22,7 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
 
     RIRType *ty = state->ctx->getType(lit->data._typeid);
     size_t size_bits = ty->sizeBits(state->ctx->types,
-                                    64); // FIXME: Get Pointer size
+                                    state->analyser->environment->pointer_size);
     int64_t size = std::ceil((double)size_bits / 8.0);
 
     state->currentStack()->inject(
@@ -34,8 +35,8 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     assert(lit->data.kind == UIRRawDataKind::TypeId);
 
     RIRType *ty = state->ctx->getType(lit->data._typeid);
-    size_t align_bits = ty->alignBits(state->ctx->types,
-                                      64); // FIXME: Get Pointer size
+    size_t align_bits = ty->alignBits(
+        state->ctx->types, state->analyser->environment->pointer_size);
     int64_t align = std::ceil((double)align_bits / 8.0);
 
     state->currentStack()->inject(
