@@ -5,6 +5,7 @@ void RIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
   this->instructions.init(allocator, arena_allocator, sizeof(RIRValue) * 32767);
   this->blocks.init(allocator, arena_allocator, sizeof(RIRBlock) * 512);
+  this->roots.init(allocator, 32);
 }
 
 void RIRModule::deinit() {}

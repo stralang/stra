@@ -19,7 +19,11 @@ UIRValue *genComptime(UIRGen *uirgen, Node *child, Symbol *scope) {
 
   UIRValue *output = gen(uirgen, child, scope);
   if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
-    uirgen->builder.buildReturn(output->id);
+    if (output != nullptr) {
+      uirgen->builder.buildReturn(output->id);
+    } else {
+      uirgen->builder.buildReturn({});
+    }
   }
 
   uirgen->builder.block = prev_block;
