@@ -473,6 +473,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     UIRLiteral literal = analyser->comptime_state.execute(inst);
 
     switch (literal.data.kind) {
+    case UIRRawDataKind::Void:
     case UIRRawDataKind::TypeId:
     case UIRRawDataKind::Namespace: {
       analyser->resolved_mapping.insert(
@@ -481,13 +482,13 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     }
     }
 
-    RIRConstant constant =
-        uirRawDataToRIRConstant(analyser->allocator, literal.data);
-
     // Create Instruction
     if (literal.lit_type.isSome()) {
+      RIRConstant constant =
+          uirRawDataToRIRConstant(analyser->allocator, literal.data);
       RIRValueId out_id =
           analyser->builder.buildConstant(literal.lit_type.get(), constant);
+
       analyser->resolved_mapping.insert(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     } else {
