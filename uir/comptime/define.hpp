@@ -2,7 +2,14 @@
 
 #include "../literal.hpp"
 #include "../uir.hpp"
+#include "common/debug.hpp"
 #include "comptime.hpp"
+
+#define ctexpect(ok, srcloc, msg)                                              \
+  if (!(ok)) {                                                                 \
+    std::cerr << srcloc << " " << msg << "\n";                                 \
+    std::abort();                                                              \
+  }
 
 void executeProgram(UIRComptime *state, UIRBlockId entrypoint_id);
 
@@ -17,4 +24,5 @@ Option<UIRLiteral> executeLookupValue(UIRComptime *state,
                                       ComptimeStackFrame *frame,
                                       UIRValue *inst);
 
-void executeBuiltinCall(UIRComptime *state, UIRValue *inst);
+void executeBuiltinCall(UIRComptime *state, UIRValue *call_inst,
+                        UIRValue *func_inst);

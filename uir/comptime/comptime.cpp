@@ -92,7 +92,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
   }
   case UIRValueKind::Load: {
     UIRLiteral ptr = state->getValue(frame, inst->load.ptr);
-    assert(ptr.data.kind == UIRRawDataKind::Pointer);
+    ctexpect(ptr.data.kind == UIRRawDataKind::Pointer, inst->source_location,
+             "Pointer must be of pointer type");
 
     // Create result
     UIRLiteral *lit_out = frame->add(inst->id);
@@ -104,7 +105,9 @@ void execute(UIRComptime *state, UIRValue *inst) {
 
     if (ptr.data.ptr.kind == UIRPlaceKind::Inst) {
       RIRValue *rir_inst = state->analyser->rir_ctx->getInst(ptr.data.ptr.inst);
-      assert(rir_inst->global_variable.constant.isSome());
+      ctexpect(rir_inst->global_variable.constant.isSome(),
+               inst->source_location,
+               "!UIR Internal! global variable initial is not a constant");
       lit_out->data =
           convertRIRConstant(rir_inst->global_variable.constant.get());
     } else if (ptr.data.ptr.kind == UIRPlaceKind::Raw) {
@@ -126,7 +129,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
     // }
     // TODO: Compare types
 
-    assert(ptr.data.ptr.kind == UIRPlaceKind::Raw);
+    ctexpect(ptr.data.ptr.kind == UIRPlaceKind::Raw, inst->source_location,
+             "Pointer must be compile-time known");
     *ptr.data.ptr.data = value.data;
     return;
   }
@@ -165,7 +169,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
       function = callee_inst;
     } else {
       UIRLiteral fn = state->getValue(frame, inst->call.callee);
-      assert(fn.data.kind == UIRRawDataKind::Function);
+      ctexpect(fn.data.kind == UIRRawDataKind::Function, inst->source_location,
+               "Callee must be a function");
       function = state->ctx->getInst(fn.data.function);
     }
 
@@ -179,7 +184,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
     if (!function->function.undefined) {
       executeProgram(state, function->function.blocks.get(0));
     } else {
-      executeBuiltinCall(state, function);
+      executeBuiltinCall(state, inst, function);
     }
 
     UIRLiteral result = **state->currentStack()->values.back();
@@ -316,10 +321,11 @@ void execute(UIRComptime *state, UIRValue *inst) {
     // Analyse Parameters
     for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
       UIRValueId param = inst->function.parameter_types.ptr[i];
+      UIRValue *param_inst = state->ctx->getInst(param);
+      UIRLiteral *param_literal = *executeGetReturn(state, param_inst);
 
-      UIRLiteral *param_literal =
-          *executeGetReturn(state, state->ctx->getInst(param));
-      assert(param_literal->data.kind == UIRRawDataKind::TypeId);
+      ctexpect(param_literal->data.kind == UIRRawDataKind::TypeId,
+               param_inst->source_location, "Parameter type must be of Typeid");
       raw_type.function.arguments.ptr[i] = param_literal->data._typeid;
     }
 
@@ -361,7 +367,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = inst->_struct.fields.ptr + i;
       UIRLiteral type_lit = state->getValue(frame, field->type);
-      assert(type_lit.data.kind == UIRRawDataKind::TypeId);
+      ctexpect(type_lit.data.kind == UIRRawDataKind::TypeId,
+               inst->source_location, "Struct field type must be of TypeId");
       struct_type->_struct.fields.ptr[i] = type_lit.data._typeid;
     }
 
@@ -419,7 +426,9 @@ void execute(UIRComptime *state, UIRValue *inst) {
     // Represent Type
     RIRType *union_type = state->analyser->rir_ctx->getType(union_type_id);
     UIRLiteral repr_lit = state->getValue(frame, inst->_union.repr_type);
-    assert(repr_lit.data.kind == UIRRawDataKind::TypeId);
+    ctexpect(repr_lit.data.kind == UIRRawDataKind::TypeId,
+             inst->source_location,
+             "Union representation type must be of TypeId");
     union_type->_enum.repr = repr_lit.data._typeid;
 
     // Fields
@@ -431,7 +440,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
     for (size_t i = 0; i < inst->_struct.fields.len; i++) {
       UIRStruct::Field *field = inst->_struct.fields.ptr + i;
       UIRLiteral type_lit = state->getValue(frame, field->type);
-      assert(type_lit.data.kind = UIRRawDataKind::TypeId);
+      ctexpect(type_lit.data.kind == UIRRawDataKind::TypeId,
+               inst->source_location, "Union variant type must be of TypeId");
       union_type->_union.variants.ptr[i] = type_lit.data._typeid;
     }
 
@@ -459,7 +469,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
                             RIRTypeKind::Slice}; // TODO: Readd constant types
 
     UIRLiteral element = state->getValue(frame, inst->slice.element);
-    assert(element.data.kind == UIRRawDataKind::TypeId);
+    ctexpect(element.data.kind == UIRRawDataKind::TypeId, inst->source_location,
+             "Slice element type must be of TypeId");
     raw_type.slice.child = element.data._typeid;
 
     if (inst->slice.is_pointer) {
@@ -467,12 +478,14 @@ void execute(UIRComptime *state, UIRValue *inst) {
     } else if (inst->slice.length.isSome()) {
       UIRLiteral length = state->getValue(frame, inst->slice.length.get());
 
-      assert(length.data.kind = UIRRawDataKind::Int);
+      ctexpect(length.data.kind == UIRRawDataKind::Int, inst->source_location,
+               "Slice length must be of `usize`");
       if (length.lit_type.isSome()) {
         RIRType *length_type =
             state->analyser->rir_ctx->getType(length.lit_type.get());
-        assert(length_type->integer.bits =
-                   -1 && !length_type->integer.is_signed);
+        ctexpect(length_type->integer.bits == -1 &&
+                     !length_type->integer.is_signed,
+                 inst->source_location, "Slice length must be of `usize`");
       }
 
       raw_type.slice.length = length.data._int;
@@ -511,8 +524,8 @@ void executeProgram(UIRComptime *state, UIRBlockId entrypoint_id) {
       pc = 0;
 
       UIRLiteral cond = state->getValue(frame, inst->condbr.condition);
-      assert(cond.data.kind == UIRRawDataKind::Bool &&
-             "Condition was not boolean");
+      ctexpect(cond.data.kind == UIRRawDataKind::Bool, inst->source_location,
+               "Condition was not boolean");
 
       if (cond.data._bool) {
         program = &state->ctx->getBlock(inst->condbr.then)->instructions;
@@ -633,5 +646,6 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
     return lit_out;
   }
 
-  assert(0 && "Failed to get value during compile-time");
+  ctexpect(false, from_inst->source_location,
+           "Failed to get value during compile-time");
 }

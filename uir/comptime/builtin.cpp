@@ -6,7 +6,8 @@
 #include "uir/uir.hpp"
 #include <cmath>
 
-void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
+void executeBuiltinCall(UIRComptime *state, UIRValue *call_inst,
+                        UIRValue *func_inst) {
   String name = func_inst->name;
   if (func_inst->function.attributes.builtin.isInline()) {
     name = func_inst->function.attributes.builtin.get();
@@ -16,11 +17,14 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
 
   ComptimeStackFrame *frame = state->currentStack();
   if (name.compare("sizeof")) {
-    assert(frame->values.length == 1);
+    ctexpect(frame->values.length == 1, call_inst->source_location,
+             "`sizeof` builtin expects 1 argument");
 
     // Get Arguments
     UIRLiteral *lit = *frame->values.back();
-    assert(lit->data.kind == UIRRawDataKind::TypeId);
+    ctexpect(lit->data.kind == UIRRawDataKind::TypeId,
+             call_inst->source_location,
+             "`sizeof` builtin expects argument 1 to be `typeid`");
 
     // Get Size of Type
     RIRType *ty = state->ctx->getType(lit->data._typeid);
@@ -31,11 +35,14 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     // Finish
     frame->inject({.data = {.kind = UIRRawDataKind::Int, ._int = size}});
   } else if (name.compare("alignof")) {
-    assert(frame->values.length == 1);
+    ctexpect(frame->values.length == 1, call_inst->source_location,
+             "`alignof` builtin expects 1 argument");
 
     // Get Arguments
     UIRLiteral *lit = *frame->values.back();
-    assert(lit->data.kind == UIRRawDataKind::TypeId);
+    ctexpect(lit->data.kind == UIRRawDataKind::TypeId,
+             call_inst->source_location,
+             "`alignof` builtin expects argument 1 to be `typeid`");
 
     // Get Alignment of Type
     RIRType *ty = state->ctx->getType(lit->data._typeid);
@@ -46,15 +53,20 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     // Finish
     frame->inject({.data = {.kind = UIRRawDataKind::Int, ._int = align}});
   } else if (name.compare("linkLibrary")) {
-    assert(frame->values.length == 2);
+    ctexpect(frame->values.length == 2, call_inst->source_location,
+             "`linkLibrary` builtin expects 2 arguments");
 
     // Get Arguments
     UIRLiteral *name_arg =
         *frame->values.getPtrUnchecked(frame->values.length - 2);
     UIRLiteral *scope_arg =
         *frame->values.getPtrUnchecked(frame->values.length - 1);
-    assert(name_arg->data.kind == UIRRawDataKind::Slice);
-    assert(scope_arg->data.kind == UIRRawDataKind::Int);
+    ctexpect(name_arg->data.kind == UIRRawDataKind::Slice,
+             call_inst->source_location,
+             "`linkLibrary` builtin expects argument 1 to be a Slice");
+    ctexpect(scope_arg->data.kind == UIRRawDataKind::Int,
+             call_inst->source_location,
+             "`linkLibrary` builtin expects argument 2 to be an Integer");
 
     // Values to String
     String out_name = {
@@ -74,12 +86,15 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     });
     frame->inject({.data = {.kind = UIRRawDataKind::Void}});
   } else if (name.compare("linkDirectory")) {
-    assert(frame->values.length == 1);
+    ctexpect(frame->values.length == 1, call_inst->source_location,
+             "`linkDirectory` builtin expects 1 argument");
 
     // Get Arguments
     UIRLiteral *path_arg =
-        *frame->values.getPtrUnchecked(frame->values.length - 2);
-    assert(path_arg->data.kind == UIRRawDataKind::Slice);
+        *frame->values.getPtrUnchecked(frame->values.length - 1);
+    ctexpect(path_arg->data.kind == UIRRawDataKind::Slice,
+             call_inst->source_location,
+             "`linkDirectory` builtin expects argument 1 to be a Slice");
 
     // Values to String
     String out_path = {
@@ -96,12 +111,15 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     state->analyser->environment->link_directories.push(out_path);
     frame->inject({.data = {.kind = UIRRawDataKind::Void}});
   } else if (name.compare("linkerScript")) {
-    assert(frame->values.length == 1);
+    ctexpect(frame->values.length == 1, call_inst->source_location,
+             "`linkerScript` builtin expects 1 argument");
 
     // Get Arguments
     UIRLiteral *path_arg =
-        *frame->values.getPtrUnchecked(frame->values.length - 2);
-    assert(path_arg->data.kind == UIRRawDataKind::Slice);
+        *frame->values.getPtrUnchecked(frame->values.length - 1);
+    ctexpect(path_arg->data.kind == UIRRawDataKind::Slice,
+             call_inst->source_location,
+             "`linkerScript` builtin expects argument 1 to be a Slice");
 
     // Values to String
     String out_path = {
@@ -118,12 +136,15 @@ void executeBuiltinCall(UIRComptime *state, UIRValue *func_inst) {
     state->analyser->environment->linker_scripts.push(out_path);
     frame->inject({.data = {.kind = UIRRawDataKind::Void}});
   } else if (name.compare("linkerFlags")) {
-    assert(frame->values.length == 1);
+    ctexpect(frame->values.length == 1, call_inst->source_location,
+             "`linkerFlags` builtin expects 1 argument");
 
     // Get Arguments
     UIRLiteral *flags_arg =
-        *frame->values.getPtrUnchecked(frame->values.length - 2);
-    assert(flags_arg->data.kind == UIRRawDataKind::Slice);
+        *frame->values.getPtrUnchecked(frame->values.length - 1);
+    ctexpect(flags_arg->data.kind == UIRRawDataKind::Slice,
+             call_inst->source_location,
+             "`linkerScript` builtin expects argument 1 to be a Slice");
 
     // Values to String
     String out_flags = {

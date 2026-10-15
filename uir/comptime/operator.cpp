@@ -13,7 +13,8 @@ UIRLiteral executeCastAs(UIRComptime *state, ComptimeStackFrame *frame,
                          UIRValue *inst) {
   UIRLiteral src = state->getValue(frame, inst->binop.lhs);
   UIRLiteral dstt = state->getValue(frame, inst->binop.rhs);
-  assert(dstt.data.kind == UIRRawDataKind::TypeId);
+  ctexpect(dstt.data.kind == UIRRawDataKind::TypeId, inst->source_location,
+           "Cast destination type must be of TypeId");
 
   // Get types
   RIRType *dst_type = state->ctx->types->getPtr(dstt.data._typeid);
