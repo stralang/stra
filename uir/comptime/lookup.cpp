@@ -61,7 +61,9 @@ Option<UIRLiteral> executeLookupValue(UIRComptime *state,
       }
     }
   } else if (parent_lit.data.kind != UIRRawDataKind::Namespace) {
-    assert(0 && "Lookup expects TypeId, Namespace, or Pointer");
+    ctexpect(false, inst->source_location,
+             "Lookup expects TypeId, Namespace, or Pointer got `"
+                 << (uint32_t)parent_lit.data.kind);
   }
 
   // Get data

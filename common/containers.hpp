@@ -304,7 +304,7 @@ template <typename K, typename V> struct HashMap {
       slot->alive = true;
       slot->tombstone = false;
       slot->hashcode = hashcode;
-    } else if (!get && slot->hashcode != hashcode) {
+    } else if (slot->hashcode != hashcode) {
       return nullptr;
     }
 

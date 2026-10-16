@@ -34,6 +34,7 @@ struct ComptimeStackFrame {
     }
 
     UIRLiteral *lit = (UIRLiteral *)this->arena.alloc(sizeof(UIRLiteral));
+    memset(lit, 0, sizeof(UIRLiteral));
     this->values.push(lit);
     return lit;
   }
