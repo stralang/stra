@@ -320,7 +320,7 @@ template <typename K, typename V> struct HashMap {
       size_t new_slot_idx = old_slot->hashcode % new_capacity;
       Slot *new_slot = new_slots + new_slot_idx;
       while (new_slot->alive) {
-        new_slot_idx += 1;
+        new_slot_idx = (new_slot_idx + 1) % new_capacity;
         new_slot = new_slots + new_slot_idx;
       }
 
