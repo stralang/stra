@@ -1,4 +1,5 @@
 #include "define.hpp"
+#include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
 #include <cassert>
@@ -6,7 +7,26 @@
 Option<UIRLiteral> executeLookup(UIRComptime *state, ComptimeStackFrame *frame,
                                  UIRLiteral parent_lit, String *member) {
   Option<Slice<UIRValueId>> opt_definitions;
-  if (parent_lit.data.kind == UIRRawDataKind::Namespace) {
+  if (parent_lit.data.kind == UIRRawDataKind::TypeId) {
+    RIRType *parent_typeid =
+        state->analyser->ctx->getType(parent_lit.data._typeid);
+    if (parent_typeid->kind == RIRTypeKind::Struct) {
+      auto extras = state->analyser->type_extras.get(parent_lit.data._typeid);
+      UIRScope *definitions =
+          state->ctx->getScope(extras->creator->_struct.definitions);
+      opt_definitions = definitions->list.slice();
+    } else if (parent_typeid->kind == RIRTypeKind::Enum) {
+      auto extras = state->analyser->type_extras.get(parent_lit.data._typeid);
+      UIRScope *definitions =
+          state->ctx->getScope(extras->creator->_enum.definitions);
+      opt_definitions = definitions->list.slice();
+    } else if (parent_typeid->kind == RIRTypeKind::Union) {
+      auto extras = state->analyser->type_extras.get(parent_lit.data._typeid);
+      UIRScope *definitions =
+          state->ctx->getScope(extras->creator->_union.definitions);
+      opt_definitions = definitions->list.slice();
+    }
+  } else if (parent_lit.data.kind == UIRRawDataKind::Namespace) {
     UIRScope *definitions = state->ctx->getScope(parent_lit.data._namespace);
     opt_definitions = definitions->list.slice();
   }
