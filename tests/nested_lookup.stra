@@ -1,0 +1,17 @@
+A :: {
+  B :: {
+    C :: {
+      D: i32 = 100;
+    }
+  }
+
+  Data :: struct {
+    Blob: i32 : 10;
+  }
+}
+
+main :: fn() i32 {
+  A.Data.Blob = 50;
+  result := A.B.C.D + A.Data.Blob;
+  return !(result == 150) as i32;
+}

@@ -1,0 +1,8 @@
+Second :: import "mutual_second.stra";
+
+A: i32 : 100;
+
+main :: fn() i32 {
+  result := Second.add(A, Second.A);  
+  return !(result == 300) as i32;
+}

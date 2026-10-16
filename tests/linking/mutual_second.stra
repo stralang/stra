@@ -1,0 +1,7 @@
+First :: import "mutual.stra";
+
+A: i32 = 200;
+
+add :: fn(a: i32, b: i32) i32 {
+  return a + b;
+}

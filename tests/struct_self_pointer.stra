@@ -1,0 +1,5 @@
+Node :: struct {
+  next: ^Node,
+}
+
+main :: fn() i32 {}

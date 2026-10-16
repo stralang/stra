@@ -1,0 +1,12 @@
+Alias :: i32;
+
+getType :: comptime fn() typeid {
+  a := i8;
+  a = Alias;
+  return a;
+}
+
+main :: fn() Alias {
+  result: getType() = 0;
+  return result;
+}

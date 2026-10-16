@@ -1,0 +1,12 @@
+fibonacci :: fn(n: u32) u32 {
+  if n <= 1 {
+    return n;
+  }
+
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+main :: fn() i32 {
+  result := fibonacci(4);
+  return !(result == 3) as i32;
+}

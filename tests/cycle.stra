@@ -1,0 +1,6 @@
+a :: b;
+b :: a;
+
+main :: fn() i32 {
+  return 0;
+}
