@@ -134,7 +134,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
                                   resolved_arg_inst->result),
            uir_arg->source_location,
            "Argument `" << resolved_arg_inst->result
-                        << "` doesn't match expected `" << expected_type
+                        << "` doesn't match expected `" << expected_type->id
                         << "`");
 
     arguments[i + initial_idx] = resolved_arg_inst->id;

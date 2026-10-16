@@ -5,7 +5,7 @@
 
 template <typename T> struct Option {
 private:
-  bool m_some;
+  bool m_some = false;
   T m_value;
 
 public:

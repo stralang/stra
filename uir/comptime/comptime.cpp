@@ -388,8 +388,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
 
     // Members
     Slice<UIRLiteral> members = {
-        .ptr = (UIRLiteral *)state->allocator->alloc(sizeof(UIRLiteral) *
-                                                     inst->_enum.members.len),
+        .ptr = (UIRLiteral *)state->allocator->allocZeroed(
+            sizeof(UIRLiteral) * inst->_enum.members.len),
         .len = inst->_enum.members.len,
     };
     int64_t next_value = 0;
@@ -404,8 +404,15 @@ void execute(UIRComptime *state, UIRValue *inst) {
         result->data = {.kind = UIRRawDataKind::Int, ._int = next_value};
       }
 
-      // TODO: verify `result` is correct type
-      result->lit_type = repr_lit.data._typeid;
+      if (result->lit_type.isSome()) {
+        ctexpect(result->lit_type.get() == enum_type->_enum.repr,
+                 inst->source_location,
+                 "Enum member constant has incorrect type. Expected `"
+                     << enum_type->_enum.repr << "` got `"
+                     << result->lit_type.get() << "`");
+      }
+
+      result->lit_type = enum_type_id;
       next_value = result->data._int + 1;
     }
 
@@ -454,15 +461,6 @@ void execute(UIRComptime *state, UIRValue *inst) {
     lit_out->data = {.kind = UIRRawDataKind::Namespace,
                      ._namespace = inst->_namespace.definitions};
     return;
-    // Type raw_type = {.kind = TypeKind::Namespace};
-    // raw_type._namespace.inst = inst;
-    //
-    // Type *namespace_type = state->ctx->type_cache->get(raw_type);
-    // return {
-    //     .lit_type = state->ctx->type_cache->get({.kind = TypeKind::TypeId}),
-    //     .kind = UIRLiteralKind::Typed,
-    //     ._typeid = namespace_type,
-    // };
   }
   case UIRValueKind::Slice: {
     RIRType raw_type = {.kind =
