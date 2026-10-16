@@ -1,17 +1,18 @@
 #pragma once
 
 #include "allocator.hpp"
+#include <cassert>
 #include <cstring>
 #include <iostream>
 
 template <typename T> struct ArenaList {
 private:
-  T **arenas;
-  size_t arena_size;
-  size_t count;
-  size_t length;
-  Allocator *record_allocator;
-  Allocator *arena_allocator;
+  T **arenas = nullptr;
+  size_t arena_size = 0;
+  size_t count = 0;
+  size_t length = 0;
+  Allocator *record_allocator = nullptr;
+  Allocator *arena_allocator = nullptr;
 
 public:
   // `record_allocator` used to allocate the pointer store containing each arena
@@ -28,10 +29,14 @@ public:
     this->arenas[0] = (T *)arena_allocator->alloc(sizeof(T) * this->arena_size);
   }
   void deinit() {
+    assert(this->arenas != nullptr &&
+           "Attempted to deinitialize uninitialized ArenaList");
+
     for (size_t i = 0; i < this->count; i++) {
       arena_allocator->_free((uint8_t *)this->arenas[i]);
     }
     record_allocator->_free((uint8_t *)this->arenas);
+    this->arenas = nullptr;
     this->count = 0;
     this->length = 0;
   }

@@ -10,6 +10,7 @@
 
 UIRValue *genComptime(UIRGen *uirgen, Node *child, Symbol *scope) {
   UIRValue *value = uirgen->builder.buildComptime(str("comptime"));
+  value->source_location = child->location;
   value->comptime.blocks.init(uirgen->allocator, 32);
 
   Option<UIRBlock *> prev_block = uirgen->builder.block;

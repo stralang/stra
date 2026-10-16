@@ -75,9 +75,9 @@ String str(const char *s);
 String str(std::string s);
 
 template <typename T> struct ArrayList {
-  Slice<T> data;
-  size_t length;
-  Allocator *allocator;
+  Slice<T> data = {nullptr, 0};
+  size_t length = 0;
+  Allocator *allocator = nullptr;
 
   void init(Allocator *allocator, size_t capacity) {
     this->allocator = allocator;
@@ -85,7 +85,13 @@ template <typename T> struct ArrayList {
     this->data.ptr = (T *)allocator->alloc(sizeof(T) * this->data.len);
     this->length = 0;
   }
-  void deinit() { allocator->_free((uint8_t *)this->data.ptr); }
+  void deinit() {
+    assert(this->data.ptr != nullptr &&
+           "Attempted to deinitialize uninitialized ArrayList");
+
+    allocator->_free((uint8_t *)this->data.ptr);
+    this->data.ptr = nullptr;
+  }
 
   void push(T value) {
     if (this->length == this->data.len) {
@@ -156,14 +162,14 @@ template <typename T> struct ArrayList {
 
 struct DynamicArena {
   struct Chunk {
-    uint8_t *ptr;
-    size_t used;
+    uint8_t *ptr = nullptr;
+    size_t used = 0;
   };
 
-  Chunk *chunks;
-  size_t min_chunk_size;
-  size_t chunk_count;
-  Allocator *allocator;
+  Chunk *chunks = nullptr;
+  size_t min_chunk_size = 0;
+  size_t chunk_count = 0;
+  Allocator *allocator = nullptr;
 
   void init(Allocator *allocator, size_t min_chunk_size) {
     this->allocator = allocator;
@@ -176,10 +182,14 @@ struct DynamicArena {
     this->chunk_count = 1;
   }
   void deinit() {
+    assert(this->chunks != nullptr &&
+           "Attempted to deinitialize uninitialized DynamicArena");
+
     for (size_t i = 0; i < this->chunk_count; i++) {
       allocator->_free(this->chunks[i].ptr);
     }
     allocator->_free((uint8_t *)this->chunks);
+    this->chunks = nullptr;
   }
 
   uint8_t *alloc(size_t size) {
@@ -203,16 +213,16 @@ struct DynamicArena {
 
 template <typename K, typename V> struct HashMap {
   struct Slot {
-    bool tombstone;
-    bool alive;
-    uint64_t hashcode;
+    bool tombstone = false;
+    bool alive = false;
+    uint64_t hashcode = 0;
     K key;
     V value;
   };
 
-  Allocator *allocator;
-  Slot *slots;
-  size_t slot_capacity;
+  Allocator *allocator = nullptr;
+  Slot *slots = nullptr;
+  size_t slot_capacity = 0;
 
   void init(Allocator *allocator, size_t slot_capacity) {
     this->allocator = allocator;
@@ -220,11 +230,23 @@ template <typename K, typename V> struct HashMap {
     this->slots = (Slot *)allocator->alloc(sizeof(Slot) * this->slot_capacity);
     memset(this->slots, 0, sizeof(Slot) * this->slot_capacity);
   }
-  void deinit() { allocator->_free((uint8_t *)this->slots); }
+  void deinit() {
+    assert(this->slots != nullptr &&
+           "Attempted to deinitialize uninitialized HashMap");
+
+    allocator->_free((uint8_t *)this->slots);
+    this->slots = nullptr;
+  }
 
   void insert(K key, V value) {
     uint64_t hashcode = hash(key);
     Slot *slot = getSlot(hashcode, false);
+    if (slot == nullptr) {
+      resize(this->slot_capacity * 2);
+      slot = getSlot(hashcode, false);
+      assert(slot != nullptr && "Failed to allocate slot.");
+    }
+
     slot->key = key;
     slot->value = value;
   }
@@ -282,6 +304,8 @@ template <typename K, typename V> struct HashMap {
       slot->alive = true;
       slot->tombstone = false;
       slot->hashcode = hashcode;
+    } else if (!get && slot->hashcode != hashcode) {
+      return nullptr;
     }
 
     return slot;
@@ -306,7 +330,8 @@ template <typename K, typename V> struct HashMap {
       new_slot->value = old_slot->value;
     }
 
-    allocator->_free(this->slots);
+    allocator->_free((uint8_t *)this->slots);
     this->slots = new_slots;
+    this->slot_capacity = new_capacity;
   }
 };
