@@ -245,30 +245,30 @@ void execute(UIRComptime *state, UIRValue *inst) {
     UIRLiteral *lit_out = frame->add(inst->id);
     lit_out->data.kind = UIRRawDataKind::TypeId;
 
+    UIRLiteral infer_from;
     UIRResolved *resolved_inst =
         state->analyser->resolved_mapping.get(inst->_typeof);
     if (resolved_inst == nullptr) {
       UIRLiteral comptime_result = state->getValue(frame, inst->_typeof);
-      lit_out->data._typeid = comptime_result.lit_type.get();
-      return;
-    }
-
-    // Get type from instruction
-    if (resolved_inst->kind == UIRResolvedKind::Inst) {
+      infer_from = comptime_result;
+    } else if (resolved_inst->kind == UIRResolvedKind::Inst) {
+      // Get type from instruction
       RIRValue *rir_inst =
           state->analyser->rir_ctx->getInst(resolved_inst->inst);
       lit_out->data._typeid = rir_inst->result;
       return;
+    } else {
+      // Get type from literal
+      assert(resolved_inst->kind == UIRResolvedKind::Literal);
+      infer_from = resolved_inst->literal;
     }
 
-    // Get type from literal
-    assert(resolved_inst->kind == UIRResolvedKind::Literal);
-
-    if (resolved_inst->literal.lit_type.isSome()) {
-      lit_out->data._typeid = resolved_inst->literal.lit_type.get();
+    // Get or guess type
+    if (infer_from.lit_type.isSome()) {
+      lit_out->data._typeid = infer_from.lit_type.get();
     } else {
       // Guess type from data
-      switch (resolved_inst->literal.data.kind) {
+      switch (infer_from.data.kind) {
       case UIRRawDataKind::Void: {
         lit_out->data._typeid =
             state->ctx->types->push({.kind = RIRTypeKind::Void});
@@ -293,6 +293,12 @@ void execute(UIRComptime *state, UIRValue *inst) {
         lit_out->data._typeid =
             state->ctx->types->push({.kind = RIRTypeKind::TypeId});
         break;
+      }
+      case UIRRawDataKind::Pointer:
+      case UIRRawDataKind::Slice:
+      case UIRRawDataKind::Function:
+      case UIRRawDataKind::Namespace: {
+        ctexpect(false, inst->source_location, "Cannot guess type");
       }
       }
     }
