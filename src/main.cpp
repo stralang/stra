@@ -22,6 +22,10 @@
 #include <iostream>
 #include <string>
 
+// disable leak detection
+// Alot of memory is leaked on exit, ASan will catch that.
+extern "C" const char *__asan_default_options() { return "detect_leaks=0"; }
+
 namespace fs = std::filesystem;
 
 const char *NAME = "Stra";

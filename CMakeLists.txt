@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.30)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
+# Debugging
+option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
+
+if(ENABLE_ASAN)
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+  add_link_options(-fsanitize=address)
+endif()
+
+# Compiler
 project(stra)
 add_executable(stra
   src/print.cpp
