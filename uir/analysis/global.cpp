@@ -102,6 +102,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
 
     // Analyse Constant
     if (inst->global_variable.constant.isSome()) {
+      expect(inst->global_variable.attributes.builtin.isAbsent(),
+             inst->source_location,
+             "Builtin global variable must be undefined");
+
       // Get Initial
       UIRValue *const_inst =
           analyser->ctx->getInst(inst->global_variable.constant.get());
@@ -167,6 +171,20 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
         analyser->resolved_mapping.insert(
             inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
+    } else if (!inst->global_variable.attributes.builtin.isAbsent()) {
+      UIRLiteral lit = getBuiltinGlobalValue(analyser, inst);
+      UIRRawData *data =
+          (UIRRawData *)analyser->allocator->alloc(sizeof(UIRRawData));
+      *data = lit.data;
+
+      UIRLiteral out = {
+          .data = {.kind = UIRRawDataKind::Pointer,
+                   .ptr = {.kind = UIRPlaceKind::Raw, .data = data}},
+          .lit_type = analyser->ctx->types->push(
+              {.kind = RIRTypeKind::Pointer, .child = typeId.get()}),
+      };
+      analyser->resolved_mapping.insert(
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = out});
     } else {
       RIRValueId out_id =
           analyser->builder.buildGlobalVariable(typeId.get(), {}, link_name);
@@ -176,6 +194,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
     break;
   }
   case UIRValueKind::Function: {
+    expect(inst->function.attributes.builtin.isAbsent() ||
+               inst->function.blocks.length == 0,
+           inst->source_location, "Builtin function must be undefined");
+
     if (inst->function.comptime) {
       break;
     }

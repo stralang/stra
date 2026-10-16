@@ -1,0 +1,7 @@
+@(builtin) TARGET_ARCH: i32 : ---;
+
+main :: fn() i32 {
+  thing := TARGET_ARCH;
+  // NOTE: A successful compilation is all that matters here
+  return 0;
+}

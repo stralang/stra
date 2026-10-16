@@ -29,6 +29,7 @@ check slice 0
 check import 0
 check link_name 0
 check comptime 0
+check builtin_global 0
 
 rm test.out
 if [ $fail_count -ne 0 ]; then

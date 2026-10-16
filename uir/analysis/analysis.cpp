@@ -4,6 +4,7 @@
 #include "allocator.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
+#include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include <cassert>
@@ -45,6 +46,7 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
     }
     case UIRRawDataKind::Pointer:
     case UIRRawDataKind::Slice:
+    case UIRRawDataKind::Function:
     case UIRRawDataKind::Namespace: {
       assert(0 && "Cannot guess type");
       break;
@@ -91,6 +93,15 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     analyse(analyser, ptr_inst);
 
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->load.ptr);
+    if (ptr_resolved->kind == UIRResolvedKind::Literal) {
+      // Fold comptime pointer
+      UIRLiteral out = analyser->comptime_state.execute(inst);
+      analyser->resolved_mapping.insert(
+          inst->id, {.kind = UIRResolvedKind::Literal, .literal = out});
+      break;
+    }
+
+    // Generate runtime Load
     assert(ptr_resolved->kind == UIRResolvedKind::Inst);
 
     RIRValue *resolved_ptr_inst =
@@ -113,12 +124,22 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     analyse(analyser, ptr_inst);
     analyse(analyser, value_inst);
-    UIRResolved *ptr_resolved =
-        analyser->resolved_mapping.get(ptr_inst->id); // FIXME: Confirm kind
+    UIRResolved *ptr_resolved = analyser->resolved_mapping.get(ptr_inst->id);
 
     // Get ptr
-    RIRValue *resolved_ptr_inst =
-        analyser->rir_ctx->getInst(ptr_resolved->inst);
+    RIRValue *resolved_ptr_inst;
+    if (ptr_resolved->kind == UIRResolvedKind::Inst) {
+      resolved_ptr_inst = analyser->rir_ctx->getInst(ptr_resolved->inst);
+    } else if (ptr_resolved->kind == UIRResolvedKind::Literal &&
+               ptr_resolved->literal.data.kind == UIRRawDataKind::Pointer &&
+               ptr_resolved->literal.data.ptr.kind == UIRPlaceKind::Inst) {
+      resolved_ptr_inst =
+          analyser->rir_ctx->getInst(ptr_resolved->literal.data.ptr.inst);
+    } else {
+      expect(false, ptr_inst->source_location,
+             "Cannot store to comptime pointer");
+    }
+
     RIRType *resolved_ptr_type =
         analyser->rir_ctx->getType(resolved_ptr_inst->result);
 
@@ -330,8 +351,8 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
                                     resolved_value_inst->result),
              uir_value_inst->source_location,
              "Unexpected return type. Got `" << resolved_value_inst->result
-                                             << "` Expected `" << expected_type
-                                             << "`");
+                                             << "` Expected `"
+                                             << expected_type->id << "`");
 
       ret_value.setSome(resolved_value_inst->id);
     }

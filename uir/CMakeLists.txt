@@ -12,6 +12,7 @@ add_library(uir STATIC
   analysis/global.cpp
   analysis/aggregate.cpp
   analysis/types.cpp
+  analysis/builtin.cpp
 
   comptime/comptime.cpp
   comptime/operator.cpp

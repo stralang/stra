@@ -3,6 +3,7 @@
 #include "../uir.hpp"
 #include "allocator.hpp"
 #include "analysis.hpp"
+#include "uir/literal.hpp"
 #include <sstream>
 
 #define expect(ok, srcloc, msg)                                                \
@@ -34,3 +35,5 @@ bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
                           RIRTypeId type_id);
 RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst);
 RIRConstant uirRawDataToRIRConstant(Allocator *allocator, UIRRawData raw_data);
+
+UIRLiteral getBuiltinGlobalValue(UIRAnalyser *analyser, UIRValue *inst);
