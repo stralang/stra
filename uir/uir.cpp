@@ -7,7 +7,13 @@ void UIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->modules.init(allocator, arena_allocator, sizeof(UIRModule) * 32);
 }
 
-void UIRContext::deinit() { this->modules.deinit(); }
+void UIRContext::deinit() {
+  for (size_t i = 0; i < this->modules.len(); i++) {
+    this->modules.getPtrUnchecked(i)->deinit();
+  }
+
+  this->modules.deinit();
+}
 
 void UIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;

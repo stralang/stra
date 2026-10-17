@@ -8,14 +8,24 @@ void RIRModule::init(Allocator *allocator, Allocator *arena_allocator) {
   this->roots.init(allocator, 32);
 }
 
-void RIRModule::deinit() {}
+void RIRModule::deinit() {
+  this->instructions.deinit();
+  this->blocks.deinit();
+  this->roots.deinit();
+}
 
 void RIRContext::init(Allocator *allocator, Allocator *arena_allocator) {
   this->allocator = allocator;
   this->modules.init(allocator, arena_allocator, sizeof(RIRModule) * 32);
 }
 
-void RIRContext::deinit() { this->modules.deinit(); }
+void RIRContext::deinit() {
+  for (size_t i = 0; i < this->modules.len(); i++) {
+    this->modules.getPtrUnchecked(i)->deinit();
+  }
+
+  this->modules.deinit();
+}
 
 RIRValue *RIRContext::getInst(RIRValueId id) {
   return this->modules.getPtr(id.module)->instructions.getPtr(id.local);

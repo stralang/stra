@@ -1,6 +1,7 @@
 #include "allocator.hpp"
 #include "codegen/codegen.hpp"
 #include "common/debug.hpp"
+#include "common/defer.hpp"
 #include "containers.hpp"
 #include "helper.hpp"
 #include "parser.hpp"
@@ -508,14 +509,17 @@ int main(int argc, const char **argv) {
 
   CodeGenContext codegen_ctx;
   codegen_ctx.init(&environment, args.target_triple);
+  defer(codegen_ctx.deinit());
 
   // Setup Type Context
   RIRTypeContext type_ctx;
   type_ctx.init(&global_allocator, &global_allocator);
+  defer(type_ctx.deinit());
 
   // Prepare UIR Context
   UIRContext ctx;
   ctx.init(&global_allocator, &global_allocator);
+  defer(ctx.deinit());
   ctx.types = &type_ctx;
 
   // Generate UIR
@@ -534,6 +538,7 @@ int main(int argc, const char **argv) {
         .warning_func = &warning_handler,
     };
     gen.generate(file->uir);
+    gen.deinit();
 
     uirgen_error_count += gen.error_count;
     uirgen_warning_count += gen.warning_count;
@@ -569,8 +574,10 @@ int main(int argc, const char **argv) {
       .warning_func = &warning_handler,
   };
   analyser.init(&global_allocator);
+  defer(analyser.deinit());
 
   RIRContext *rir = analyser.analyse();
+  defer(rir->deinit());
 
   if (analyser.warning_count > 0) {
     std::cout << "\e[0;33m" << analyser.warning_count << "warnings.\e[0m\n";
