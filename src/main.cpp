@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "codegen/codegen.hpp"
+#include "common/debug.hpp"
 #include "containers.hpp"
 #include "helper.hpp"
 #include "parser.hpp"
@@ -354,10 +355,6 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
-  // Initialize
-  TypeCache type_cache;
-  type_cache.init(&global_allocator);
-
   // Compile
   SourceFiles files;
   HashMap<uint64_t, uint32_t> path_to_file;
@@ -421,7 +418,6 @@ int main(int argc, const char **argv) {
     file->parser = ASTParser{
         .tokenizer = tokenizer,
         .error_func = &error_handler,
-        .type_cache = &type_cache,
         .allocator = &global_allocator,
     };
     file->parser.parse();

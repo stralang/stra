@@ -1,12 +1,11 @@
 #include "parser.hpp"
 #include "ast.hpp"
+#include "common/debug.hpp"
 #include "containers.hpp"
 #include "operator.hpp"
 #include "print.hpp"
-#include "symbol.hpp"
 #include "token.hpp"
 #include <cassert>
-#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <string>

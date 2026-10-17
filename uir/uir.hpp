@@ -8,7 +8,6 @@
 #include "optional.hpp"
 #include "rir/type.hpp"
 #include "srcloc.hpp"
-#include "types.hpp"
 #include "uir/attributes.hpp"
 #include <cassert>
 #include <cstdint>

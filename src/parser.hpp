@@ -3,7 +3,6 @@
 #include "ast.hpp"
 #include "containers.hpp"
 #include "tokenizer.hpp"
-#include "uir/types.hpp"
 #include <cstddef>
 
 struct ASTParser {
@@ -17,7 +16,6 @@ struct ASTParser {
   size_t error_count = 0;
   void (*error_func)(SrcLoc srcloc, String msg);
 
-  TypeCache *type_cache;
   Allocator *allocator;
 
   void parse();

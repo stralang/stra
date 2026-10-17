@@ -1,12 +1,9 @@
 #pragma once
 
 #include "ast.hpp"
-#include "common/debug.hpp"
 #include "operator.hpp"
 #include "symbol.hpp"
 #include "token.hpp"
-#include "uir/types.hpp"
-#include "uir/uir.hpp"
 #include <ostream>
 
 std::ostream &operator<<(std::ostream &os, const Operator &op);
@@ -18,6 +15,3 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind);
 std::ostream &operator<<(std::ostream &os, const Node &node);
 
 std::ostream &operator<<(std::ostream &os, const Symbol &symbol);
-
-std::ostream &operator<<(std::ostream &os, const TypeKind &kind);
-std::ostream &operator<<(std::ostream &os, const Type &type);

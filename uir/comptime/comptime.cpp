@@ -1,7 +1,6 @@
 #include "comptime.hpp"
 #include "../analysis/define.hpp"
 #include "../literal.hpp"
-#include "../types.hpp"
 #include "../uir.hpp"
 #include "common/debug.hpp"
 #include "containers.hpp"
