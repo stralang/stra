@@ -1,6 +1,7 @@
 #include "../print.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
+#include "rir/type.hpp"
 #include "uir/uir.hpp"
 #include "llvm-c/Types.h"
 #include <iostream>
@@ -220,7 +221,19 @@ LLVMValueRef genCast(CodeGenModule *codegen, LLVMBuilderRef builder,
 
   // Reuse casts
   if (src_type->kind == RIRTypeKind::Slice &&
-      dst_type->kind == RIRTypeKind::Slice) {
+      dst_type->kind == RIRTypeKind::Pointer) {
+    // Pointer-Slice to Pointer
+    assert(src_type->slice.length == -1 &&
+           src_type->slice.child == dst_type->child);
+    return getReference(codegen, inst->cast.value);
+  } else if (src_type->kind == RIRTypeKind::Pointer &&
+             dst_type->kind == RIRTypeKind::Slice) {
+    // Pointer to Pointer-Slice
+    assert(dst_type->slice.length == -1 &&
+           dst_type->slice.child == src_type->child);
+    return getReference(codegen, inst->cast.value);
+  } else if (src_type->kind == RIRTypeKind::Slice &&
+             dst_type->kind == RIRTypeKind::Slice) {
     if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
       return getReference(codegen, inst->cast.value);
     }
@@ -285,6 +298,15 @@ LLVMValueRef genCast(CodeGenModule *codegen, LLVMBuilderRef builder,
     RIRType *repr_type = codegen->rir_context->getType(src_type->_enum.repr);
     return LLVMBuildIntCast2(builder, lhs_value, dst_llvm_type,
                              repr_type->integer.is_signed, "");
+  } else if (src_type->kind == RIRTypeKind::Slice) {
+    if (src_type->slice.length == -1 &&
+        dst_type->kind == RIRTypeKind::Integer &&
+        !dst_type->integer.is_signed && dst_type->integer.bits == -1) {
+      // Get address of pointer-slice
+      return LLVMBuildPtrToInt(
+          builder, lhs_value,
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size), "");
+    }
   }
 
   std::cerr << "Unhandled `as` cast in codegen\n";

@@ -85,10 +85,27 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
           allowed = dst_type->kind == RIRTypeKind::Integer ||
                     dst_type->kind == RIRTypeKind::Float;
         } else if (src_type->kind == RIRTypeKind::Pointer) {
-          allowed = dst_type->kind == RIRTypeKind::Integer &&
+          if (dst_type->kind == RIRTypeKind::Integer &&
+              !dst_type->integer.is_signed && dst_type->integer.bits == -1) {
+            allowed = true;
+          } else if (dst_type->kind == RIRTypeKind::Slice &&
+                     dst_type->slice.length == -1 &&
+                     dst_type->slice.child == src_type->slice.child) {
+            allowed = true; // Pointer to Pointer-Slice
+          }
+        } else if (src_type->kind == RIRTypeKind::Slice &&
+                   dst_type->kind == RIRTypeKind::Integer) {
+          // Pointer-Slice to usize
+          allowed = src_type->slice.length == -1 &&
                     !dst_type->integer.is_signed &&
                     dst_type->integer.bits == -1;
-        } else if (src_type->kind == RIRTypeKind::Slice) {
+        } else if (src_type->kind == RIRTypeKind::Slice &&
+                   dst_type->kind == RIRTypeKind::Pointer) {
+          // Pointer-Slice to Pointer
+          allowed = src_type->slice.length == -1 &&
+                    src_type->slice.child == dst_type->child;
+        } else if (src_type->kind == RIRTypeKind::Slice &&
+                   dst_type->kind == RIRTypeKind::Slice) {
           if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
             allowed = true; // No-Op
           } else if (src_type->slice.length > 0 &&

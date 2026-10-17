@@ -40,13 +40,13 @@ RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst) {
   RIRType *src_type = analyser->rir_ctx->getType(src->result);
   RIRType *dst_type = analyser->rir_ctx->getType(dst);
 
-  if (src_type->kind == RIRTypeKind::Pointer &&
-      dst_type->kind == RIRTypeKind::Slice) {
-    RIRType *src_child = analyser->rir_ctx->getType(src_type->child);
-    if (dst_type->slice.length < 0 &&
-        src_child->compare(analyser->rir_ctx->types, dst_type->slice.child)) {
-      // Pointer to Pointer Slice
-      RIRValueId out_id = analyser->builder.buildCast(src->id, dst, true);
+  if (src_type->kind == RIRTypeKind::Slice &&
+      dst_type->kind == RIRTypeKind::Pointer) {
+    // Pointer-Slice to Pointer
+    RIRType *src_child = analyser->rir_ctx->getType(src_type->slice.child);
+    if (src_type->slice.length == -1 &&
+        src_child->compare(analyser->rir_ctx->types, dst_type->child)) {
+      RIRValueId out_id = analyser->builder.buildCast(src->id, dst, false);
       return analyser->rir_ctx->getInst(out_id);
     }
   }

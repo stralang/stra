@@ -64,8 +64,8 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   if (ptr_type->kind == RIRTypeKind::Slice) {
     if (member->compare("ptr")) {
       sub_type = analyser->rir_ctx->types->push({
-          .kind = RIRTypeKind::Pointer,
-          .child = ptr_type->slice.child,
+          .kind = RIRTypeKind::Slice,
+          .slice = {.length = -1, .child = ptr_type->slice.child},
       });
       field_index = 0;
     } else if (member->compare("len")) {
