@@ -7,7 +7,8 @@
 #include <llvm-c/Target.h>
 #include <llvm-c/Types.h>
 
-/// NOTE: The abi handling is copied from Odin
+/// NOTE: The abi handling is copied from Odin.
+/// Odin is licensed under Zlib (at the time this code was written)
 
 enum class RegClass : uint8_t {
   Integer,
