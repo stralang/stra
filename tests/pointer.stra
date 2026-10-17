@@ -1,0 +1,7 @@
+main :: fn() i32 {
+  value: i32 = 100;
+  ptr: ^i32 = &value;
+  ptr^ += 100;
+
+  return !(ptr^ == 200) as i32;
+}

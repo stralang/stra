@@ -92,8 +92,8 @@ Node *parseInitializer(ASTParser *parser, Node *record) {
   return out;
 }
 
-Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
-                      bool allow_init) {
+Node *parseRightSideExpr(ASTParser *parser, Precedence min_precedence,
+                         Node *atom, bool allow_init) {
   Node *out = atom;
 
   while (true) {
@@ -175,6 +175,18 @@ Node *parseBinaryExpr(ASTParser *parser, Precedence min_precedence, Node *atom,
 
       expect(out->range.max != nullptr, parser->cur_token.location,
              "Failed to parse range max");
+      continue;
+    } else if (parser->cur_token.kind == TokenKind::Operator &&
+               parser->cur_token._operator == Operator::Unary_Pointer) {
+      // Dereference postfix operator
+      Node *dereference = (Node *)parser->allocator->allocZeroed(sizeof(Node));
+      dereference->token = parser->cur_token;
+      dereference->location = parser->cur_token.location;
+      dereference->kind = NodeKind::UnaryOperator;
+      dereference->unary_operator.opcode = UnaryOperator::Dereference;
+      dereference->unary_operator.child = out;
+      out = dereference;
+      expectEOF(parser->nextToken());
       continue;
     } else if (parser->cur_token.kind != TokenKind::Operator) {
       break;
@@ -551,7 +563,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
   }
   }
 
-  out = parseBinaryExpr(parser, min_precedence, out, allow_init);
+  // Parse rest of binary expression
+  out = parseRightSideExpr(parser, min_precedence, out, allow_init);
   expect(out != nullptr, parser->cur_token.location,
          "Failed to parse expression");
 
@@ -650,7 +663,7 @@ Node *parseConditional(ASTParser *parser) {
       node->in.range = parseExpr(
           parser, (Precedence)((int32_t)Precedence::Assign + 1), false);
     } else {
-      node = parseBinaryExpr(parser, Precedence::Assign, node, false);
+      node = parseRightSideExpr(parser, Precedence::Assign, node, false);
     }
 
     return node;
@@ -677,7 +690,7 @@ Node *parseConditional(ASTParser *parser) {
   //     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
   //       child = parseField(parser, child, scope);
   //     } else {
-  //       child = parseBinaryExpr(parser,
+  //       child = parseRightSideExpr(parser,
   //                                (Precedence)((int32_t)Precedence::Assign +
   //                                1), child, scope);
   //     }
@@ -773,7 +786,7 @@ Node *parseStmt(ASTParser *parser) {
     if (parser->cur_token.kind == TokenKind::TypeSeperator) {
       out = parseField(parser, out);
     } else {
-      out = parseBinaryExpr(parser, Precedence::Assign, out, true);
+      out = parseRightSideExpr(parser, Precedence::Assign, out, true);
 
       if (parser->cur_token.kind == TokenKind::Eq ||
           parser->cur_token.kind == TokenKind::Assignment) {

@@ -54,7 +54,7 @@ Precedence operatorPrecedence(Operator opcode) {
     return Precedence::Cast;
   }
   case Operator::Unary_Logical_Not:
-  case Operator::Unary_Bitwise_Not: {
+  case Operator::Unary_Pointer: {
     return Precedence::Unary;
   }
   }
@@ -68,7 +68,7 @@ Associativity operatorAssociativity(Operator opcode) {
   case Operator::Assign:
   case Operator::MemberAccess:
   case Operator::Unary_Logical_Not:
-  case Operator::Unary_Bitwise_Not: {
+  case Operator::Unary_Pointer: {
     return Associativity::Right;
   }
   case Operator::Add:

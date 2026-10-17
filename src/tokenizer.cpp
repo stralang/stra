@@ -409,12 +409,8 @@ Token Tokenizer::next() {
   }
   case '^': {
     token.kind = TokenKind::Operator;
-    token._operator = Operator::Bitwise_Xor;
+    token._operator = Operator::Unary_Pointer;
     c = this->nextChar();
-    if (c == '=') {
-      token.kind = TokenKind::Assignment;
-      this->nextChar();
-    }
     return token;
   }
   case '&': {
@@ -496,8 +492,12 @@ Token Tokenizer::next() {
   }
   case '~': {
     token.kind = TokenKind::Operator;
-    token._operator = Operator::Unary_Bitwise_Not;
+    token._operator = Operator::Bitwise_Xor;
     this->nextChar();
+    if (c == '=') {
+      token.kind = TokenKind::Assignment;
+      this->nextChar();
+    }
     return token;
   }
   }

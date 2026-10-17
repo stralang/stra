@@ -24,6 +24,7 @@ checkExitCode function 0
 checkExitCode struct 0
 checkExitCode enum 0
 checkExitCode namespace 0
+checkExitCode pointer 0
 checkExitCode slice 0
 checkExitCode int_cast 0
 checkExitCode float_cast 0

@@ -77,7 +77,7 @@ std::ostream &operator<<(std::ostream &os, const Operator &op) {
     return os << "Bitcast";
   }
   case Operator::Unary_Logical_Not:
-  case Operator::Unary_Bitwise_Not: {
+  case Operator::Unary_Pointer: {
     return os << (UnaryOperator)op;
   }
   }

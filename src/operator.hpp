@@ -26,16 +26,16 @@ enum class Operator : int32_t {
   As,
   Bitcast,
   Unary_Logical_Not,
-  Unary_Bitwise_Not,
+  Unary_Pointer,
 };
 
 enum class UnaryOperator : int32_t {
   Minus = (int32_t)Operator::Sub,
   Logical_Not = (int32_t)Operator::Unary_Logical_Not,
-  Bitwise_Not = (int32_t)Operator::Unary_Bitwise_Not,
+  Bitwise_Not = (int32_t)Operator::Bitwise_Xor,
   Reference = (int32_t)Operator::Bitwise_And,
-  Dereference = (int32_t)Operator::Mul,
-  Pointer = (int32_t)Operator::Bitwise_Xor,
+  Pointer = (int32_t)Operator::Unary_Pointer,
+  Dereference,
 };
 
 enum class Precedence : int32_t {
