@@ -554,6 +554,19 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     UIRLiteral lit = analyser->comptime_state.execute(inst);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+
+    // Analyse definitions
+    if (inst->kind == UIRValueKind::Struct) {
+      analyseScope(analyser,
+                   analyser->ctx->getScope(inst->_struct.definitions));
+    } else if (inst->kind == UIRValueKind::Enum) {
+      analyseScope(analyser, analyser->ctx->getScope(inst->_enum.definitions));
+    } else if (inst->kind == UIRValueKind::Union) {
+      analyseScope(analyser, analyser->ctx->getScope(inst->_union.definitions));
+    } else if (inst->kind == UIRValueKind::Namespace) {
+      analyseScope(analyser,
+                   analyser->ctx->getScope(inst->_namespace.definitions));
+    }
     break;
   }
   default: {
