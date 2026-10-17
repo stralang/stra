@@ -6,8 +6,8 @@
 #include "uir/literal.hpp"
 #include <sstream>
 
-#define expect(ok, srcloc, msg)                                                \
-  if (!(ok)) {                                                                 \
+#define error(srcloc, msg)                                                     \
+  {                                                                            \
     std::ostringstream os;                                                     \
     os << msg;                                                                 \
     std::string cpp_str = os.str();                                            \
@@ -15,6 +15,28 @@
     analyser->error_func(srcloc, m);                                           \
     analyser->error_count += 1;                                                \
   }
+
+// Sends an error then poisons the resolved data and return
+#define expect(ok, srcloc, msg)                                                \
+  if (!(ok)) {                                                                 \
+    error(srcloc, msg);                                                        \
+    analyser->resolved_mapping.insert(inst->id,                                \
+                                      {.kind = UIRResolvedKind::Poison});      \
+    return;                                                                    \
+  }
+
+// Silently poison the resolved data and return
+#define expectSilent(ok)                                                       \
+  if (!(ok)) {                                                                 \
+    analyser->resolved_mapping.insert(inst->id,                                \
+                                      {.kind = UIRResolvedKind::Poison});      \
+    return;                                                                    \
+  }
+
+#define checkResolved(__resolved)                                              \
+  expectSilent(__resolved->kind != UIRResolvedKind::Poison);                   \
+  expect(__resolved->kind != UIRResolvedKind::Pending, inst->source_location,  \
+         "Cyclic dependency detected");
 
 void analyseBlock(UIRAnalyser *analyser, UIRBlock *block);
 void analyseScope(UIRAnalyser *analyser, UIRScope *scope);
@@ -36,4 +58,4 @@ bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
 RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst);
 RIRConstant uirRawDataToRIRConstant(Allocator *allocator, UIRRawData raw_data);
 
-UIRLiteral getBuiltinGlobalValue(UIRAnalyser *analyser, UIRValue *inst);
+Option<UIRLiteral> getBuiltinGlobalValue(UIRAnalyser *analyser, UIRValue *inst);

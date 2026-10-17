@@ -26,3 +26,10 @@ Option<UIRLiteral> executeLookupValue(UIRComptime *state,
 
 void executeBuiltinCall(UIRComptime *state, UIRValue *call_inst,
                         UIRValue *func_inst);
+
+void computeStructType(UIRComptime *state, UIRValue *inst,
+                       RIRTypeId struct_type_id);
+void computeEnumType(UIRComptime *state, UIRValue *inst,
+                     RIRTypeId enum_type_id);
+void computeUnionType(UIRComptime *state, UIRValue *inst,
+                      RIRTypeId union_type_id);

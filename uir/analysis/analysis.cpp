@@ -7,6 +7,7 @@
 #include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
+#include "uir/comptime/define.hpp"
 #include <cassert>
 
 RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
@@ -62,9 +63,15 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
 }
 
 void analyse(UIRAnalyser *analyser, UIRValue *inst) {
-  if (analyser->resolved_mapping.get(inst->id) != nullptr) {
+  UIRResolved *_previous_analysis = analyser->resolved_mapping.get(inst->id);
+  if (_previous_analysis != nullptr) {
+    expect(_previous_analysis->kind != UIRResolvedKind::Pending,
+           inst->source_location, "Cyclic dependency detected");
     return; // Already Analysed
   }
+
+  analyser->resolved_mapping.insert(inst->id,
+                                    {.kind = UIRResolvedKind::Pending});
 
   RIRModule *prev_mod = analyser->builder.module;
   analyser->builder.module = analyser->rir_ctx->modules.getPtr(inst->id.module);
@@ -93,6 +100,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     analyse(analyser, ptr_inst);
 
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->load.ptr);
+    checkResolved(ptr_resolved);
     if (ptr_resolved->kind == UIRResolvedKind::Literal) {
       // Fold comptime pointer
       UIRLiteral out = analyser->comptime_state.execute(inst);
@@ -124,7 +132,9 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     analyse(analyser, ptr_inst);
     analyse(analyser, value_inst);
+
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(ptr_inst->id);
+    checkResolved(ptr_resolved);
 
     // Get ptr
     RIRValue *resolved_ptr_inst;
@@ -146,6 +156,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     // Get value
     UIRResolved *resolved_value =
         analyser->resolved_mapping.get(inst->store.value);
+    checkResolved(resolved_value);
 
     RIRValueId value_resolved =
         getInstFromResolved(analyser, resolved_value, resolved_ptr_type->child);
@@ -194,6 +205,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     UIRResolved *ptr_resolved =
         analyser->resolved_mapping.get(inst->index.ptr); // FIXME: Confirm kind
+    checkResolved(ptr_resolved);
     RIRValue *resolved_ptr_inst =
         analyser->rir_ctx->getInst(ptr_resolved->inst);
 
@@ -209,6 +221,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     analyse(analyser, index_inst);
     UIRResolved *index_resolved =
         analyser->resolved_mapping.get(inst->index.index);
+    checkResolved(index_resolved);
 
     RIRTypeId usize_type = analyser->rir_ctx->types->push(
         {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
@@ -244,6 +257,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     // Check Pointer
     UIRResolved *ptr_resolved = analyser->resolved_mapping.get(inst->range.ptr);
+    checkResolved(ptr_resolved);
     assert(ptr_resolved->kind == UIRResolvedKind::Inst);
 
     RIRValue *resolved_ptr_inst =
@@ -265,6 +279,8 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     UIRResolved *start_resolved =
         analyser->resolved_mapping.get(inst->range.start);
     UIRResolved *end_resolved = analyser->resolved_mapping.get(inst->range.end);
+    checkResolved(start_resolved);
+    checkResolved(end_resolved);
 
     RIRValueId resolved_start_id =
         getInstFromResolved(analyser, start_resolved, usize_ty);
@@ -321,10 +337,12 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     expect(parent_inst->kind == UIRValueKind::Function, inst->source_location,
            "A runtime return must be a child of a function");
 
-    UIRResolved *function_id = analyser->resolved_mapping.get(parent_inst->id);
-    assert(function_id->kind == UIRResolvedKind::Inst);
+    UIRResolved *function_resolved =
+        analyser->resolved_mapping.get(parent_inst->id);
+    checkResolved(function_resolved);
+    assert(function_resolved->kind == UIRResolvedKind::Inst);
 
-    RIRValue *function = analyser->rir_ctx->getInst(function_id->inst);
+    RIRValue *function = analyser->rir_ctx->getInst(function_resolved->inst);
     RIRType *fn_type = analyser->rir_ctx->getType(function->result);
     RIRType *expected_type =
         analyser->rir_ctx->getType(fn_type->function._return);
@@ -338,6 +356,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
       analyse(analyser, uir_value_inst);
       UIRResolved *value_resolved =
           analyser->resolved_mapping.get(uir_value_inst->id);
+      checkResolved(value_resolved);
 
       RIRValueId resolved_value_id =
           getInstFromResolved(analyser, value_resolved, expected_type->id);
@@ -374,8 +393,11 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
   case UIRValueKind::CondBranch: {
     UIRValue *condition_inst = analyser->ctx->getInst(inst->condbr.condition);
     analyse(analyser, condition_inst);
+
     UIRResolved *condition_resolved =
         analyser->resolved_mapping.get(inst->condbr.condition);
+    checkResolved(condition_resolved);
+
     RIRValue *resolved_condition =
         analyser->rir_ctx->getInst(condition_resolved->inst);
     RIRType *condition_type =
@@ -401,6 +423,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     analyse(analyser, condition_inst);
     UIRResolved *condition_resolved = analyser->resolved_mapping.get(
         inst->_switch.condition); // FIXME: Confirm kind
+    checkResolved(condition_resolved);
     // TODO: Eliminate dead-code if `condition_id` is a literal
 
     RIRType *expected_type = analyser->rir_ctx->getType(
@@ -473,8 +496,12 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
           continue;
         }
 
-        rir_operand->rir_inst = getInstFromResolved(
-            analyser, analyser->resolved_mapping.get(uir_operand->uir), {});
+        UIRResolved *operand_resolved =
+            analyser->resolved_mapping.get(uir_operand->uir);
+        checkResolved(operand_resolved);
+
+        rir_operand->rir_inst =
+            getInstFromResolved(analyser, operand_resolved, {});
         if (uir_operand->kind == UIRAssembly::Operand::Input) {
           rir_operand->kind = RIRAssembly::Operand::Input;
         } else if (uir_operand->kind == UIRAssembly::Operand::Return) {
@@ -547,26 +574,71 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     }
     break;
   }
-  case UIRValueKind::Struct:
-  case UIRValueKind::Enum:
-  case UIRValueKind::Union:
+  case UIRValueKind::Struct: {
+    RIRTypeId struct_type_id =
+        analyser->ctx->types->push({.kind = RIRTypeKind::Struct});
+
+    // Pre-populate resolved
+    UIRLiteral lit = {
+        .data = {.kind = UIRRawDataKind::TypeId, ._typeid = struct_type_id}};
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+
+    // Compute type
+    analyser->comptime_state.pushStack();
+    computeStructType(&analyser->comptime_state, inst, struct_type_id);
+    analyser->comptime_state.popStack();
+
+    // Analyse definitions
+    analyseScope(analyser, analyser->ctx->getScope(inst->_struct.definitions));
+    break;
+  }
+  case UIRValueKind::Enum: {
+    RIRTypeId enum_type_id =
+        analyser->ctx->types->push({.kind = RIRTypeKind::Enum});
+
+    // Pre-populate resolved
+    UIRLiteral lit = {
+        .data = {.kind = UIRRawDataKind::TypeId, ._typeid = enum_type_id}};
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+
+    // Compute type
+    analyser->comptime_state.pushStack();
+    computeEnumType(&analyser->comptime_state, inst, enum_type_id);
+    analyser->comptime_state.popStack();
+
+    // Analyse definitions
+    analyseScope(analyser, analyser->ctx->getScope(inst->_enum.definitions));
+    break;
+  }
+  case UIRValueKind::Union: {
+    RIRTypeId union_type_id =
+        analyser->ctx->types->push({.kind = RIRTypeKind::Union});
+
+    // Pre-populate resolved
+    UIRLiteral lit = {
+        .data = {.kind = UIRRawDataKind::TypeId, ._typeid = union_type_id}};
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+
+    // Compute type
+    analyser->comptime_state.pushStack();
+    computeUnionType(&analyser->comptime_state, inst, union_type_id);
+    analyser->comptime_state.popStack();
+
+    // Analyse definitions
+    analyseScope(analyser, analyser->ctx->getScope(inst->_enum.definitions));
+    break;
+  }
   case UIRValueKind::Namespace: {
     UIRLiteral lit = analyser->comptime_state.execute(inst);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
 
     // Analyse definitions
-    if (inst->kind == UIRValueKind::Struct) {
-      analyseScope(analyser,
-                   analyser->ctx->getScope(inst->_struct.definitions));
-    } else if (inst->kind == UIRValueKind::Enum) {
-      analyseScope(analyser, analyser->ctx->getScope(inst->_enum.definitions));
-    } else if (inst->kind == UIRValueKind::Union) {
-      analyseScope(analyser, analyser->ctx->getScope(inst->_union.definitions));
-    } else if (inst->kind == UIRValueKind::Namespace) {
-      analyseScope(analyser,
-                   analyser->ctx->getScope(inst->_namespace.definitions));
-    }
+    analyseScope(analyser,
+                 analyser->ctx->getScope(inst->_namespace.definitions));
     break;
   }
   default: {

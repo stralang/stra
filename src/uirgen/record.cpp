@@ -40,7 +40,7 @@ UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope) {
     Node *ast = node->_struct.fields.getUnchecked(i);
     UIRStruct::Field *uir = fields.ptr + i;
     uir->name = ast->field.name;
-    uir->type = gen(uirgen, ast->field.type, struct_symbol)->id;
+    uir->type = genComptime(uirgen, ast->field.type, struct_symbol)->id;
   }
 
   // Build Instruction
@@ -135,7 +135,7 @@ UIRValue *genUnion(UIRGen *uirgen, Node *node, Symbol *scope) {
     Node *ast = node->_union.variants.getUnchecked(i);
     UIRStruct::Field *uir = variants.ptr + i;
     uir->name = ast->field.name;
-    uir->type = gen(uirgen, ast->field.type, union_symbol)->id;
+    uir->type = genComptime(uirgen, ast->field.type, union_symbol)->id;
   }
 
   // Build Instruction

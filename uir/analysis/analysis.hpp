@@ -11,6 +11,8 @@
 #include "uir/literal.hpp"
 
 enum class UIRResolvedKind {
+  Pending,
+  Poison,
   Inst,
   Literal,
 };

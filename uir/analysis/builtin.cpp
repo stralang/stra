@@ -3,7 +3,8 @@
 #include "rir/type.hpp"
 #include "uir/literal.hpp"
 
-UIRLiteral getBuiltinGlobalValue(UIRAnalyser *analyser, UIRValue *inst) {
+Option<UIRLiteral> getBuiltinGlobalValue(UIRAnalyser *analyser,
+                                         UIRValue *inst) {
   String name = inst->name;
   if (inst->global_variable.attributes.builtin.isInline()) {
     name = inst->global_variable.attributes.builtin.get();
@@ -46,8 +47,9 @@ UIRLiteral getBuiltinGlobalValue(UIRAnalyser *analyser, UIRValue *inst) {
     out.data = {.kind = UIRRawDataKind::Int,
                 ._int = (int64_t)analyser->environment->endianness};
   } else {
-    expect(false, inst->source_location,
-           "Builtin variable `" << name << "` doesn't exist\n");
+    error(inst->source_location,
+          "Builtin variable `" << name << "` doesn't exist\n");
+    return {};
   }
 
   return out;

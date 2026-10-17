@@ -13,6 +13,8 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
 
   UIRResolved *lhs_resolved = analyser->resolved_mapping.get(inst->binop.lhs);
   UIRResolved *rhs_resolved = analyser->resolved_mapping.get(inst->binop.rhs);
+  checkResolved(lhs_resolved);
+  checkResolved(rhs_resolved);
 
   // Execute comptime
   if (lhs_resolved->kind == UIRResolvedKind::Literal &&
@@ -248,6 +250,7 @@ void analyseUnary(UIRAnalyser *analyser, UIRValue *inst) {
 
   UIRResolved *child_resolved =
       analyser->resolved_mapping.get(inst->unaryop.value);
+  checkResolved(child_resolved);
 
   // Comptime
   if (child_resolved->kind == UIRResolvedKind::Literal) {

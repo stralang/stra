@@ -29,6 +29,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   // Get Callee
   UIRResolved *callee_resolved =
       analyser->resolved_mapping.get(inst->call.callee);
+  checkResolved(callee_resolved);
 
   if (callee_resolved->kind == UIRResolvedKind::Literal) {
     // Handle function literal
@@ -80,6 +81,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
 
     UIRResolved *receiver_resolved =
         analyser->resolved_mapping.get(uir_receiver_inst->id);
+    checkResolved(receiver_resolved);
 
     // The receiver is only valid if it is not a TypeId or Namespace
     bool receiver_is_valid =
@@ -122,8 +124,10 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
 
     // Get argument
     analyse(analyser, uir_arg);
-    UIRResolved *arg_resolved =
-        analyser->resolved_mapping.get(uir_arg->id); // FIXME: Confirm kind
+
+    UIRResolved *arg_resolved = analyser->resolved_mapping.get(uir_arg->id);
+    checkResolved(arg_resolved);
+
     RIRValueId resolved_arg_id =
         getInstFromResolved(analyser, arg_resolved, expected_type_id);
 

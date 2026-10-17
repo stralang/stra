@@ -118,6 +118,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
         // Generate Virtual Variable
         UIRResolved *const_resolved =
             analyser->resolved_mapping.get(const_inst->id);
+        checkResolved(const_resolved);
         const_resolved->literal.lit_type =
             analyser->rir_ctx->types->push({.kind = RIRTypeKind::TypeId});
 
@@ -172,7 +173,10 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
             inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
       }
     } else if (!inst->global_variable.attributes.builtin.isAbsent()) {
-      UIRLiteral lit = getBuiltinGlobalValue(analyser, inst);
+      Option<UIRLiteral> opt_lit = getBuiltinGlobalValue(analyser, inst);
+      expectSilent(opt_lit.isSome());
+
+      UIRLiteral lit = opt_lit.get();
       UIRRawData *data =
           (UIRRawData *)analyser->allocator->alloc(sizeof(UIRRawData));
       *data = lit.data;

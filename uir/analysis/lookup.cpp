@@ -14,6 +14,10 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   analyse(analyser, parent_inst);
   UIRResolved parent_resolved =
       *analyser->resolved_mapping.get(inst->lookup.parent);
+  if (parent_resolved.kind == UIRResolvedKind::Pending ||
+      parent_resolved.kind == UIRResolvedKind::Poison) {
+    return parent_resolved;
+  }
 
   if (parent_resolved.kind == UIRResolvedKind::Literal &&
       parent_resolved.literal.data.kind == UIRRawDataKind::Pointer &&
@@ -143,21 +147,25 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
 }
 
 void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst) {
-  Option<UIRResolved> resolved = analyseLookup(analyser, inst);
-  if (resolved.isNone()) {
+  Option<UIRResolved> opt_resolved = analyseLookup(analyser, inst);
+  if (opt_resolved.isNone()) {
     // Error
     expect(false, inst->source_location,
            "Couldn't find member of name \"" << inst->lookup.member << "\"");
     return;
   }
 
-  analyser->resolved_mapping.insert(inst->id, resolved.get());
+  UIRResolved resolved = opt_resolved.get();
+  checkResolved((&resolved));
+
+  analyser->resolved_mapping.insert(inst->id, resolved);
 }
 
 void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
   Option<UIRResolved> opt_resolved = analyseLookup(analyser, inst);
   if (opt_resolved.isSome()) {
     UIRResolved resolved = opt_resolved.get();
+    checkResolved((&resolved));
 
     // Instruction pointer
     Option<RIRValueId> result_inst_id;

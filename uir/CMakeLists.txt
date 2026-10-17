@@ -18,6 +18,7 @@ add_library(uir STATIC
   comptime/operator.cpp
   comptime/lookup.cpp
   comptime/builtin.cpp
+  comptime/record.cpp
 
   debug.cpp
 )

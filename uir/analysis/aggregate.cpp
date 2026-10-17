@@ -25,6 +25,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
 
   UIRResolved *type_resolved =
       analyser->resolved_mapping.get(inst->aggregate.type);
+  checkResolved(type_resolved);
   assert(type_resolved->kind == UIRResolvedKind::Literal);
   expect(type_resolved->literal.data.kind == UIRRawDataKind::TypeId,
          type_inst->source_location, "Initializer type must be typeid");
@@ -69,6 +70,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
 
     UIRResolved *value_resolved =
         analyser->resolved_mapping.get(value_inst->id);
+    checkResolved(value_resolved);
     RIRValueId out_id =
         getInstFromResolved(analyser, value_resolved, expected_type);
 
