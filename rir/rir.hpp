@@ -35,6 +35,8 @@ enum class RIRValueKind : std::uint16_t {
   Index,
   Range,
   FieldAt,
+  GetVariant,
+  SetVariant,
   Aggregate,
   Return,
   Branch,
@@ -141,6 +143,11 @@ struct RIRValue {
       RIRValueId ptr;
       size_t index;
     } field_at;
+    struct {
+      RIRValueId ptr;
+      size_t index;
+      // Type is implied in result
+    } getset_variant;
     struct {
       Slice<RIRValueId> values;
     } aggregate;

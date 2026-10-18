@@ -61,7 +61,7 @@ UIRValue *addr(UIRGen *uirgen, Node *node, Symbol *scope) {
   }
   case NodeKind::Operator: {
     if (node->_operator.opcode == Operator::MemberAccess) {
-      return addrMemberAccess(uirgen, node, scope);
+      return addrMemberAccess(uirgen, node, scope, false);
     }
     break;
   }

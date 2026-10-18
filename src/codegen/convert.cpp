@@ -142,17 +142,17 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
   case RIRTypeKind::Union: {
     // Raw/C-Style Union
     RIRType *repr_type = codegen->rir_context->getType(type->_union.repr);
+
+    size_t data_size =
+        type->sizeBits(codegen->rir_context->types, codegen->pointer_size) -
+        repr_type->integer.bits;
+    data_size = (data_size + 7) / 8; // Bits to Bytes
+
     if (repr_type->kind == RIRTypeKind::Void) {
-      LLVMTypeRef ty = LLVMArrayType(
-          LLVMInt8TypeInContext(codegen->ctx),
-          type->sizeBits(codegen->rir_context->types, codegen->pointer_size));
+      LLVMTypeRef ty =
+          LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);
       out = LLVMStructTypeInContext(codegen->ctx, &ty, 1, false);
     } else {
-      size_t data_size =
-          type->sizeBits(codegen->rir_context->types, codegen->pointer_size) -
-          repr_type->integer.bits;
-      data_size = (data_size + 7) / 8; // Bits to Bytes
-
       LLVMTypeRef tys[2];
       tys[0] = LLVMIntTypeInContext(codegen->ctx, repr_type->integer.bits);
       tys[1] = LLVMArrayType(LLVMInt8TypeInContext(codegen->ctx), data_size);

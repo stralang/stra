@@ -27,6 +27,8 @@ struct RIRBuilder {
   RIRValueId buildRange(RIRValueId ptr, RIRValueId offset, RIRValueId length,
                         RIRTypeId result_elem_type);
   RIRValueId buildFieldAt(RIRValueId ptr, size_t index, RIRTypeId result);
+  RIRValueId buildGetVariant(RIRValueId ptr, size_t index, RIRTypeId result);
+  RIRValueId buildSetVariant(RIRValueId ptr, size_t index, RIRTypeId result);
   RIRValueId buildAggregate(RIRTypeId aggregate_type, Slice<RIRValueId> values);
   RIRValueId buildReturn(Option<RIRValueId> value);
   RIRValueId buildBranch(RIRBlockId dest);

@@ -1,0 +1,11 @@
+Reinterpret :: union void {
+  float: f32,
+  int: i32,
+}
+
+main :: fn() i32 {
+  data: Reinterpret;
+  data.float = 3.14;
+
+  return !(data.int == 1078523331) as i32;
+}

@@ -36,7 +36,7 @@ struct UIRBuilder {
                        String name = {.ptr = nullptr});
   UIRValue *buildRange(UIRValueId ptr, UIRValueId start, UIRValueId end,
                        String name = {.ptr = nullptr});
-  UIRValue *buildLookupPtr(UIRValueId ptr, String member,
+  UIRValue *buildLookupPtr(UIRValueId ptr, String member, bool precedes_store,
                            String name = {.ptr = nullptr});
   UIRValue *buildLookupValue(UIRValueId ptr, String member,
                              String name = {.ptr = nullptr});

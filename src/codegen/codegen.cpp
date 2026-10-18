@@ -278,6 +278,111 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     }
     break;
   }
+  case RIRValueKind::GetVariant: {
+    // Get Pointer
+    RIRValue *rir_ptr_inst =
+        codegen->rir_context->getInst(inst->getset_variant.ptr);
+    RIRType *rir_ptr_type = codegen->rir_context->getType(rir_ptr_inst->result);
+    RIRType *rir_union_type =
+        codegen->rir_context->getType(rir_ptr_type->child);
+    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->child);
+    LLVMValueRef ptr_value = getReference(codegen, inst->getset_variant.ptr);
+
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+    indices[1] = indices[0];
+
+    // Check Tag
+    RIRType *rir_repr_type =
+        codegen->rir_context->getType(rir_union_type->_union.repr);
+    if (rir_repr_type->kind != RIRTypeKind::Void) {
+      // Create trap and success blocks
+      LLVMValueRef parent_func =
+          LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+
+      LLVMBasicBlockRef trap_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "trap_block");
+      LLVMBasicBlockRef success_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "success_block");
+
+      // Get Tag
+      LLVMTypeRef repr_type = typeToLLVM(codegen, rir_repr_type->id);
+
+      LLVMValueRef tag_ptr =
+          LLVMBuildGEP2(builder, union_type, ptr_value, indices, 2, "");
+      LLVMValueRef tag_value = LLVMBuildLoad2(builder, repr_type, tag_ptr, "");
+      LLVMValueRef expected_tag =
+          LLVMConstInt(repr_type, inst->getset_variant.index,
+                       rir_repr_type->integer.is_signed);
+
+      // Compare
+      LLVMValueRef comparison = LLVMBuildICmp(builder, LLVMIntEQ, tag_value,
+                                              expected_tag, "tag_comparison");
+      LLVMBuildCondBr(builder, comparison, success_block, trap_block);
+
+      // Setup trap
+      LLVMPositionBuilderAtEnd(builder, trap_block);
+      buildTrap(codegen, builder);
+      LLVMBuildUnreachable(builder);
+
+      // Set index of data
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+
+      LLVMPositionBuilderAtEnd(builder, success_block);
+    }
+
+    // Get Data pointer
+    LLVMValueRef data_ptr =
+        LLVMBuildGEP2(builder, union_type, ptr_value, indices, 2, "");
+
+    // Cast data pointer
+    LLVMTypeRef dest_type = typeToLLVM(codegen, inst->result);
+    out = LLVMBuildBitCast(builder, data_ptr, dest_type, "");
+    break;
+  }
+  case RIRValueKind::SetVariant: {
+    // Get Pointer
+    RIRValue *rir_ptr_inst =
+        codegen->rir_context->getInst(inst->getset_variant.ptr);
+    RIRType *rir_ptr_type = codegen->rir_context->getType(rir_ptr_inst->result);
+    RIRType *rir_union_type =
+        codegen->rir_context->getType(rir_ptr_type->child);
+    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->child);
+    LLVMValueRef ptr_value = getReference(codegen, inst->getset_variant.ptr);
+
+    // size_t variant_idx = inst->getset_variant.index;
+    // RIRTypeId result_ptr_type = inst->result;
+
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
+    indices[1] = indices[0];
+
+    // Check Tag
+    RIRType *rir_repr_type =
+        codegen->rir_context->getType(rir_union_type->_union.repr);
+    if (rir_repr_type->kind != RIRTypeKind::Void) {
+      LLVMTypeRef repr_type = typeToLLVM(codegen, rir_repr_type->id);
+
+      LLVMValueRef tag_ptr =
+          LLVMBuildGEP2(builder, union_type, ptr_value, indices, 2, "");
+
+      LLVMValueRef new_tag = LLVMConstInt(repr_type, inst->getset_variant.index,
+                                          rir_repr_type->integer.is_signed);
+      LLVMBuildStore(builder, new_tag, tag_ptr);
+
+      // Set index of data
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+    }
+
+    // Get Data pointer
+    LLVMValueRef data_ptr =
+        LLVMBuildGEP2(builder, union_type, ptr_value, indices, 2, "");
+
+    // Cast data pointer
+    LLVMTypeRef dest_type = typeToLLVM(codegen, inst->result);
+    out = LLVMBuildBitCast(builder, data_ptr, dest_type, "");
+    break;
+  }
   case RIRValueKind::Aggregate: {
     LLVMTypeRef llvm_type = typeToLLVM(codegen, inst->result);
 

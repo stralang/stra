@@ -17,7 +17,8 @@ void genSwitch(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genAssignment(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genUnary(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genBinary(UIRGen *uirgen, Node *node, Symbol *scope);
-UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope);
+UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope,
+                           bool precedes_store);
 
 UIRValue *genStruct(UIRGen *uirgen, Node *node, Symbol *scope);
 UIRValue *genEnum(UIRGen *uirgen, Node *node, Symbol *scope);

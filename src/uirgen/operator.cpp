@@ -2,10 +2,11 @@
 #include "uir/uir.hpp"
 #include "uirgen.hpp"
 
-UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope) {
+UIRValue *addrMemberAccess(UIRGen *uirgen, Node *node, Symbol *scope,
+                           bool precedes_store) {
   UIRValue *record = addr(uirgen, node->_operator.lhs, scope);
-  UIRValue *out =
-      uirgen->builder.buildLookupPtr(record->id, node->_operator.rhs->text);
+  UIRValue *out = uirgen->builder.buildLookupPtr(
+      record->id, node->_operator.rhs->text, precedes_store);
   out->source_location = node->location;
   return out;
 }
@@ -18,7 +19,14 @@ UIRValue *genAssignment(UIRGen *uirgen, Node *node, Symbol *scope) {
     rhs_value = gen(uirgen, node->_operator.rhs, scope);
   }
 
-  UIRValue *lhs_ptr = addr(uirgen, node->_operator.lhs, scope);
+  UIRValue *lhs_ptr;
+  if (node->_operator.lhs->kind == NodeKind::Operator &&
+      node->_operator.lhs->_operator.opcode == Operator::MemberAccess) {
+    lhs_ptr = addrMemberAccess(uirgen, node->_operator.lhs, scope, true);
+  } else {
+    lhs_ptr = addr(uirgen, node->_operator.lhs, scope);
+  }
+
   UIRValue *out = uirgen->builder.buildStore(rhs_value->id, lhs_ptr->id);
   out->source_location = node->location;
   return out;

@@ -120,10 +120,9 @@ UIRValue *UIRBuilder::buildRange(UIRValueId ptr, UIRValueId start,
 }
 
 UIRValue *UIRBuilder::buildLookupPtr(UIRValueId parent, String member,
-                                     String name) {
+                                     bool precedes_store, String name) {
   UIRValue inst = {.kind = UIRValueKind::LookupPtr};
-  inst.lookup.parent = parent;
-  inst.lookup.member = member;
+  inst.lookup = {parent, member, precedes_store};
   return this->insert(inst, false, name);
 }
 

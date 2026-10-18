@@ -45,6 +45,23 @@ LLVMValueRef genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder,
 void injectDefer(CodeGenModule *codegen, LLVMBuilderRef builder, Symbol *scope,
                  bool is_loop);
 
+// A temporary trap handler
+// NOTE: This will be replaced by a panic handler
+inline void buildTrap(CodeGenModule *codegen, LLVMBuilderRef builder) {
+  LLVMTypeRef params[1] = {LLVMInt32TypeInContext(codegen->ctx)};
+  LLVMTypeRef func_ty =
+      LLVMFunctionType(LLVMVoidTypeInContext(codegen->ctx), params, 1, false);
+
+  LLVMValueRef trap_function = LLVMGetNamedFunction(codegen->mod, "exit");
+  if (trap_function == nullptr) {
+    trap_function = LLVMAddFunction(codegen->mod, "exit", func_ty);
+  }
+
+  LLVMValueRef args[1] = {
+      LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false)};
+  LLVMBuildCall2(builder, func_ty, trap_function, args, 1, "");
+}
+
 inline LLVMValueRef BuildAlloca(CodeGenModule *codegen, LLVMBuilderRef builder,
                                 LLVMTypeRef ty, const char *name) {
   LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(builder);

@@ -89,16 +89,16 @@ void computeUnionType(UIRComptime *state, UIRValue *inst,
   UIRLiteral repr_lit = state->getValue(frame, inst->_union.repr_type);
   ctexpect(repr_lit.data.kind == UIRRawDataKind::TypeId, inst->source_location,
            "Union representation type must be of TypeId");
-  union_type->_enum.repr = repr_lit.data._typeid;
+  union_type->_union.repr = repr_lit.data._typeid;
 
   // Fields
   union_type->_union.variants = {
-      .ptr = (RIRTypeId *)state->arena->alloc(sizeof(RIRTypeId) *
-                                              inst->_struct.fields.len),
-      .len = inst->_struct.fields.len,
+      .ptr = (RIRTypeId *)state->allocator->alloc(sizeof(RIRTypeId) *
+                                                  inst->_union.variants.len),
+      .len = inst->_union.variants.len,
   };
-  for (size_t i = 0; i < inst->_struct.fields.len; i++) {
-    UIRStruct::Field *field = inst->_struct.fields.ptr + i;
+  for (size_t i = 0; i < inst->_union.variants.len; i++) {
+    UIRStruct::Field *field = inst->_union.variants.ptr + i;
     UIRLiteral type_lit = state->getValue(frame, field->type);
     ctexpect(type_lit.data.kind == UIRRawDataKind::TypeId,
              inst->source_location, "Union variant type must be of TypeId");

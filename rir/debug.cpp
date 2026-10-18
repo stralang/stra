@@ -196,6 +196,16 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     os << "fieldat " << inst->field_at.ptr << ", " << inst->field_at.index;
     break;
   }
+  case RIRValueKind::GetVariant: {
+    os << "getvariant " << inst->getset_variant.ptr << ", "
+       << inst->getset_variant.index;
+    break;
+  }
+  case RIRValueKind::SetVariant: {
+    os << "setvariant " << inst->getset_variant.ptr << ", "
+       << inst->getset_variant.index;
+    break;
+  }
   case RIRValueKind::Aggregate: {
     os << "aggregate #" << inst->result << " {";
     for (size_t i = 0; i < inst->aggregate.values.len; i++) {

@@ -209,6 +209,7 @@ struct UIRValue {
     struct {
       UIRValueId parent;
       String member;
+      bool precedes_store; // e.g. set tag of union
     } lookup;
     struct {
       UIRValueId type;

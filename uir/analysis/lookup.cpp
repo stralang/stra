@@ -114,6 +114,50 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   } else if (ptr_type->kind == RIRTypeKind::Enum) {
     UIRValue *enum_inst = analyser->type_extras.get(ptr_type->id)->creator;
     definitions = analyser->ctx->getScope(enum_inst->_enum.definitions);
+  } else if (ptr_type->kind == RIRTypeKind::Union) {
+    UIRValue *union_inst = analyser->type_extras.get(ptr_type->id)->creator;
+    definitions = analyser->ctx->getScope(union_inst->_union.definitions);
+
+    if (member->compare("tag")) {
+      if (analyser->ctx->getType(ptr_type->_union.repr)->kind ==
+          RIRTypeKind::Void) {
+        error(inst->source_location, "Cannot get tag of tag-less union");
+        Option<UIRResolved> out = UIRResolved{};
+        out.setNone();
+        return out;
+      }
+
+      sub_type = ptr_type->_union.repr;
+      field_index = 0;
+    } else {
+      for (size_t i = 0; i < union_inst->_union.variants.len; i++) {
+        UIRStruct::Field *variant = union_inst->_union.variants.ptr + i;
+        if (variant->name.compare(*member)) {
+          sub_type = ptr_type->_union.variants.ptr[i];
+          field_index = i;
+          break;
+        }
+      }
+
+      if (sub_type.isSome()) {
+        RIRTypeId result_type = analyser->rir_ctx->types->push({
+            .kind = RIRTypeKind::Pointer,
+            .child = sub_type.get(),
+        });
+        RIRValueId out_id;
+        if (inst->lookup.precedes_store) {
+          out_id = analyser->builder.buildSetVariant(ptr_inst->id, field_index,
+                                                     result_type);
+        } else {
+          out_id = analyser->builder.buildGetVariant(ptr_inst->id, field_index,
+                                                     result_type);
+        }
+        return UIRResolved{
+            .kind = UIRResolvedKind::Inst,
+            .inst = out_id,
+        };
+      }
+    }
   }
 
   if (sub_type.isSome()) {

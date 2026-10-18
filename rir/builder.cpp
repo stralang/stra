@@ -117,6 +117,20 @@ RIRValueId RIRBuilder::buildFieldAt(RIRValueId ptr, size_t index,
   return this->buildInst(inst);
 }
 
+RIRValueId RIRBuilder::buildGetVariant(RIRValueId ptr, size_t index,
+                                       RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::GetVariant, .result = result};
+  inst.field_at = {.ptr = ptr, .index = index};
+  return this->buildInst(inst);
+}
+
+RIRValueId RIRBuilder::buildSetVariant(RIRValueId ptr, size_t index,
+                                       RIRTypeId result) {
+  RIRValue inst = {.kind = RIRValueKind::SetVariant, .result = result};
+  inst.field_at = {.ptr = ptr, .index = index};
+  return this->buildInst(inst);
+}
+
 RIRValueId RIRBuilder::buildAggregate(RIRTypeId aggregate_type,
                                       Slice<RIRValueId> values) {
   RIRValue inst = {
