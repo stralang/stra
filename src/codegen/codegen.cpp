@@ -140,6 +140,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     RIRType *ptr_type = codegen->rir_context->getType(slice_inst->result);
     RIRType *slice_type = codegen->rir_context->getType(ptr_type->child);
 
+    LLVMValueRef length = nullptr;
     LLVMValueRef ptr = slice;
     LLVMTypeRef type = typeToLLVM(codegen, slice_type->slice.child);
 
@@ -148,14 +149,24 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
     if (slice_type->slice.length > 0) {
       // Array (compile-time length)
+      length = LLVMConstInt(
+          LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          slice_type->slice.length, false);
       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id), slice,
                           indices, 1, "");
       LLVMSetIsInBounds(ptr, true);
       in_bounds = true;
     } else if (slice_type->slice.length == 0) {
       // Slice (runtime length)
-      indices[1] = indices[0];
+      indices[1] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 1, false);
+      length = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id),
+                             slice, indices, 2, "");
+      length = LLVMBuildLoad2(
+          builder, LLVMIntTypeInContext(codegen->ctx, codegen->pointer_size),
+          length, "");
 
+      // Get Pointer
+      indices[1] = indices[0];
       ptr = LLVMBuildGEP2(builder, typeToLLVM(codegen, slice_type->id), slice,
                           indices, 2, "");
       LLVMSetIsInBounds(ptr, true);
@@ -169,7 +180,30 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
 
     indices[0] = getReference(codegen, inst->index.index);
 
-    // Runtime length check is handled by UIR
+    // Runtime length check
+    if (length != nullptr) {
+      // Create trap and success blocks
+      LLVMValueRef parent_func =
+          LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+
+      LLVMBasicBlockRef trap_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "trap_block");
+      LLVMBasicBlockRef success_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "success_block");
+
+      // Compare
+      LLVMValueRef comparison =
+          LLVMBuildICmp(builder, LLVMIntULT, indices[0], length, "");
+      LLVMBuildCondBr(builder, comparison, success_block, trap_block);
+
+      // Setup trap
+      LLVMPositionBuilderAtEnd(builder, trap_block);
+      buildTrap(codegen, builder);
+      LLVMBuildUnreachable(builder);
+
+      // Set block
+      LLVMPositionBuilderAtEnd(builder, success_block);
+    }
 
     // Index
     LLVMValueRef elem_ptr = LLVMBuildGEP2(builder, type, ptr, indices, 1, "");
@@ -187,7 +221,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     RIRType *ptr_type = codegen->rir_context->getType(ptr_inst->result);
     RIRType *slice_type = codegen->rir_context->getType(ptr_type->child);
 
-    LLVMValueRef src_length;
+    LLVMValueRef src_length = nullptr;
     LLVMValueRef ptr = slice;
     LLVMValueRef indices[2];
     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
@@ -226,7 +260,39 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
 
     indices[0] = offset;
 
-    // TODO: Bounds checking
+    // Runtime length check
+    if (length != nullptr) {
+      // Create trap and success blocks
+      LLVMValueRef parent_func =
+          LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+
+      LLVMBasicBlockRef trap_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "trap_block");
+      LLVMBasicBlockRef success_block = LLVMAppendBasicBlockInContext(
+          codegen->ctx, parent_func, "success_block");
+
+      // Compare
+      LLVMValueRef off_comparison =
+          LLVMBuildICmp(builder, LLVMIntULT, offset, src_length, "");
+
+      LLVMValueRef end_idx = LLVMBuildAdd(builder, offset, length, "");
+      end_idx = LLVMBuildSub(builder, end_idx,
+                             LLVMConstInt(LLVMTypeOf(end_idx), 1, false), "");
+      LLVMValueRef len_comparison =
+          LLVMBuildICmp(builder, LLVMIntULT, end_idx, src_length, "");
+
+      LLVMValueRef comparison =
+          LLVMBuildAnd(builder, off_comparison, len_comparison, "");
+      LLVMBuildCondBr(builder, comparison, success_block, trap_block);
+
+      // Setup trap
+      LLVMPositionBuilderAtEnd(builder, trap_block);
+      buildTrap(codegen, builder);
+      LLVMBuildUnreachable(builder);
+
+      // Set block
+      LLVMPositionBuilderAtEnd(builder, success_block);
+    }
 
     // Create
     LLVMValueRef elem_ptr =
