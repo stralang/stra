@@ -1,11 +1,145 @@
+#include "debug.hpp"
 #include "define.hpp"
 #include "rir/constant.hpp"
+#include "rir/debug.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include "uir/analysis/analysis.hpp"
 #include "uir/literal.hpp"
+#include "uir/uir.hpp"
+
+void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
+  UIRValue *lhs_inst = analyser->ctx->getInst(inst->binop.lhs);
+  UIRValue *rhs_inst = analyser->ctx->getInst(inst->binop.rhs);
+  analyse(analyser, lhs_inst);
+  analyse(analyser, rhs_inst);
+
+  UIRResolved *lhs_resolved = analyser->resolved_mapping.get(inst->binop.lhs);
+  UIRResolved *rhs_resolved = analyser->resolved_mapping.get(inst->binop.rhs);
+  checkResolved(lhs_resolved);
+  checkResolved(rhs_resolved);
+  expect(rhs_resolved->kind == UIRResolvedKind::Literal &&
+             rhs_resolved->literal.data.kind == UIRRawDataKind::TypeId,
+         inst->source_location, "Cannot cast to non-type");
+
+  // Execute comptime
+  if (lhs_resolved->kind == UIRResolvedKind::Literal) {
+    UIRLiteral lit = analyser->comptime_state.execute(inst);
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
+    return;
+  }
+
+  // Get operand instructions
+  RIRValue *lhs;
+  RIRType *lhs_type;
+  if (lhs_resolved->kind == UIRResolvedKind::Inst) {
+    lhs = analyser->rir_ctx->getInst(lhs_resolved->inst);
+    lhs_type = analyser->rir_ctx->getType(lhs->result);
+  }
+
+  // Casting
+  expect(lhs_type->kind != RIRTypeKind::TypeId, lhs_inst->source_location,
+         "LHS must not be a type");
+
+  // `As` cast restrictions
+  if (inst->binop.opcode == UIROpcode::Bitcast) {
+    RIRValueId out_id = analyser->builder.buildCast(
+        lhs->id, rhs_resolved->literal.data._typeid, true);
+    analyser->resolved_mapping.insert(
+        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    return;
+  }
+
+  RIRType *src_type = lhs_type;
+  RIRType *dst_type =
+      analyser->rir_ctx->getType(rhs_resolved->literal.data._typeid);
+  bool allowed = false;
+
+  if (src_type->kind == RIRTypeKind::Bool) {
+    allowed = (dst_type->kind == RIRTypeKind::Bool ||
+               dst_type->kind == RIRTypeKind::Integer ||
+               dst_type->kind == RIRTypeKind::Float);
+  } else if (src_type->kind == RIRTypeKind::Integer) {
+    allowed = dst_type->kind == RIRTypeKind::Integer ||
+              dst_type->kind == RIRTypeKind::Float ||
+              dst_type->kind == RIRTypeKind::Pointer;
+  } else if (src_type->kind == RIRTypeKind::Float) {
+    allowed = dst_type->kind == RIRTypeKind::Integer ||
+              dst_type->kind == RIRTypeKind::Float;
+  } else if (src_type->kind == RIRTypeKind::Pointer) {
+    if (dst_type->kind == RIRTypeKind::Integer &&
+        !dst_type->integer.is_signed && dst_type->integer.bits == -1) {
+      allowed = true;
+    } else if (dst_type->kind == RIRTypeKind::Slice &&
+               dst_type->slice.length == -1 &&
+               dst_type->slice.child == src_type->slice.child) {
+      allowed = true; // Pointer to Pointer-Slice
+    } else if (dst_type->kind == RIRTypeKind::Slice &&
+               dst_type->slice.length == 0) {
+      RIRType *ptr_child = analyser->ctx->getType(src_type->child);
+      if (ptr_child->kind == RIRTypeKind::Slice &&
+          ptr_child->slice.length > 0) {
+        RIRType *slice_elem = analyser->ctx->getType(ptr_child->slice.child);
+        expect(slice_elem->compare(analyser->rir_ctx->types,
+                                   dst_type->slice.child),
+               inst->source_location,
+               "Cannot cast array to slice with different element type");
+
+        RIRTypeId usize_type = analyser->ctx->types->push(
+            {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
+        RIRValueId offset = analyser->builder.buildConstant(
+            usize_type, {.kind = RIRConstantKind::Integer, .integer = 0});
+        RIRValueId length = analyser->builder.buildConstant(
+            usize_type, {.kind = RIRConstantKind::Integer,
+                         .integer = ptr_child->slice.length});
+
+        RIRValueId out_id = analyser->builder.buildRange(
+            lhs->id, offset, length, dst_type->slice.child);
+        analyser->resolved_mapping.insert(
+            inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+        return;
+      }
+    }
+  } else if (src_type->kind == RIRTypeKind::Slice &&
+             dst_type->kind == RIRTypeKind::Integer) {
+    // Pointer-Slice to usize
+    allowed = src_type->slice.length == -1 && !dst_type->integer.is_signed &&
+              dst_type->integer.bits == -1;
+  } else if (src_type->kind == RIRTypeKind::Slice &&
+             dst_type->kind == RIRTypeKind::Pointer) {
+    // Pointer-Slice to Pointer
+    allowed = src_type->slice.length == -1 &&
+              src_type->slice.child == dst_type->child;
+  } else if (src_type->kind == RIRTypeKind::Slice &&
+             dst_type->kind == RIRTypeKind::Slice) {
+    if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
+      allowed = true; // No-Op
+    }
+
+    RIRType *src_elem_type = analyser->rir_ctx->getType(src_type->slice.child);
+    allowed &=
+        src_elem_type->compare(analyser->rir_ctx->types, dst_type->slice.child);
+  } else if (src_type->kind == RIRTypeKind::Enum) {
+    allowed = dst_type->kind == RIRTypeKind::Integer;
+  }
+
+  expect(allowed, inst->source_location,
+         "Cannot `as` cast `" << src_type << "` to `" << dst_type << "`");
+
+  RIRValueId out_id = analyser->builder.buildCast(
+      lhs->id, rhs_resolved->literal.data._typeid, false);
+  analyser->resolved_mapping.insert(
+      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+}
 
 void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
+  if (inst->binop.opcode == UIROpcode::As ||
+      inst->binop.opcode == UIROpcode::Bitcast) {
+    analyseCast(analyser, inst);
+    return;
+  }
+
   UIRValue *lhs_inst = analyser->ctx->getInst(inst->binop.lhs);
   UIRValue *rhs_inst = analyser->ctx->getInst(inst->binop.rhs);
   analyse(analyser, lhs_inst);
@@ -51,91 +185,6 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
     RIRValueId lhs_id = analyser->builder.buildConstant(rhs->result, rir_const);
     lhs = analyser->rir_ctx->getInst(lhs_id);
   } else if (rhs_resolved->kind == UIRResolvedKind::Literal) {
-    if (rhs_resolved->literal.data.kind == UIRRawDataKind::TypeId) {
-      // Casting
-      switch (inst->binop.opcode) {
-      case UIROpcode::As:
-      case UIROpcode::Bitcast: {
-        expect(lhs_type->kind != RIRTypeKind::TypeId, lhs_inst->source_location,
-               "LHS must not be a type");
-        expect(rhs_resolved->literal.data.kind == UIRRawDataKind::TypeId,
-               rhs_inst->source_location, "RHS must be a type");
-
-        // `As` cast restrictions
-        if (inst->binop.opcode == UIROpcode::Bitcast) {
-          RIRValueId out_id = analyser->builder.buildCast(
-              lhs->id, rhs_resolved->literal.data._typeid, true);
-          analyser->resolved_mapping.insert(
-              inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
-          break;
-        }
-
-        RIRType *src_type = lhs_type;
-        RIRType *dst_type =
-            analyser->rir_ctx->getType(rhs_resolved->literal.data._typeid);
-        bool allowed = false;
-
-        if (src_type->kind == RIRTypeKind::Bool) {
-          allowed = (dst_type->kind == RIRTypeKind::Bool ||
-                     dst_type->kind == RIRTypeKind::Integer ||
-                     dst_type->kind == RIRTypeKind::Float);
-        } else if (src_type->kind == RIRTypeKind::Integer) {
-          allowed = dst_type->kind == RIRTypeKind::Integer ||
-                    dst_type->kind == RIRTypeKind::Float ||
-                    dst_type->kind == RIRTypeKind::Pointer;
-        } else if (src_type->kind == RIRTypeKind::Float) {
-          allowed = dst_type->kind == RIRTypeKind::Integer ||
-                    dst_type->kind == RIRTypeKind::Float;
-        } else if (src_type->kind == RIRTypeKind::Pointer) {
-          if (dst_type->kind == RIRTypeKind::Integer &&
-              !dst_type->integer.is_signed && dst_type->integer.bits == -1) {
-            allowed = true;
-          } else if (dst_type->kind == RIRTypeKind::Slice &&
-                     dst_type->slice.length == -1 &&
-                     dst_type->slice.child == src_type->slice.child) {
-            allowed = true; // Pointer to Pointer-Slice
-          }
-        } else if (src_type->kind == RIRTypeKind::Slice &&
-                   dst_type->kind == RIRTypeKind::Integer) {
-          // Pointer-Slice to usize
-          allowed = src_type->slice.length == -1 &&
-                    !dst_type->integer.is_signed &&
-                    dst_type->integer.bits == -1;
-        } else if (src_type->kind == RIRTypeKind::Slice &&
-                   dst_type->kind == RIRTypeKind::Pointer) {
-          // Pointer-Slice to Pointer
-          allowed = src_type->slice.length == -1 &&
-                    src_type->slice.child == dst_type->child;
-        } else if (src_type->kind == RIRTypeKind::Slice &&
-                   dst_type->kind == RIRTypeKind::Slice) {
-          if (src_type->slice.length == 0 && dst_type->slice.length == 0) {
-            allowed = true; // No-Op
-          } else if (src_type->slice.length > 0 &&
-                     dst_type->slice.length == 0) {
-            allowed = true; // Compile-time to Runtime
-          }
-
-          RIRType *src_elem_type =
-              analyser->rir_ctx->getType(src_type->slice.child);
-          allowed &= src_elem_type->compare(analyser->rir_ctx->types,
-                                            dst_type->slice.child);
-        } else if (src_type->kind == RIRTypeKind::Enum) {
-          allowed = dst_type->kind == RIRTypeKind::Integer;
-        }
-
-        expect(allowed, inst->source_location,
-               "Cannot `as` cast `" << src_type << "` to `" << dst_type << "`");
-
-        RIRValueId out_id = analyser->builder.buildCast(
-            lhs->id, rhs_resolved->literal.data._typeid, false);
-        analyser->resolved_mapping.insert(
-            inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
-        break;
-      }
-      }
-      return;
-    }
-
     // Make literal typed
     expect(compareRawDataToType(analyser, rhs_resolved->literal.data.kind,
                                 lhs->result),
