@@ -392,6 +392,13 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
 
     return genImport(uirgen, node, scope);
   }
+  case NodeKind::Pointer: {
+    UIRValue *element = gen(uirgen, node->pointer.element, scope);
+    UIRValue *out = uirgen->builder.buildPointer(
+        element->id, node->pointer.is_const, {.ptr = nullptr});
+    out->source_location = node->location;
+    return out;
+  }
   case NodeKind::Slice: {
     UIRValue *element = gen(uirgen, node->slice.type, scope);
     Option<UIRValueId> length_id;
@@ -400,8 +407,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
 
     UIRValue *out = uirgen->builder.buildSlice(
-        element->id, length_id, node->slice.is_pointer, false,
-        {.ptr = nullptr}); // FIXME: Const
+        element->id, length_id, node->slice.is_pointer, node->slice.is_const,
+        {.ptr = nullptr});
     out->source_location = node->location;
     return out;
   }

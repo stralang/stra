@@ -350,14 +350,28 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
   switch (parser->cur_token.kind) {
   case TokenKind::Operator: {
     // Parse Unary
-    out->kind = NodeKind::UnaryOperator;
-    out->unary_operator.opcode = (UnaryOperator)parser->cur_token._operator;
+    if (parser->cur_token._operator == Operator::Unary_Pointer) {
+      out->kind = NodeKind::Pointer;
 
-    expectEOF(parser->nextToken());
-    out->unary_operator.child =
-        parseExpr(parser, Precedence::Unary, allow_init);
-    expect(out->unary_operator.child != nullptr, out->location,
-           "Failed to parse child expression");
+      expectEOF(parser->nextToken());
+      out->pointer.is_const = parser->cur_token.kind == TokenKind::Const;
+      if (out->pointer.is_const) {
+        expectEOF(parser->nextToken());
+      }
+
+      out->pointer.element = parseExpr(parser, Precedence::Unary, allow_init);
+      expect(out->pointer.element != nullptr, out->location,
+             "Failed to parse child expression");
+    } else {
+      out->kind = NodeKind::UnaryOperator;
+      out->unary_operator.opcode = (UnaryOperator)parser->cur_token._operator;
+
+      expectEOF(parser->nextToken());
+      out->unary_operator.child =
+          parseExpr(parser, Precedence::Unary, allow_init);
+      expect(out->unary_operator.child != nullptr, out->location,
+             "Failed to parse child expression");
+    }
     break;
   }
   case TokenKind::Name: {
@@ -527,9 +541,8 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
     break;
   }
   case TokenKind::Const: {
-    out->kind = NodeKind::Const;
     expectEOF(parser->nextToken());
-    out->child = parseExpr(parser, Precedence::MemberAccess, allow_init);
+    expect(false, parser->cur_token.location, "Cannot parse floating const");
     break;
   }
   case TokenKind::ArrayBegin: {
@@ -549,6 +562,11 @@ Node *parseExpr(ASTParser *parser, Precedence min_precedence, bool allow_init) {
 
     expectToken(TokenKind::ArrayEnd);
     expectEOF(parser->nextToken());
+
+    out->slice.is_const = parser->cur_token.kind == TokenKind::Const;
+    if (out->slice.is_const) {
+      expectEOF(parser->nextToken());
+    }
 
     out->slice.type = parseExpr(parser, Precedence::MemberAccess, allow_init);
     break;
@@ -615,6 +633,11 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
   expectEOF(parser->nextToken());
   if (parser->cur_token.kind != TokenKind::TypeSeperator &&
       parser->cur_token.kind != TokenKind::Eq) {
+    if (parser->cur_token.kind == TokenKind::Const) {
+      out->field.definition = true;
+      expectEOF(parser->nextToken());
+    }
+
     out->field.type =
         parseExpr(parser, (Precedence)((int32_t)Precedence::Assign + 1), false);
     expect(out->field.type != nullptr, out->location,
@@ -622,7 +645,7 @@ Node *parseField(ASTParser *parser, Node *name_prealloc) {
   }
 
   // Parse Initial
-  out->field.definition = parser->cur_token.kind == TokenKind::TypeSeperator;
+  out->field.definition |= parser->cur_token.kind == TokenKind::TypeSeperator;
   if (out->field.definition || parser->cur_token.kind == TokenKind::Eq) {
     expectEOF(parser->nextToken());
 

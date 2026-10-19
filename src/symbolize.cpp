@@ -120,8 +120,8 @@ void symbolize(Allocator *allocator, Node *node, Symbol *parent) {
   case NodeKind::Import: {
     break;
   }
-  case NodeKind::Const: {
-    symbolize(allocator, node->child, parent);
+  case NodeKind::Pointer: {
+    symbolize(allocator, node->pointer.element, parent);
     break;
   }
   case NodeKind::Slice: {

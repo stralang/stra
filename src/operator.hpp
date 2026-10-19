@@ -34,8 +34,7 @@ enum class UnaryOperator : int32_t {
   Logical_Not = (int32_t)Operator::Unary_Logical_Not,
   Bitwise_Not = (int32_t)Operator::Bitwise_Xor,
   Reference = (int32_t)Operator::Bitwise_And,
-  Pointer = (int32_t)Operator::Unary_Pointer,
-  Dereference,
+  Dereference = (int32_t)Operator::Unary_Pointer,
 };
 
 enum class Precedence : int32_t {

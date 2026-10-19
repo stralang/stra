@@ -53,8 +53,14 @@ struct NodeImport {
   Symbol *scope;
 };
 
+struct NodePointer {
+  bool is_const;
+  Node *element;
+};
+
 struct NodeSlice {
   bool is_pointer;
+  bool is_const;
   Node *length;
   Node *type;
 };
@@ -156,7 +162,7 @@ enum class NodeKind {
   Namespace,
   Member,
   Import,
-  Const,
+  Pointer,
   Slice,
   Assignment,
   UnaryOperator,
@@ -205,6 +211,7 @@ struct Node {
     NodeUnion _union;
     NodeMember member;
     NodeImport import;
+    NodePointer pointer;
     NodeSlice slice;
     NodeUnaryOperator unary_operator;
     NodeOperator _operator;

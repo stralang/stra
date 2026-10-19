@@ -97,9 +97,6 @@ std::ostream &operator<<(std::ostream &os, const UnaryOperator &op) {
   case UnaryOperator::Reference: {
     return os << "Reference";
   }
-  case UnaryOperator::Pointer: {
-    return os << "Pointer";
-  }
   case UnaryOperator::Dereference: {
     return os << "Dereference";
   }
@@ -341,8 +338,8 @@ std::ostream &operator<<(std::ostream &os, const NodeKind &kind) {
   case NodeKind::Import: {
     return os << "Import";
   }
-  case NodeKind::Const: {
-    return os << "Const";
+  case NodeKind::Pointer: {
+    return os << "Pointer";
   }
   case NodeKind::Slice: {
     return os << "Slice";
@@ -542,9 +539,12 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
     os << " \"" << node->import.path << "\"\n";
     break;
   }
-  case NodeKind::Const: {
+  case NodeKind::Pointer: {
     os << '\n';
-    print_node_impl(os, node->child, depth + 1, "Child: ");
+    if (node->pointer.is_const) {
+      os << "Constant ";
+    }
+    print_node_impl(os, node->pointer.element, depth + 1, "Element: ");
     break;
   }
   case NodeKind::Slice: {
@@ -555,6 +555,9 @@ void print_node_impl(std::ostream &os, const Node *node, size_t depth,
 
     if (node->slice.length != nullptr) {
       print_node_impl(os, node->slice.length, depth + 1, "Length: ");
+    }
+    if (node->slice.is_const) {
+      os << "Constant ";
     }
     print_node_impl(os, node->slice.type, depth + 1, "Type: ");
     break;

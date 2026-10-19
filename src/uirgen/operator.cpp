@@ -59,11 +59,6 @@ UIRValue *genUnary(UIRGen *uirgen, Node *node, Symbol *scope) {
     out = uirgen->builder.buildLoad(child_value);
     break;
   }
-  case UnaryOperator::Pointer: {
-    out = uirgen->builder.buildPointer(child_value, false,
-                                       {.ptr = nullptr}); // FIXME: Const
-    break;
-  }
   }
 
   if (out != nullptr) {
