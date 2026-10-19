@@ -107,10 +107,8 @@ void genLoop(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
 
     UIRValue *field = uirgen->builder.buildLocalVariable(
-        type->id, false, node->_for.conditional->in.name);
+        type->id, initial->id, false, node->_for.conditional->in.name);
     field->source_location = node->_for.conditional->location;
-
-    uirgen->builder.buildStore(initial->id, field->id);
     uirgen->node_to_value.insert(node->_for.conditional, field);
   }
 

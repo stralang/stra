@@ -53,30 +53,38 @@ void execute(UIRComptime *state, UIRValue *inst) {
     UIRLiteral *value_lit = frame->add({});
     value_lit->lit_type = ty_lit.data._typeid;
 
-    RIRType *real_type = state->analyser->rir_ctx->getType(ty_lit.data._typeid);
-    switch (real_type->kind) {
-    case RIRTypeKind::Bool: {
-      value_lit->data.kind = UIRRawDataKind::Bool;
-      break;
+    if (inst->local_variable.initial.isSome()) {
+      UIRLiteral lit =
+          state->getValue(frame, inst->local_variable.initial.get());
+      value_lit->data = lit.data;
+      // FIXME: Check initial type against type
+    } else {
+      RIRType *real_type =
+          state->analyser->rir_ctx->getType(ty_lit.data._typeid);
+      switch (real_type->kind) {
+      case RIRTypeKind::Bool: {
+        value_lit->data.kind = UIRRawDataKind::Bool;
+        break;
+      }
+      case RIRTypeKind::Integer: {
+        value_lit->data.kind = UIRRawDataKind::Int;
+        break;
+      }
+      case RIRTypeKind::Float: {
+        value_lit->data.kind = UIRRawDataKind::Float;
+        break;
+      }
+      case RIRTypeKind::Pointer: {
+        value_lit->data.kind = UIRRawDataKind::Pointer;
+        break;
+      }
+      case RIRTypeKind::Slice: {
+        value_lit->data.kind = UIRRawDataKind::Slice;
+        break;
+      }
+      }
+      // TODO: Default
     }
-    case RIRTypeKind::Integer: {
-      value_lit->data.kind = UIRRawDataKind::Int;
-      break;
-    }
-    case RIRTypeKind::Float: {
-      value_lit->data.kind = UIRRawDataKind::Float;
-      break;
-    }
-    case RIRTypeKind::Pointer: {
-      value_lit->data.kind = UIRRawDataKind::Pointer;
-      break;
-    }
-    case RIRTypeKind::Slice: {
-      value_lit->data.kind = UIRRawDataKind::Slice;
-      break;
-    }
-    }
-    // TODO: Default
 
     // Create pointer
     UIRLiteral *lit_out = frame->add(inst->id);

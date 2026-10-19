@@ -60,10 +60,11 @@ UIRValue *UIRBuilder::insert(UIRValue inst, bool global, String name) {
   return ptr_inst;
 }
 
-UIRValue *UIRBuilder::buildLocalVariable(UIRValueId type, bool is_const,
-                                         String name) {
+UIRValue *UIRBuilder::buildLocalVariable(UIRValueId type,
+                                         Option<UIRValueId> initial,
+                                         bool is_const, String name) {
   UIRValue inst = {.kind = UIRValueKind::LocalVariable};
-  inst.local_variable = {type, is_const};
+  inst.local_variable = {type, initial, is_const};
   return this->insert(inst, false, name);
 }
 

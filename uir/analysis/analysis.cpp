@@ -93,6 +93,27 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
         type_literal.data._typeid, inst->local_variable.is_const);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+
+    // Initial
+    if (inst->local_variable.initial.isSome()) {
+      UIRValueId initial = inst->local_variable.initial.get();
+      analyse(analyser, analyser->ctx->getInst(initial));
+
+      UIRResolved *initial_resolved = analyser->resolved_mapping.get(initial);
+      checkResolved(initial_resolved);
+
+      RIRValueId initial_id = getInstFromResolved(analyser, initial_resolved,
+                                                  type_literal.data._typeid);
+
+      // Check Types
+      RIRType *var_type = analyser->rir_ctx->getType(type_literal.data._typeid);
+      RIRValue *initial_inst = analyser->rir_ctx->getInst(initial_id);
+      expect(var_type->compare(analyser->rir_ctx->types, initial_inst->result),
+             inst->source_location, "Cannot assign non-matching types");
+
+      // Build store instruction
+      analyser->builder.buildStore(out_id, initial_id);
+    }
     break;
   }
   case UIRValueKind::Load: {

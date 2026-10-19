@@ -172,6 +172,7 @@ struct UIRValue {
   union {
     struct {
       UIRValueId type;
+      Option<UIRValueId> initial;
       bool is_const;
       UIRAttributes attributes;
     } local_variable;

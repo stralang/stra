@@ -81,9 +81,8 @@ UIRValue *addr(UIRGen *uirgen, Node *node, Symbol *scope) {
           uirgen->builder.buildRange(ptr->id, offset->id, length->id);
 
       UIRValue *ty = uirgen->builder.buildTypeOf(new_slice->id);
-      out = uirgen->builder.buildLocalVariable(ty->id, true,
+      out = uirgen->builder.buildLocalVariable(ty->id, new_slice->id, true,
                                                str("tmp_uir_intern"));
-      uirgen->builder.buildStore(new_slice->id, out->id);
     } else {
       UIRValue *index = gen(uirgen, node->index.index, scope);
       out = uirgen->builder.buildIndex(ptr->id, index->id);
@@ -232,27 +231,24 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     // Generate field
     UIRValue *field = nullptr;
     if (scope->location_aware) {
-      UIRValue *initial = nullptr;
+      Option<UIRValueId> initial = {};
       UIRValue *type = nullptr;
       if (node->field.initial != nullptr) {
-        initial = gen(uirgen, node->field.initial, field_symbol);
+        initial = gen(uirgen, node->field.initial, field_symbol)->id;
       }
       if (node->field.type != nullptr) {
         type = genComptime(uirgen, node->field.type, field_symbol);
       } else {
-        type = uirgen->builder.buildTypeOf(initial->id, {.ptr = nullptr});
+        expect(initial.isSome(), node->location,
+               "Cannot create local variable without type or initial");
+        type = uirgen->builder.buildTypeOf(initial.get(), {.ptr = nullptr});
       }
 
       field = uirgen->builder.buildLocalVariable(
-          type->id, node->field.definition, node->field.name); // FIXME: Const
+          type->id, initial, node->field.definition,
+          node->field.name); // FIXME: Const
       field->local_variable.attributes = attributes;
       uirgen->node_to_value.insert(node, field);
-
-      if (initial != nullptr) {
-        UIRValue *store_inst =
-            uirgen->builder.buildStore(initial->id, field->id);
-        store_inst->source_location = node->location;
-      }
     } else if (node->field.initial != nullptr &&
                (node->field.initial->kind == NodeKind::Function ||
                 node->field.initial->kind == NodeKind::Struct ||

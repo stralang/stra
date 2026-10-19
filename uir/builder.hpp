@@ -17,7 +17,8 @@ struct UIRBuilder {
   UIRValue *insert(UIRValue inst, bool global = false,
                    String name = {.ptr = nullptr});
 
-  UIRValue *buildLocalVariable(UIRValueId type, bool is_const, String name);
+  UIRValue *buildLocalVariable(UIRValueId type, Option<UIRValueId> initial,
+                               bool is_const, String name);
   UIRValue *buildLoad(UIRValueId ptr, String name = {.ptr = nullptr});
   UIRValue *buildStore(UIRValueId value, UIRValueId ptr);
 
