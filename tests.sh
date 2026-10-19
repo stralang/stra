@@ -1,3 +1,7 @@
+set -e
+
+stra_path=$1
+
 fail_count=0
 total_count=0
 
@@ -12,10 +16,22 @@ emitResult() {
 
 checkExitCode() {
   ((total_count++))
-  build/stra tests/$1.stra --output test.out --run &>/dev/null
+  "$stra_path" tests/$1.stra --output build_test/test.out --run >/dev/null 2>&1
   emitResult $1 $2 $?
 }
 
+# Build stra
+mkdir build_test
+if [[ -z "$stra_path" ]]; then
+  cd build_test
+  cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON ..
+  make -j$(nproc)
+  cd ..
+  stra_path="build_test/stra"
+fi
+set +e
+
+# Run tests
 checkExitCode if 0
 checkExitCode for 0
 checkExitCode switch 0
@@ -45,7 +61,14 @@ checkExitCode comptime/comptime 0
 checkExitCode comptime/builtin_global 0
 checkExitCode comptime/recursion 0
 
-rm test.out
+# Cleanup
+set -e
+rm -r build_test
+
+# Print result
 if [ $fail_count -ne 0 ]; then
   echo -e "\e[0;31m$fail_count/$total_count Test(s) failed\e[0m"
+  exit $fail_count
 fi
+
+exit 0
