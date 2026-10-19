@@ -47,8 +47,11 @@ void analyseUnary(UIRAnalyser *analyser, UIRValue *inst);
 void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst);
 void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst);
 void analyseCall(UIRAnalyser *analyser, UIRValue *inst);
-void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst);
 void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst);
+
+void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst);
+void analyseFunction(UIRAnalyser *analyser, UIRValue *inst);
+String getLinkName(UIRAnalyser *analyser, UIRValue *inst);
 
 RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
                                Option<RIRTypeId> default_type);

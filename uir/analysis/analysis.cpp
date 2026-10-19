@@ -585,9 +585,12 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     break;
   }
 
-  case UIRValueKind::GlobalVariable:
-  case UIRValueKind::Function: {
+  case UIRValueKind::GlobalVariable: {
     analyseGlobal(analyser, inst);
+    break;
+  }
+  case UIRValueKind::Function: {
+    analyseFunction(analyser, inst);
     break;
   }
   case UIRValueKind::Literal: {

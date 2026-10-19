@@ -10,6 +10,7 @@ add_library(uir STATIC
   analysis/lookup.cpp
   analysis/call.cpp
   analysis/global.cpp
+  analysis/function.cpp
   analysis/aggregate.cpp
   analysis/types.cpp
   analysis/builtin.cpp
