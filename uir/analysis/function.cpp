@@ -6,7 +6,7 @@ void analyseFunction(UIRAnalyser *analyser, UIRValue *inst) {
   String link_name = getLinkName(analyser, inst);
 
   expect(inst->function.attributes.builtin.isAbsent() ||
-             inst->function.blocks.length == 0,
+             inst->function.undefined,
          inst->source_location, "Builtin function must be undefined");
 
   if (inst->function.comptime) {
@@ -24,7 +24,9 @@ void analyseFunction(UIRAnalyser *analyser, UIRValue *inst) {
       inst->id, {.kind = UIRResolvedKind::Inst, .inst = fn_inst_id});
 
   // Analyse Body
-  if (inst->function.blocks.length > 0) {
+  if (inst->function.undefined) {
+    // TODO: Execute body to compute type
+  } else if (inst->function.blocks.length > 0) {
     for (size_t i = 0; i < inst->function.blocks.length; i++) {
       UIRBlockId uir_block = inst->function.blocks.getUnchecked(i);
       RIRBlockId rir_block = analyser->builder.appendBlock(fn_inst_id);

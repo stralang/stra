@@ -332,7 +332,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
 
     // Body
     value->function.undefined = node->function.undefined;
-    if (node->function.body != nullptr) {
+    if (node->function.undefined || node->function.body != nullptr) {
       value->function.blocks.init(uirgen->allocator, 32);
       UIRBlock *entry_block =
           uirgen->builder.appendBlock(value->id, str("entry"));
@@ -351,13 +351,17 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
         uirgen->node_to_value.insert(arg, uir_arg);
       }
 
-      // Body
-      gen(uirgen, node->function.body, fn_symbol);
+      // TODO: Return Type
 
-      // Inject void return
-      if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
-        injectDefer(uirgen, fn_symbol, false);
-        uirgen->builder.buildReturn({});
+      if (node->function.body != nullptr) {
+        // Body
+        gen(uirgen, node->function.body, fn_symbol);
+
+        // Inject void return
+        if (!uirgen->builder.block.get()->hasTerminator(uirgen->ctx)) {
+          injectDefer(uirgen, fn_symbol, false);
+          uirgen->builder.buildReturn({});
+        }
       }
 
       // End

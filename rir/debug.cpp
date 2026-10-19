@@ -283,13 +283,17 @@ std::ostream &printInst(std::ostream &os, RIRContext *ctx, RIRValue *inst) {
     break;
   }
   case RIRValueKind::Function: {
-    os << "fn \"" << inst->function.link_name << "\" #" << inst->function.type
-       << " {\n";
-    for (size_t i = 0; i < inst->function.blocks.length; i++) {
-      RIRBlockId id = inst->function.blocks.getUnchecked(i);
-      printBlock(os, ctx, ctx->getBlock(id));
+    os << "fn \"" << inst->function.link_name << "\" #" << inst->function.type;
+    if (inst->function.undefined) {
+      os << " ---";
+    } else {
+      os << " {\n";
+      for (size_t i = 0; i < inst->function.blocks.length; i++) {
+        RIRBlockId id = inst->function.blocks.getUnchecked(i);
+        printBlock(os, ctx, ctx->getBlock(id));
+      }
+      os << "}";
     }
-    os << "}";
     break;
   }
 

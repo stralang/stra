@@ -324,6 +324,9 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
       os << inst->function.parameter_types.ptr[i];
     }
     os << ") " << inst->function.return_type;
+    if (inst->function.undefined) {
+      os << " ---";
+    }
     if (inst->function.blocks.data.ptr != nullptr) {
       os << " {\n";
       for (size_t i = 0; i < inst->function.blocks.length; i++) {
