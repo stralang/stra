@@ -167,7 +167,10 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     // Check types
     resolved_value_inst = autoCast(analyser, resolved_value_inst,
                                    resolved_ptr_type->pointer.child);
-    expect(resolved_ptr_type->pointer.child == resolved_value_inst->result,
+    RIRType *ptr_child_type =
+        analyser->rir_ctx->getType(resolved_ptr_type->pointer.child);
+    expect(ptr_child_type->compare(analyser->rir_ctx->types,
+                                   resolved_value_inst->result),
            inst->source_location, "Cannot assign non-matching types");
 
     // Create Instruction

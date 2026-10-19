@@ -147,13 +147,13 @@ bool RIRType::compare(RIRTypeContext *ctx, RIRTypeId other_id) {
   }
   case RIRTypeKind::Pointer: {
     RIRType *this_child = ctx->getPtr(this->pointer.child);
-    return this->pointer.const_pointee == other->pointer.const_pointee &&
+    return (!other->pointer.const_pointee || this->pointer.const_pointee) &&
            this_child->compare(ctx, other->pointer.child);
   }
   case RIRTypeKind::Slice: {
     RIRType *this_child = ctx->getPtr(this->slice.child);
     return this->slice.length == other->slice.length &&
-           this->slice.const_element == other->slice.const_element &&
+           (!other->slice.const_element || this->slice.const_element) &&
            this_child->compare(ctx, other->slice.child);
   }
   case RIRTypeKind::TypeId: {

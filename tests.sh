@@ -27,6 +27,7 @@ checkExitCode union 0
 checkExitCode namespace 0
 checkExitCode pointer 0
 checkExitCode slice 0
+checkExitCode const 0
 checkExitCode int_cast 0
 checkExitCode float_cast 0
 checkExitCode slice_cast 0

@@ -1,0 +1,9 @@
+main :: fn() i32 {
+  value: i32 = 100;
+  const_value: const i32 = value;
+
+  ptr_const_value: ^const i32 = &value;
+  ptr_const_value_from_const: ^const i32 = &const_value;
+
+  return !(const_value == value && ptr_const_value^ == value && ptr_const_value_from_const^ == value) as i32;
+}
