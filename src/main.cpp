@@ -312,7 +312,8 @@ int main(int argc, const char **argv) {
 
       std::string name_cpp = s.substr(0, idx);
       fs::path path_cpp = s.substr(idx + 1);
-      std::string path_str = fs::canonical(fs::current_path() / path_cpp);
+      std::string path_str =
+          fs::canonical(fs::current_path() / path_cpp).string();
 
       String name = {.len = name_cpp.length()};
       String path = {.len = path_str.length()};
@@ -394,10 +395,10 @@ int main(int argc, const char **argv) {
     fs::path cpp_fullpath = cpp_fullpath_str;
 
     // Get relative path for mangling
-    fs::path cpp_relativepath =
-        makeRelative(cpp_fullpath, relative_root, &package_map);
+    fs::path cpp_relativepath = makeRelative(
+        cpp_fullpath.string(), relative_root.string(), &package_map);
     cpp_relativepath.replace_extension();
-    std::string cpp_filename = cpp_relativepath;
+    std::string cpp_filename = cpp_relativepath.string();
     cpp_filename = replaceAll(cpp_filename, "/", "_");
     cpp_filename = replaceAll(cpp_filename, "\\", "_");
     cpp_filename = replaceAll(cpp_filename, ".", "_");
@@ -462,8 +463,8 @@ int main(int argc, const char **argv) {
       }
 
       std::string cpp_path((const char *)import_path.ptr, import_path.len);
-      std::string fullpath_str =
-          makeAbsolute(cpp_path, cpp_fullpath.parent_path(), &package_map);
+      std::string fullpath_str = makeAbsolute(
+          cpp_path, cpp_fullpath.parent_path().string(), &package_map);
 
       Hasher hasher;
       hasher.hash_raw((uint8_t *)fullpath_str.data(), fullpath_str.length());
@@ -673,7 +674,16 @@ int main(int argc, const char **argv) {
     std::filesystem::path exe_path = "./";
     std::string s((const char *)args.output_path.ptr, args.output_path.len);
     exe_path.append(s);
-    int status = std::system(exe_path.c_str());
-    return WEXITSTATUS(status);
+    int status = std::system(exe_path.string().c_str());
+
+#ifdef _WIN32
+    return status;
+#else
+    if (status == -1) {
+      return status;
+    } else {
+      return WEXITSTATUS(status);
+    }
+#endif
   }
 }

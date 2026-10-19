@@ -56,7 +56,7 @@ std::string makeAbsolute(std::string path, std::string importer,
     path_cpp = path.substr(package_idx + 1);
   }
 
-  return std::filesystem::canonical(root_path / path_cpp);
+  return std::filesystem::canonical(root_path / path_cpp).string();
 }
 
 std::string makeRelative(std::string path, std::string importer,
@@ -70,10 +70,10 @@ std::string makeRelative(std::string path, std::string importer,
     if (path.compare(0, slot->value.len, (const char *)slot->value.ptr) == 0) {
       std::string key((const char *)slot->key.ptr, slot->key.len);
       std::string value((const char *)slot->value.ptr, slot->value.len);
-      std::string s = std::filesystem::relative(path, value);
+      std::string s = std::filesystem::relative(path, value).string();
       return key + ":" + s;
     }
   }
 
-  return std::filesystem::relative(path, importer);
+  return std::filesystem::relative(path, importer).string();
 }
