@@ -48,14 +48,15 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   }
 
   RIRValue *ptr_inst = analyser->rir_ctx->getInst(parent_resolved.inst);
-  RIRType *ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
-  ptr_type = analyser->rir_ctx->getType(ptr_type->child);
+  RIRType *original_ptr_type = analyser->rir_ctx->getType(ptr_inst->result);
+  RIRType *ptr_type =
+      analyser->rir_ctx->getType(original_ptr_type->pointer.child);
 
   if (ptr_type->kind == RIRTypeKind::Pointer) {
     RIRValueId ptr_inst_id =
         analyser->builder.buildLoad(ptr_inst->id, ptr_type->id);
     ptr_inst = analyser->rir_ctx->getInst(ptr_inst_id);
-    ptr_type = analyser->rir_ctx->getType(ptr_type->child);
+    ptr_type = analyser->rir_ctx->getType(ptr_type->pointer.child);
   }
 
   // Search
@@ -63,6 +64,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   UIRScope *definitions = nullptr;
 
   Option<RIRTypeId> sub_type = {};
+  bool const_result = false;
   size_t field_index = 0;
 
   if (ptr_type->kind == RIRTypeKind::Slice) {
@@ -72,12 +74,14 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
           .slice = {.length = -1, .child = ptr_type->slice.child},
       });
       field_index = 0;
+      const_result = true;
     } else if (member->compare("len")) {
       sub_type = analyser->rir_ctx->types->push({
           .kind = RIRTypeKind::Integer,
           .integer = {false, -1},
       });
       field_index = 1;
+      const_result = true;
     }
 
     // Compile-time length
@@ -92,8 +96,10 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
           .data = len_data,
       };
 
-      RIRTypeId result_type = analyser->rir_ctx->types->push(
-          {.kind = RIRTypeKind::Pointer, .child = sub_type.get()});
+      RIRTypeId result_type = analyser->rir_ctx->types->push({
+          .kind = RIRTypeKind::Pointer,
+          .pointer = {sub_type.get(), true},
+      });
       return UIRResolved{
           .kind = UIRResolvedKind::Literal,
           .literal = {.data = result_data, .lit_type = result_type},
@@ -107,6 +113,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
       UIRStruct::Field *field = struct_inst->_struct.fields.ptr + i;
       if (field->name.compare(*member)) {
         sub_type = ptr_type->_struct.fields.ptr[i];
+        const_result = ptr_type->_struct.consts.ptr[i];
         field_index = i;
         break;
       }
@@ -142,10 +149,19 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
       if (sub_type.isSome()) {
         RIRTypeId result_type = analyser->rir_ctx->types->push({
             .kind = RIRTypeKind::Pointer,
-            .child = sub_type.get(),
+            .pointer = {sub_type.get(), false},
         });
         RIRValueId out_id;
         if (inst->lookup.precedes_store) {
+          if (original_ptr_type->pointer.const_pointee) {
+            error(inst->source_location,
+                  "Cannot update tag for constant union");
+
+            Option<UIRResolved> out = UIRResolved{};
+            out.setNone();
+            return out;
+          }
+
           out_id = analyser->builder.buildSetVariant(ptr_inst->id, field_index,
                                                      result_type);
         } else {
@@ -163,7 +179,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   if (sub_type.isSome()) {
     RIRTypeId result_type = analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
-        .child = sub_type.get(),
+        .pointer = {sub_type.get(), const_result},
     });
     RIRValueId out_id =
         analyser->builder.buildFieldAt(ptr_inst->id, field_index, result_type);
@@ -223,8 +239,8 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
     if (result_inst_id.isSome()) {
       RIRValue *result_inst = analyser->rir_ctx->getInst(result_inst_id.get());
       RIRType *result_type = analyser->rir_ctx->getType(result_inst->result);
-      RIRValueId loaded_result =
-          analyser->builder.buildLoad(result_inst->id, result_type->child);
+      RIRValueId loaded_result = analyser->builder.buildLoad(
+          result_inst->id, result_type->pointer.child);
 
       analyser->resolved_mapping.insert(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = loaded_result});
@@ -240,7 +256,8 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
       result_lit.data = *result_lit.data.ptr.data;
       if (result_lit.lit_type.isSome()) {
         result_lit.lit_type =
-            analyser->rir_ctx->getType(result_lit.lit_type.get())->child;
+            analyser->rir_ctx->getType(result_lit.lit_type.get())
+                ->pointer.child;
       }
     }
 

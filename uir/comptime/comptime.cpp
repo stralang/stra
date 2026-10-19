@@ -82,8 +82,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
     UIRLiteral *lit_out = frame->add(inst->id);
     lit_out->lit_type = state->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
-        .child = ty_lit.data._typeid,
-        // TODO: Readd constant types
+        .pointer = {ty_lit.data._typeid, inst->local_variable.is_const},
     });
     lit_out->data.kind = UIRRawDataKind::Pointer;
     lit_out->data.ptr = {.kind = UIRPlaceKind::Raw, .data = &value_lit->data};
@@ -99,7 +98,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
     if (ptr.lit_type.isSome()) {
       RIRType *real_type =
           state->analyser->rir_ctx->getType(ptr.lit_type.get());
-      lit_out->lit_type = real_type->child;
+      lit_out->lit_type = real_type->pointer.child;
     }
 
     if (ptr.data.ptr.kind == UIRPlaceKind::Inst) {
@@ -118,14 +117,12 @@ void execute(UIRComptime *state, UIRValue *inst) {
     UIRLiteral ptr = state->getValue(frame, inst->store.ptr);
     UIRLiteral value = state->getValue(frame, inst->store.value);
 
-    // TODO: Readd constant types
-    // RIRType *ptr_type = state->analyser->rir_ctx->getType(ptr.lit_type);
-    // RIRType *child_type = state->analyser->rir_ctx->getType(ptr_type->child);
-    // if (child_type->is_constant) {
-    //   std::cerr << inst->store.ptr->source_location.line
-    //             << " Cannot store to constant\n";
-    //   std::abort();
-    // }
+    if (ptr.lit_type.isSome()) {
+      RIRType *ptr_type = state->analyser->rir_ctx->getType(ptr.lit_type.get());
+      ctexpect(!ptr_type->pointer.const_pointee, inst->source_location,
+               "Cannot assign to constant");
+    }
+
     // TODO: Compare types
 
     ctexpect(ptr.data.ptr.kind == UIRPlaceKind::Raw, inst->source_location,
@@ -144,8 +141,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
     UIRLiteral *lit_out = frame->add(inst->id);
     lit_out->lit_type = state->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
-        .child = ty_lit.data._typeid,
-        // TODO: Readd constant types
+        .pointer = {ty_lit.data._typeid, inst->arg.is_const},
     });
     lit_out->data.kind = UIRRawDataKind::Pointer;
     lit_out->data.ptr = {
@@ -346,12 +342,14 @@ void execute(UIRComptime *state, UIRValue *inst) {
     return;
   }
   case UIRValueKind::Pointer: {
-    UIRLiteral lit = state->getValue(frame, inst->pointer);
+    UIRLiteral lit = state->getValue(frame, inst->pointer.pointee);
 
     UIRLiteral *lit_out = frame->add(inst->id);
     lit_out->data.kind = UIRRawDataKind::TypeId;
-    lit_out->data._typeid = state->analyser->rir_ctx->types->push(
-        {.kind = RIRTypeKind::Pointer, .child = lit.data._typeid});
+    lit_out->data._typeid = state->analyser->rir_ctx->types->push({
+        .kind = RIRTypeKind::Pointer,
+        .pointer = {lit.data._typeid, inst->pointer.const_pointee},
+    });
     return;
   }
   case UIRValueKind::Struct: {
@@ -542,18 +540,10 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
       type_id = resolved_value->literal.lit_type.get();
     }
 
-    // TODO: Readd constant types
-    // // Make the literal type constant
-    // // because all global variables are constant during compile-time
-    // execution Type vtype = *constant->result_type; vtype.is_constant = true;
-    //
-    // RIRTypeId real_vtype = this->analyser->rir_ctx->types->push(vtype);
-
     RIRTypeId real_vtype = type_id;
     RIRTypeId ptr_type = this->analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
-        .child = real_vtype,
-        // TODO: Readd constant types
+        .pointer = {real_vtype, true},
     });
 
     // Return Pointer to constant

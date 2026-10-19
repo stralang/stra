@@ -60,9 +60,10 @@ UIRValue *UIRBuilder::insert(UIRValue inst, bool global, String name) {
   return ptr_inst;
 }
 
-UIRValue *UIRBuilder::buildLocalVariable(UIRValueId type, String name) {
+UIRValue *UIRBuilder::buildLocalVariable(UIRValueId type, bool is_const,
+                                         String name) {
   UIRValue inst = {.kind = UIRValueKind::LocalVariable};
-  inst.local_variable = {type};
+  inst.local_variable = {type, is_const};
   return this->insert(inst, false, name);
 }
 
@@ -78,9 +79,9 @@ UIRValue *UIRBuilder::buildStore(UIRValueId value, UIRValueId ptr) {
   return this->insert(inst);
 }
 
-UIRValue *UIRBuilder::buildArg(UIRValueId type, String name) {
+UIRValue *UIRBuilder::buildArg(UIRValueId type, bool is_const, String name) {
   UIRValue inst = {.kind = UIRValueKind::Arg};
-  inst.arg.type = type;
+  inst.arg = {type, is_const};
   return this->insert(inst, false, name);
 }
 
@@ -191,9 +192,9 @@ UIRValue *UIRBuilder::buildTypeOf(UIRValueId value, String name) {
 
 UIRValue *UIRBuilder::buildGlobalVariable(Option<UIRValueId> type,
                                           Option<UIRValueId> constant,
-                                          String name) {
+                                          bool is_const, String name) {
   UIRValue inst = {.kind = UIRValueKind::GlobalVariable};
-  inst.global_variable = {type, constant};
+  inst.global_variable = {type, constant, false, is_const};
   return this->insert(inst, true, name);
 }
 
@@ -214,16 +215,17 @@ UIRValue *UIRBuilder::buildLiteral(UIRLiteral literal, String name) {
   return this->insert(inst, false, name);
 }
 
-UIRValue *UIRBuilder::buildPointer(UIRValueId child_type, String name) {
+UIRValue *UIRBuilder::buildPointer(UIRValueId child_type, bool is_const,
+                                   String name) {
   UIRValue inst = {.kind = UIRValueKind::Pointer};
-  inst.pointer = child_type;
+  inst.pointer = {child_type, is_const};
   return this->insert(inst, false, name);
 }
 
 UIRValue *UIRBuilder::buildSlice(UIRValueId element, Option<UIRValueId> length,
-                                 bool is_pointer, String name) {
+                                 bool is_pointer, bool is_const, String name) {
   UIRValue inst = {.kind = UIRValueKind::Slice};
-  inst.slice = {.element = element, .length = length, .is_pointer = is_pointer};
+  inst.slice = {element, length, is_pointer, is_const};
   return this->insert(inst, false, name);
 }
 

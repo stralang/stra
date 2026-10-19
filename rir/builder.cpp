@@ -24,11 +24,11 @@ RIRValueId RIRBuilder::buildInst(RIRValue inst) {
   return id;
 }
 
-RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type) {
+RIRValueId RIRBuilder::buildLocalVariable(RIRTypeId type, bool is_const) {
   RIRValue inst = {
       .kind = RIRValueKind::LocalVariable,
-      .result =
-          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .result = this->ctx->types->push(
+          {.kind = RIRTypeKind::Pointer, .pointer = {type, is_const}}),
       .local = {.type = type},
   };
   return this->buildInst(inst);
@@ -52,11 +52,11 @@ RIRValueId RIRBuilder::buildStore(RIRValueId ptr, RIRValueId value) {
   return this->buildInst(inst);
 }
 
-RIRValueId RIRBuilder::buildArg(RIRTypeId type) {
+RIRValueId RIRBuilder::buildArg(RIRTypeId type, bool is_const) {
   RIRValue inst = {
       .kind = RIRValueKind::Arg,
-      .result =
-          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .result = this->ctx->types->push(
+          {.kind = RIRTypeKind::Pointer, .pointer = {type, is_const}}),
       .arg = {.type = type},
   };
   return this->buildInst(inst);
@@ -98,11 +98,11 @@ RIRValueId RIRBuilder::buildIndex(RIRValueId ptr, RIRValueId index,
 }
 
 RIRValueId RIRBuilder::buildRange(RIRValueId ptr, RIRValueId offset,
-                                  RIRValueId length,
-                                  RIRTypeId result_elem_type) {
+                                  RIRValueId length, RIRTypeId result_elem_type,
+                                  bool const_element) {
   RIRTypeId result = this->ctx->types->push({
       .kind = RIRTypeKind::Slice,
-      .slice = {0, result_elem_type},
+      .slice = {0, result_elem_type, const_element},
   });
 
   RIRValue inst = {.kind = RIRValueKind::Range, .result = result};
@@ -193,11 +193,11 @@ RIRValueId RIRBuilder::buildAssembly(Slice<RIRAssembly> instructions) {
 
 RIRValueId RIRBuilder::buildGlobalVariable(RIRTypeId type,
                                            Option<RIRConstant> constant,
-                                           String link_name) {
+                                           bool is_const, String link_name) {
   RIRValue inst = {
       .kind = RIRValueKind::GlobalVariable,
-      .result =
-          this->ctx->types->push({.kind = RIRTypeKind::Pointer, .child = type}),
+      .result = this->ctx->types->push(
+          {.kind = RIRTypeKind::Pointer, .pointer = {type, is_const}}),
 
   };
   inst.global_variable = {

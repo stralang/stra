@@ -123,12 +123,14 @@ struct UIRSlice {
   UIRValueId element;
   Option<UIRValueId> length;
   bool is_pointer;
+  bool is_const;
 };
 
 struct UIRStruct {
   struct Field {
     String name;
     UIRValueId type;
+    bool is_const;
   };
 
   Slice<Field> fields;
@@ -170,6 +172,7 @@ struct UIRValue {
   union {
     struct {
       UIRValueId type;
+      bool is_const;
       UIRAttributes attributes;
     } local_variable;
     struct {
@@ -181,6 +184,7 @@ struct UIRValue {
     } store;
     struct {
       UIRValueId type;
+      bool is_const;
     } arg;
     struct {
       UIROpcode opcode;
@@ -242,12 +246,16 @@ struct UIRValue {
       Option<UIRValueId> type;
       Option<UIRValueId> constant; // set to `null` for default
       bool undefined;
+      bool is_const;
       UIRAttributes attributes;
     } global_variable;
     UIRFunction function;
 
     UIRLiteral literal;
-    UIRValueId pointer;
+    struct {
+      UIRValueId pointee;
+      bool const_pointee;
+    } pointer;
     UIRSlice slice;
     UIRStruct _struct;
     UIREnum _enum;

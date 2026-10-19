@@ -13,8 +13,13 @@ void computeStructType(UIRComptime *state, UIRValue *inst,
   // Fields
   RIRType *struct_type = state->ctx->getType(struct_type_id);
   struct_type->_struct.fields = {
-      .ptr = (RIRTypeId *)state->arena->alloc(sizeof(RIRTypeId) *
-                                              inst->_struct.fields.len),
+      .ptr = (RIRTypeId *)state->allocator->alloc(sizeof(RIRTypeId) *
+                                                  inst->_struct.fields.len),
+      .len = inst->_struct.fields.len,
+  };
+  struct_type->_struct.consts = {
+      .ptr = (bool *)state->analyser->allocator->alloc(
+          sizeof(bool) * inst->_struct.fields.len),
       .len = inst->_struct.fields.len,
   };
   for (size_t i = 0; i < inst->_struct.fields.len; i++) {
@@ -23,6 +28,7 @@ void computeStructType(UIRComptime *state, UIRValue *inst,
     ctexpect(type_lit.data.kind == UIRRawDataKind::TypeId,
              inst->source_location, "Struct field type must be of TypeId");
     struct_type->_struct.fields.ptr[i] = type_lit.data._typeid;
+    struct_type->_struct.consts.ptr[i] = field->is_const;
   }
 
   UIRLiteral *lit_out = frame->add(inst->id);

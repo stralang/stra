@@ -17,11 +17,11 @@ struct UIRBuilder {
   UIRValue *insert(UIRValue inst, bool global = false,
                    String name = {.ptr = nullptr});
 
-  UIRValue *buildLocalVariable(UIRValueId type, String name);
+  UIRValue *buildLocalVariable(UIRValueId type, bool is_const, String name);
   UIRValue *buildLoad(UIRValueId ptr, String name = {.ptr = nullptr});
   UIRValue *buildStore(UIRValueId value, UIRValueId ptr);
 
-  UIRValue *buildArg(UIRValueId type, String name);
+  UIRValue *buildArg(UIRValueId type, bool is_const, String name);
 
   UIRValue *buildBinOp(UIRValueId lhs, UIRValueId rhs, UIROpcode opcode,
                        String name = {.ptr = nullptr});
@@ -61,15 +61,16 @@ struct UIRBuilder {
   UIRValue *buildTypeOf(UIRValueId value, String name = {.ptr = nullptr});
 
   UIRValue *buildGlobalVariable(Option<UIRValueId> type,
-                                Option<UIRValueId> constant, String name);
+                                Option<UIRValueId> constant, bool is_const,
+                                String name);
   UIRValue *buildFunction(Slice<UIRValueId> parameters, UIRValueId return_type,
                           bool comptime, String name);
 
   UIRValue *buildLiteral(UIRLiteral literal, String name = {.ptr = nullptr});
 
-  UIRValue *buildPointer(UIRValueId child_type, String name);
+  UIRValue *buildPointer(UIRValueId child_type, bool is_const, String name);
   UIRValue *buildSlice(UIRValueId element, Option<UIRValueId> length,
-                       bool is_pointer, String name);
+                       bool is_pointer, bool is_const, String name);
   UIRValue *buildStruct(Slice<UIRStruct::Field> fields, String name);
   UIRValue *buildEnum(UIRValueId repr_type, Slice<UIREnum::Member> members,
                       String name);

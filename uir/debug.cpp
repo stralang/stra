@@ -140,7 +140,11 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     break;
   }
   case UIRValueKind::LocalVariable: {
-    os << "localvar `" << inst->local_variable.type << "`";
+    os << "localvar `";
+    if (inst->local_variable.is_const) {
+      os << "const ";
+    }
+    os << inst->local_variable.type << "`";
     break;
   }
   case UIRValueKind::Load: {
@@ -152,7 +156,11 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     break;
   }
   case UIRValueKind::Arg: {
-    os << "arg `" << inst->arg.type << "`";
+    os << "arg `";
+    if (inst->arg.is_const) {
+      os << "const ";
+    }
+    os << inst->arg.type << "`";
     break;
   }
   case UIRValueKind::BinOp: {
@@ -292,6 +300,10 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
 
   case UIRValueKind::GlobalVariable: {
     os << "globalvar `";
+    if (inst->global_variable.is_const) {
+      os << "const ";
+    }
+
     if (inst->global_variable.type.isSome()) {
       os << inst->global_variable.type.get();
     } else {
@@ -332,11 +344,20 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     break;
   }
   case UIRValueKind::Pointer: {
-    os << "pointer " << inst->pointer;
+    os << "pointer ";
+    if (inst->pointer.const_pointee) {
+      os << "const ";
+    }
+    os << inst->pointer.pointee;
     break;
   }
   case UIRValueKind::Slice: {
-    os << "[" << inst->slice.element;
+    os << "[";
+    if (inst->slice.is_const) {
+      os << "const ";
+    }
+    os << inst->slice.element;
+
     if (inst->slice.is_pointer) {
       os << " *";
     } else if (inst->slice.length.isSome()) {

@@ -85,12 +85,12 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     RIRTypeId type = analyser->rir_ctx->types->push({
         .kind = RIRTypeKind::Pointer,
-        .child = type_literal.data._typeid,
+        .pointer = {type_literal.data._typeid, inst->local_variable.is_const},
     });
 
     // Create Instruction
-    RIRValueId out_id =
-        analyser->builder.buildLocalVariable(type_literal.data._typeid);
+    RIRValueId out_id = analyser->builder.buildLocalVariable(
+        type_literal.data._typeid, inst->local_variable.is_const);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
@@ -120,8 +120,8 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
            ptr_inst->source_location, "!UIR! Can only load from pointer");
 
     // Create Instruction
-    RIRValueId out_id = analyser->builder.buildLoad(ptr_resolved->inst,
-                                                    resolved_ptr_type->child);
+    RIRValueId out_id = analyser->builder.buildLoad(
+        ptr_resolved->inst, resolved_ptr_type->pointer.child);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
@@ -152,20 +152,22 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     RIRType *resolved_ptr_type =
         analyser->rir_ctx->getType(resolved_ptr_inst->result);
+    expect(!resolved_ptr_type->pointer.const_pointee, inst->source_location,
+           "Cannot assign to constant");
 
     // Get value
     UIRResolved *resolved_value =
         analyser->resolved_mapping.get(inst->store.value);
     checkResolved(resolved_value);
 
-    RIRValueId value_resolved =
-        getInstFromResolved(analyser, resolved_value, resolved_ptr_type->child);
+    RIRValueId value_resolved = getInstFromResolved(
+        analyser, resolved_value, resolved_ptr_type->pointer.child);
     RIRValue *resolved_value_inst = analyser->rir_ctx->getInst(value_resolved);
 
     // Check types
-    resolved_value_inst =
-        autoCast(analyser, resolved_value_inst, resolved_ptr_type->child);
-    expect(resolved_ptr_type->child == resolved_value_inst->result,
+    resolved_value_inst = autoCast(analyser, resolved_value_inst,
+                                   resolved_ptr_type->pointer.child);
+    expect(resolved_ptr_type->pointer.child == resolved_value_inst->result,
            inst->source_location, "Cannot assign non-matching types");
 
     // Create Instruction
@@ -182,7 +184,8 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
            type_inst->source_location, "Argument type must be typeid");
 
     // Create Instruction
-    RIRValueId out_id = analyser->builder.buildArg(arg_literal.data._typeid);
+    RIRValueId out_id = analyser->builder.buildArg(arg_literal.data._typeid,
+                                                   inst->arg.is_const);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;
@@ -212,7 +215,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     RIRType *resolved_ptr_type =
         analyser->rir_ctx->getType(resolved_ptr_inst->result);
     RIRType *resolved_ptr_child_type =
-        analyser->rir_ctx->getType(resolved_ptr_type->child);
+        analyser->rir_ctx->getType(resolved_ptr_type->pointer.child);
     expect(resolved_ptr_child_type->kind == RIRTypeKind::Slice,
            inst->source_location, "Cannot index into non-slice");
 
@@ -238,9 +241,11 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
            index_inst->source_location, "Index must be of type `usize`");
 
     // Create Instruction
-    RIRTypeId result = analyser->rir_ctx->types->push(
-        {.kind = RIRTypeKind::Pointer,
-         .child = resolved_ptr_child_type->slice.child});
+    RIRTypeId result = analyser->rir_ctx->types->push({
+        .kind = RIRTypeKind::Pointer,
+        .pointer = {resolved_ptr_child_type->slice.child,
+                    resolved_ptr_child_type->slice.const_element},
+    });
     RIRValueId out_id = analyser->builder.buildIndex(
         resolved_ptr_inst->id, resolved_index_inst->id, result);
     analyser->resolved_mapping.insert(
@@ -265,7 +270,7 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     RIRType *resolved_ptr_type =
         analyser->rir_ctx->getType(resolved_ptr_inst->result);
     RIRType *resolved_ptr_child_type =
-        analyser->rir_ctx->getType(resolved_ptr_type->child);
+        analyser->rir_ctx->getType(resolved_ptr_type->pointer.child);
     expect(resolved_ptr_child_type->kind == RIRTypeKind::Slice ||
                resolved_ptr_child_type->kind == RIRTypeKind::Pointer,
            ptr_inst->source_location, "Cannot range into non-slice/pointer");
@@ -305,17 +310,21 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
 
     // Create Instruction
     RIRTypeId elem_type;
+    bool const_element;
     if (resolved_ptr_child_type->kind == RIRTypeKind::Pointer) {
-      elem_type = resolved_ptr_child_type->child;
+      elem_type = resolved_ptr_child_type->pointer.child;
+      const_element = resolved_ptr_child_type->pointer.const_pointee;
     } else {
       elem_type = resolved_ptr_child_type->slice.child;
+      const_element = resolved_ptr_child_type->slice.const_element;
     }
 
     RIRValueId length_id =
         analyser->builder.buildBinOp(RIROpcode::Sub, resolved_end_inst->id,
                                      resolved_start_inst->id, usize_ty);
     RIRValueId out_id = analyser->builder.buildRange(
-        resolved_ptr_inst->id, resolved_start_inst->id, length_id, elem_type);
+        resolved_ptr_inst->id, resolved_start_inst->id, length_id, elem_type,
+        const_element);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     break;

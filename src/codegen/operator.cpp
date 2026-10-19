@@ -224,13 +224,13 @@ LLVMValueRef genCast(CodeGenModule *codegen, LLVMBuilderRef builder,
       dst_type->kind == RIRTypeKind::Pointer) {
     // Pointer-Slice to Pointer
     assert(src_type->slice.length == -1 &&
-           src_type->slice.child == dst_type->child);
+           src_type->slice.child == dst_type->pointer.child);
     return getReference(codegen, inst->cast.value);
   } else if (src_type->kind == RIRTypeKind::Pointer &&
              dst_type->kind == RIRTypeKind::Slice) {
     // Pointer to Pointer-Slice
     assert(dst_type->slice.length == -1 &&
-           dst_type->slice.child == src_type->child);
+           dst_type->slice.child == src_type->pointer.child);
     return getReference(codegen, inst->cast.value);
   } else if (src_type->kind == RIRTypeKind::Slice &&
              dst_type->kind == RIRTypeKind::Slice) {

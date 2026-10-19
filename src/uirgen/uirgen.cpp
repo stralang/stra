@@ -81,7 +81,8 @@ UIRValue *addr(UIRGen *uirgen, Node *node, Symbol *scope) {
           uirgen->builder.buildRange(ptr->id, offset->id, length->id);
 
       UIRValue *ty = uirgen->builder.buildTypeOf(new_slice->id);
-      out = uirgen->builder.buildLocalVariable(ty->id, str("tmp_uir_intern"));
+      out = uirgen->builder.buildLocalVariable(ty->id, true,
+                                               str("tmp_uir_intern"));
       uirgen->builder.buildStore(new_slice->id, out->id);
     } else {
       UIRValue *index = gen(uirgen, node->index.index, scope);
@@ -242,7 +243,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
         type = uirgen->builder.buildTypeOf(initial->id, {.ptr = nullptr});
       }
 
-      field = uirgen->builder.buildLocalVariable(type->id, node->field.name);
+      field = uirgen->builder.buildLocalVariable(
+          type->id, node->field.definition, node->field.name); // FIXME: Const
       field->local_variable.attributes = attributes;
       uirgen->node_to_value.insert(node, field);
 
@@ -346,8 +348,9 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
         Node *arg = node->function.parameters.getUnchecked(i);
-        UIRValue *uir_arg = uirgen->builder.buildArg(
-            value->function.parameter_types.ptr[i], arg->field.name);
+        UIRValue *uir_arg =
+            uirgen->builder.buildArg(value->function.parameter_types.ptr[i],
+                                     false, arg->field.name); // FIXME: Const
         uir_arg->source_location = arg->location;
         uirgen->node_to_value.insert(arg, uir_arg);
       }
@@ -397,7 +400,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     }
 
     UIRValue *out = uirgen->builder.buildSlice(
-        element->id, length_id, node->slice.is_pointer, {.ptr = nullptr});
+        element->id, length_id, node->slice.is_pointer, false,
+        {.ptr = nullptr}); // FIXME: Const
     out->source_location = node->location;
     return out;
   }
@@ -620,7 +624,8 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
       field->name = node->field.name;
       uirgen->node_to_value.insert(node->field.initial, field);
     } else {
-      field = uirgen->builder.buildGlobalVariable({}, {}, node->field.name);
+      field = uirgen->builder.buildGlobalVariable(
+          {}, {}, node->field.definition, node->field.name);
     }
 
     uirgen->node_to_value.insert(node, field);

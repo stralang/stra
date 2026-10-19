@@ -55,7 +55,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
       analyser->rir_ctx->getType(resolved_callee_inst->result);
   if (resolved_callee_type->kind == RIRTypeKind::Pointer) {
     resolved_callee_type =
-        analyser->rir_ctx->getType(resolved_callee_type->child);
+        analyser->rir_ctx->getType(resolved_callee_type->pointer.child);
   }
 
   // Get function

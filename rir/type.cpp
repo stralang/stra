@@ -146,12 +146,14 @@ bool RIRType::compare(RIRTypeContext *ctx, RIRTypeId other_id) {
     return this->float_bits == other->float_bits;
   }
   case RIRTypeKind::Pointer: {
-    RIRType *this_child = ctx->getPtr(this->child);
-    return this_child->compare(ctx, other->child);
+    RIRType *this_child = ctx->getPtr(this->pointer.child);
+    return this->pointer.const_pointee == other->pointer.const_pointee &&
+           this_child->compare(ctx, other->pointer.child);
   }
   case RIRTypeKind::Slice: {
     RIRType *this_child = ctx->getPtr(this->slice.child);
     return this->slice.length == other->slice.length &&
+           this->slice.const_element == other->slice.const_element &&
            this_child->compare(ctx, other->slice.child);
   }
   case RIRTypeKind::TypeId: {
@@ -200,12 +202,11 @@ void RIRType::makeHashcode() {
     break;
   }
   case RIRTypeKind::Pointer: {
-    hasher.hash(&this->child);
+    hasher.hash(&this->pointer);
     break;
   }
   case RIRTypeKind::Slice: {
-    hasher.hash(&this->slice.length);
-    hasher.hash(&this->slice.child);
+    hasher.hash(&this->slice);
     break;
   }
   case RIRTypeKind::Function: {

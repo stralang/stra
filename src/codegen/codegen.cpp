@@ -138,7 +138,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     LLVMValueRef slice = getReference(codegen, inst->index.ptr);
     RIRValue *slice_inst = codegen->rir_context->getInst(inst->index.ptr);
     RIRType *ptr_type = codegen->rir_context->getType(slice_inst->result);
-    RIRType *slice_type = codegen->rir_context->getType(ptr_type->child);
+    RIRType *slice_type =
+        codegen->rir_context->getType(ptr_type->pointer.child);
 
     LLVMValueRef length = nullptr;
     LLVMValueRef ptr = slice;
@@ -219,7 +220,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
 
     RIRValue *ptr_inst = codegen->rir_context->getInst(inst->range.ptr);
     RIRType *ptr_type = codegen->rir_context->getType(ptr_inst->result);
-    RIRType *slice_type = codegen->rir_context->getType(ptr_type->child);
+    RIRType *slice_type =
+        codegen->rir_context->getType(ptr_type->pointer.child);
 
     LLVMValueRef src_length = nullptr;
     LLVMValueRef ptr = slice;
@@ -227,7 +229,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
     if (slice_type->kind == RIRTypeKind::Pointer) {
       // Pointer to slice conversion
-      elem_type = typeToLLVM(codegen, slice_type->child);
+      elem_type = typeToLLVM(codegen, slice_type->pointer.child);
       ptr = LLVMBuildLoad2(builder, typeToLLVM(codegen, slice_type->id), slice,
                            "");
     } else if (slice_type->slice.length < 0) {
@@ -320,7 +322,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
     // Handle compile-time field
     bool handled = false;
     RIRType *rir_aggregate_type =
-        codegen->rir_context->getType(ptr_type->child);
+        codegen->rir_context->getType(ptr_type->pointer.child);
     if (rir_aggregate_type->kind == RIRTypeKind::Slice) {
       if (rir_aggregate_type->slice.length > 0) {
         if (inst->field_at.index == 0) {
@@ -334,7 +336,7 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
 
     // Generate GEP
     if (!handled) {
-      LLVMTypeRef aggregate_type = typeToLLVM(codegen, ptr_type->child);
+      LLVMTypeRef aggregate_type = typeToLLVM(codegen, ptr_type->pointer.child);
 
       LLVMValueRef indices[2];
       indices[0] = LLVMConstInt(LLVMInt32TypeInContext(codegen->ctx), 0, false);
@@ -350,8 +352,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
         codegen->rir_context->getInst(inst->getset_variant.ptr);
     RIRType *rir_ptr_type = codegen->rir_context->getType(rir_ptr_inst->result);
     RIRType *rir_union_type =
-        codegen->rir_context->getType(rir_ptr_type->child);
-    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->child);
+        codegen->rir_context->getType(rir_ptr_type->pointer.child);
+    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->pointer.child);
     LLVMValueRef ptr_value = getReference(codegen, inst->getset_variant.ptr);
 
     LLVMValueRef indices[2];
@@ -412,8 +414,8 @@ void gen(CodeGenModule *codegen, LLVMBuilderRef builder, RIRValueId inst_id) {
         codegen->rir_context->getInst(inst->getset_variant.ptr);
     RIRType *rir_ptr_type = codegen->rir_context->getType(rir_ptr_inst->result);
     RIRType *rir_union_type =
-        codegen->rir_context->getType(rir_ptr_type->child);
-    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->child);
+        codegen->rir_context->getType(rir_ptr_type->pointer.child);
+    LLVMTypeRef union_type = typeToLLVM(codegen, rir_ptr_type->pointer.child);
     LLVMValueRef ptr_value = getReference(codegen, inst->getset_variant.ptr);
 
     // size_t variant_idx = inst->getset_variant.index;

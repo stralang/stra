@@ -13,10 +13,10 @@ struct RIRBuilder {
   RIRValueId buildDeclare(RIRValue inst);
   RIRValueId buildInst(RIRValue inst);
 
-  RIRValueId buildLocalVariable(RIRTypeId type);
+  RIRValueId buildLocalVariable(RIRTypeId type, bool is_const);
   RIRValueId buildLoad(RIRValueId ptr, RIRTypeId result);
   RIRValueId buildStore(RIRValueId ptr, RIRValueId value);
-  RIRValueId buildArg(RIRTypeId type);
+  RIRValueId buildArg(RIRTypeId type, bool is_const);
   RIRValueId buildBinOp(RIROpcode opcode, RIRValueId lhs, RIRValueId rhs,
                         RIRTypeId result);
   RIRValueId buildUnaryOp(RIROpcode opcode, RIRValueId child, RIRTypeId result);
@@ -25,7 +25,7 @@ struct RIRBuilder {
                        RIRTypeId result);
   RIRValueId buildIndex(RIRValueId ptr, RIRValueId index, RIRTypeId result);
   RIRValueId buildRange(RIRValueId ptr, RIRValueId offset, RIRValueId length,
-                        RIRTypeId result_elem_type);
+                        RIRTypeId result_elem_type, bool const_element);
   RIRValueId buildFieldAt(RIRValueId ptr, size_t index, RIRTypeId result);
   RIRValueId buildGetVariant(RIRValueId ptr, size_t index, RIRTypeId result);
   RIRValueId buildSetVariant(RIRValueId ptr, size_t index, RIRTypeId result);
@@ -41,7 +41,7 @@ struct RIRBuilder {
   RIRValueId buildAssembly(Slice<RIRAssembly> instructions);
 
   RIRValueId buildGlobalVariable(RIRTypeId type, Option<RIRConstant> value,
-                                 String link_name);
+                                 bool is_const, String link_name);
   RIRValueId buildFunction(RIRTypeId type, bool undefined, String link_name);
 
   RIRValueId buildConstant(RIRTypeId type, RIRConstant constant);

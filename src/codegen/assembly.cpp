@@ -88,7 +88,7 @@ LLVMValueRef genAssembly(CodeGenModule *codegen, LLVMBuilderRef builder,
           LLVMGetEnumAttributeKindForName("elementtype", strlen("elementtype"));
 
       RIRType *ptr_type = codegen->rir_context->getType(rir_value->result);
-      LLVMTypeRef elemTy = typeToLLVM(codegen, ptr_type->child);
+      LLVMTypeRef elemTy = typeToLLVM(codegen, ptr_type->pointer.child);
       LLVMAttributeRef attr =
           LLVMCreateTypeAttribute(codegen->ctx, elementtypeKind, elemTy);
 

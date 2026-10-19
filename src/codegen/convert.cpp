@@ -56,7 +56,7 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
     break;
   }
   case RIRTypeKind::Pointer: {
-    out = LLVMPointerType(typeToLLVM(codegen, type->child, ""), 0);
+    out = LLVMPointerType(typeToLLVM(codegen, type->pointer.child, ""), 0);
     break;
   }
   case RIRTypeKind::Slice: {

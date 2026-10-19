@@ -338,7 +338,11 @@ std::ostream &printType(std::ostream &os, RIRTypeContext *ctx, RIRType *type) {
     return os << 'f' << type->float_bits;
   }
   case RIRTypeKind::Pointer: {
-    return os << "^#" << type->child;
+    os << '^';
+    if (type->pointer.const_pointee) {
+      os << "const ";
+    }
+    return os << '#' << type->pointer.child;
   }
   case RIRTypeKind::Slice: {
     os << '[';
@@ -347,7 +351,11 @@ std::ostream &printType(std::ostream &os, RIRTypeContext *ctx, RIRType *type) {
     } else if (type->slice.length < 0) {
       os << '*';
     }
-    return os << "]#" << type->slice.child;
+    os << ']';
+    if (type->slice.const_element) {
+      os << "const ";
+    }
+    return os << '#' << type->slice.child;
   }
   case RIRTypeKind::Function: {
     os << "fn(";

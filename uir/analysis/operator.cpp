@@ -74,10 +74,13 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
     } else if (dst_type->kind == RIRTypeKind::Slice &&
                dst_type->slice.length == -1 &&
                dst_type->slice.child == src_type->slice.child) {
+      expect(!src_type->pointer.const_pointee || dst_type->slice.const_element,
+             inst->source_location,
+             "Cannot cast const pointer to non-cost pointer-slice");
       allowed = true; // Pointer to Pointer-Slice
     } else if (dst_type->kind == RIRTypeKind::Slice &&
                dst_type->slice.length == 0) {
-      RIRType *ptr_child = analyser->ctx->getType(src_type->child);
+      RIRType *ptr_child = analyser->ctx->getType(src_type->pointer.child);
       if (ptr_child->kind == RIRTypeKind::Slice &&
           ptr_child->slice.length > 0) {
         RIRType *slice_elem = analyser->ctx->getType(ptr_child->slice.child);
@@ -85,6 +88,9 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
                                    dst_type->slice.child),
                inst->source_location,
                "Cannot cast array to slice with different element type");
+        expect(!ptr_child->slice.const_element || dst_type->slice.const_element,
+               inst->source_location,
+               "Cannot cast const slice to non-cost slice");
 
         RIRTypeId usize_type = analyser->ctx->types->push(
             {.kind = RIRTypeKind::Integer, .integer = {false, -1}});
@@ -95,7 +101,8 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
                          .integer = ptr_child->slice.length});
 
         RIRValueId out_id = analyser->builder.buildRange(
-            lhs->id, offset, length, dst_type->slice.child);
+            lhs->id, offset, length, dst_type->slice.child,
+            dst_type->slice.const_element);
         analyser->resolved_mapping.insert(
             inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
         return;
@@ -110,7 +117,7 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
              dst_type->kind == RIRTypeKind::Pointer) {
     // Pointer-Slice to Pointer
     allowed = src_type->slice.length == -1 &&
-              src_type->slice.child == dst_type->child;
+              src_type->slice.child == dst_type->pointer.child;
   } else if (src_type->kind == RIRTypeKind::Slice &&
              dst_type->kind == RIRTypeKind::Slice) {
     if (src_type->slice.length == 0 && dst_type->slice.length == 0) {

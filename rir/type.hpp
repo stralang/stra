@@ -33,10 +33,14 @@ struct RIRType {
       int32_t bits; // negative is pointer size
     } integer;
     uint32_t float_bits;
-    RIRTypeId child;
+    struct {
+      RIRTypeId child;
+      bool const_pointee;
+    } pointer;
     struct {
       int64_t length;
       RIRTypeId child;
+      bool const_element;
     } slice;
     struct {
       Slice<RIRTypeId> arguments;
@@ -44,6 +48,7 @@ struct RIRType {
     } function;
     struct {
       Slice<RIRTypeId> fields;
+      Slice<bool> consts;
     } _struct;
     struct {
       RIRTypeId repr;
