@@ -163,6 +163,11 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     os << inst->arg.type << "`";
     break;
   }
+  case UIRValueKind::RetType: {
+    os << "ret_type `";
+    os << inst->ret_type.return_type << "`";
+    break;
+  }
   case UIRValueKind::BinOp: {
     os << inst->binop.opcode << " " << inst->binop.lhs << ", "
        << inst->binop.rhs;
@@ -316,14 +321,7 @@ std::ostream &printInst(std::ostream &os, UIRContext *ctx, UIRValue *inst,
     break;
   }
   case UIRValueKind::Function: {
-    os << "fn(";
-    for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
-      if (i != 0) {
-        os << ", ";
-      }
-      os << inst->function.parameter_types.ptr[i];
-    }
-    os << ") " << inst->function.return_type;
+    os << "fn";
     if (inst->function.undefined) {
       os << " ---";
     }

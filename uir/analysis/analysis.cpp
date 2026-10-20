@@ -205,13 +205,39 @@ void analyse(UIRAnalyser *analyser, UIRValue *inst) {
     UIRValue *type_inst = analyser->ctx->getInst(inst->arg.type);
     UIRLiteral arg_literal = analyser->comptime_state.execute(type_inst);
     expect(arg_literal.data.kind == UIRRawDataKind::TypeId,
-           type_inst->source_location, "Argument type must be typeid");
+           type_inst->source_location, "Argument type must be a type");
+
+    // Add to function
+    analyser->function_stack.back()->parameter_types.push(
+        arg_literal.data._typeid);
 
     // Create Instruction
     RIRValueId out_id = analyser->builder.buildArg(arg_literal.data._typeid,
                                                    inst->arg.is_const);
     analyser->resolved_mapping.insert(
         inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    break;
+  }
+  case UIRValueKind::RetType: {
+    UIRValue *type_inst = analyser->ctx->getInst(inst->arg.type);
+    UIRLiteral type_literal = analyser->comptime_state.execute(type_inst);
+    expect(type_literal.data.kind == UIRRawDataKind::TypeId,
+           type_inst->source_location, "Return type must be a type");
+
+    // Finialize function type
+    UIRFunctionInfo *fn_info = analyser->function_stack.back();
+    RIRTypeId rir_type = analyser->rir_ctx->types->push({
+        .kind = RIRTypeKind::Function,
+        .function = {.arguments = fn_info->parameter_types.slice(),
+                     ._return = type_literal.data._typeid},
+    });
+
+    RIRValue *fn_inst = analyser->rir_ctx->getInst(fn_info->rir);
+    fn_inst->function.type = rir_type;
+    fn_inst->result = rir_type;
+
+    analyser->resolved_mapping.get(fn_info->creator)->kind =
+        UIRResolvedKind::Inst;
     break;
   }
   case UIRValueKind::BinOp: {
@@ -737,6 +763,7 @@ void UIRAnalyser::init(Allocator *allocator) {
   this->resolved_block_mapping.init(allocator, 512);
   this->type_extras.init(allocator, 512);
   this->mangled_name_cache.init(allocator, 128);
+  this->function_stack.init(allocator, 32);
 
   this->rir_ctx = (RIRContext *)this->allocator->alloc(sizeof(RIRContext));
   this->rir_ctx->init(allocator, allocator);
@@ -756,4 +783,5 @@ void UIRAnalyser::deinit() {
   this->resolved_block_mapping.deinit();
   this->type_extras.deinit();
   this->mangled_name_cache.deinit();
+  this->function_stack.deinit();
 }

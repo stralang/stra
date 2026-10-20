@@ -61,7 +61,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   // Get function
   expect(resolved_callee_type->kind == RIRTypeKind::Function,
          callee_inst->source_location,
-         "Callee must be a function. Got " << resolved_callee_type << "`");
+         "Callee must be a function. Got " << resolved_callee_type->id << "`");
 
   RIRType *fn_type = resolved_callee_type;
 

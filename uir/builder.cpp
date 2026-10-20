@@ -86,6 +86,12 @@ UIRValue *UIRBuilder::buildArg(UIRValueId type, bool is_const, String name) {
   return this->insert(inst, false, name);
 }
 
+UIRValue *UIRBuilder::buildRetType(UIRValueId type) {
+  UIRValue inst = {.kind = UIRValueKind::RetType};
+  inst.ret_type = {type};
+  return this->insert(inst, false);
+}
+
 UIRValue *UIRBuilder::buildBinOp(UIRValueId lhs, UIRValueId rhs,
                                  UIROpcode opcode, String name) {
   UIRValue inst = {.kind = UIRValueKind::BinOp};
@@ -199,13 +205,9 @@ UIRValue *UIRBuilder::buildGlobalVariable(Option<UIRValueId> type,
   return this->insert(inst, true, name);
 }
 
-UIRValue *UIRBuilder::buildFunction(Slice<UIRValueId> parameters,
-                                    UIRValueId return_type, bool comptime,
-                                    String name) {
+UIRValue *UIRBuilder::buildFunction(bool comptime, String name) {
   UIRValue inst = {.kind = UIRValueKind::Function};
   inst.function = {
-      .parameter_types = parameters,
-      .return_type = return_type,
       .comptime = comptime,
   };
   return this->insert(inst, true, name);

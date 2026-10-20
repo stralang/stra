@@ -30,6 +30,12 @@ struct UIRExtraTypeInfo {
   Slice<UIRLiteral> constants; // Struct defaults, Enum members, etc
 };
 
+struct UIRFunctionInfo {
+  UIRValueId creator;
+  RIRValueId rir;
+  ArrayList<RIRTypeId> parameter_types;
+};
+
 struct UIRAnalyser {
   // UIR
   UIRContext *ctx;
@@ -43,6 +49,8 @@ struct UIRAnalyser {
   HashMap<UIRBlockId, RIRBlockId> resolved_block_mapping;
   HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
   HashMap<UIRValueId, String> mangled_name_cache;
+
+  ArrayList<UIRFunctionInfo> function_stack;
 
   // Misc
   Environment *environment;

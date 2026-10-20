@@ -27,6 +27,7 @@ enum class UIRValueKind : std::uint16_t {
   Load,
   Store,
   Arg,
+  RetType,
   BinOp,
   UnaryOp,
   Call,
@@ -109,8 +110,6 @@ struct UIRInlineComptime {
 };
 
 struct UIRFunction {
-  Slice<UIRValueId> parameter_types;
-  UIRValueId return_type;
   ArrayList<UIRBlockId> blocks;
   bool undefined;
   bool comptime;
@@ -187,6 +186,9 @@ struct UIRValue {
       UIRValueId type;
       bool is_const;
     } arg;
+    struct {
+      UIRValueId return_type;
+    } ret_type;
     struct {
       UIROpcode opcode;
       UIRValueId lhs;

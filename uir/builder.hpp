@@ -23,6 +23,7 @@ struct UIRBuilder {
   UIRValue *buildStore(UIRValueId value, UIRValueId ptr);
 
   UIRValue *buildArg(UIRValueId type, bool is_const, String name);
+  UIRValue *buildRetType(UIRValueId type);
 
   UIRValue *buildBinOp(UIRValueId lhs, UIRValueId rhs, UIROpcode opcode,
                        String name = {.ptr = nullptr});
@@ -64,8 +65,7 @@ struct UIRBuilder {
   UIRValue *buildGlobalVariable(Option<UIRValueId> type,
                                 Option<UIRValueId> constant, bool is_const,
                                 String name);
-  UIRValue *buildFunction(Slice<UIRValueId> parameters, UIRValueId return_type,
-                          bool comptime, String name);
+  UIRValue *buildFunction(bool comptime, String name);
 
   UIRValue *buildLiteral(UIRLiteral literal, String name = {.ptr = nullptr});
 

@@ -245,8 +245,7 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       }
 
       field = uirgen->builder.buildLocalVariable(
-          type->id, initial, node->field.definition,
-          node->field.name); // FIXME: Const
+          type->id, initial, node->field.definition, node->field.name);
       field->local_variable.attributes = attributes;
       uirgen->node_to_value.insert(node, field);
     } else if (node->field.initial != nullptr &&
@@ -322,11 +321,8 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
     UIRValue **cache = uirgen->node_to_value.get(node);
     if (cache != nullptr) {
       value = *cache; // Pre-generated
-      value->function.parameter_types = parameters;
-      value->function.return_type = return_type->id;
     } else {
-      value = uirgen->builder.buildFunction(parameters, return_type->id,
-                                            node->function.comptime, str(""));
+      value = uirgen->builder.buildFunction(node->function.comptime, str(""));
     }
     value->source_location = node->location;
 
@@ -344,17 +340,32 @@ UIRValue *gen(UIRGen *uirgen, Node *node, Symbol *scope) {
       // Parameters
       for (size_t i = 0; i < node->function.parameters.length; i++) {
         Node *arg = node->function.parameters.getUnchecked(i);
-        UIRValue *uir_arg =
-            uirgen->builder.buildArg(value->function.parameter_types.ptr[i],
-                                     false, arg->field.name); // FIXME: Const
+        UIRValueId param_type =
+            genComptime(uirgen, arg->field.type, fn_symbol)->id;
+        UIRValue *uir_arg = uirgen->builder.buildArg(
+            param_type, arg->field.definition, arg->field.name);
         uir_arg->source_location = arg->location;
         uirgen->node_to_value.insert(arg, uir_arg);
       }
 
-      // TODO: Return Type
+      // Return Type
+      UIRValue *return_type;
+      if (node->function.return_type == nullptr) {
+        UIRLiteral literal;
+        literal.data = UIRRawData{
+            .kind = UIRRawDataKind::TypeId,
+            ._typeid = uirgen->ctx->types->push({.kind = RIRTypeKind::Void}),
+        };
 
+        return_type = uirgen->builder.buildLiteral(literal);
+      } else {
+        return_type =
+            genComptime(uirgen, node->function.return_type, fn_symbol);
+      }
+      uirgen->builder.buildRetType(return_type->id);
+
+      // Body
       if (node->function.body != nullptr) {
-        // Body
         gen(uirgen, node->function.body, fn_symbol);
 
         // Inject void return
@@ -605,8 +616,7 @@ void genDeclaration(UIRGen *uirgen, Node *node, Symbol *scope) {
     if (node->field.initial != nullptr &&
         node->field.initial->kind == NodeKind::Function) {
       field = uirgen->builder.buildFunction(
-          {.ptr = nullptr}, {}, node->field.initial->function.comptime,
-          node->field.name);
+          node->field.initial->function.comptime, node->field.name);
       uirgen->node_to_value.insert(node->field.initial, field);
     } else if (node->field.initial != nullptr &&
                node->field.initial->kind == NodeKind::Struct) {

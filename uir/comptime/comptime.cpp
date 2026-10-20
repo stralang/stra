@@ -158,6 +158,10 @@ void execute(UIRComptime *state, UIRValue *inst) {
     };
     return;
   }
+  case UIRValueKind::RetType: {
+    // TODO: Enforce return type for `ret` instructions
+    return;
+  }
   case UIRValueKind::BinOp: {
     *(frame->add(inst->id)) = executeBinary(state, frame, inst);
     return;
@@ -318,36 +322,8 @@ void execute(UIRComptime *state, UIRValue *inst) {
     return;
   }
   case UIRValueKind::Function: {
-    // Analyse Type
-    RIRType raw_type = {
-        .kind = RIRTypeKind::Function}; // TODO: Readd constant types
-    raw_type.function.arguments = {
-        .ptr = (RIRTypeId *)state->arena->alloc(
-            sizeof(RIRTypeId) * inst->function.parameter_types.len),
-        .len = inst->function.parameter_types.len,
-    };
-
-    // Analyse Parameters
-    for (size_t i = 0; i < inst->function.parameter_types.len; i++) {
-      UIRValueId param = inst->function.parameter_types.ptr[i];
-      UIRValue *param_inst = state->ctx->getInst(param);
-      UIRLiteral *param_literal = *executeGetReturn(state, param_inst);
-
-      ctexpect(param_literal->data.kind == UIRRawDataKind::TypeId,
-               param_inst->source_location, "Parameter type must be of Typeid");
-      raw_type.function.arguments.ptr[i] = param_literal->data._typeid;
-    }
-
-    // Analyse Return Type
-    UIRLiteral *return_literal = *executeGetReturn(
-        state, state->ctx->getInst(inst->function.return_type));
-    raw_type.function._return = return_literal->data._typeid;
-
-    // Get final type
-    UIRLiteral *lit_out = frame->add(inst->id);
-    lit_out->data.kind = UIRRawDataKind::TypeId;
-    lit_out->data._typeid = state->analyser->rir_ctx->types->push(raw_type);
-    return;
+    assert(0 && "Cannot execute function instruction in comptime");
+    break;
   }
   case UIRValueKind::Pointer: {
     UIRLiteral lit = state->getValue(frame, inst->pointer.pointee);
