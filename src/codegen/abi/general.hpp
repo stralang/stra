@@ -1,6 +1,8 @@
 #pragma once
 
+#include "uir/environment.hpp"
 #include "llvm-c/Types.h"
+#include <iostream>
 #include <llvm-c/Types.h>
 
 enum class ABIArgKind {
@@ -24,6 +26,20 @@ struct TargetABI {
 enum class ABI {
   SystemV_Amd64,
 };
+
+inline ABI GetABIFromTargetTriple(TargetTriple tt) {
+  switch (tt.arch) {
+  case Arch::x86_64: {
+    if (tt.os == Os::Linux) {
+      return ABI::SystemV_Amd64;
+    }
+    break;
+  }
+  }
+
+  std::cerr << "No known ABI for Target Triple\n";
+  std::abort();
+}
 
 TargetABI ABIcreateTarget(ABI abi);
 

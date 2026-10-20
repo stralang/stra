@@ -698,7 +698,7 @@ void CodeGenContext::init(Environment *env, String user_target_triple) {
 
   // Context
   this->ctx = LLVMContextCreate();
-  this->abi = ABI::SystemV_Amd64;
+  this->abi = GetABIFromTargetTriple(env->target);
 
   // Setup environment
   env->target = decodeTargetTriple(this->target_triple);
