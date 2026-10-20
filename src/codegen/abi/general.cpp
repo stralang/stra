@@ -2,6 +2,21 @@
 #include <iostream>
 #include <llvm-c/Core.h>
 
+ABI GetABIFromTargetTriple(TargetTriple tt) {
+  switch (tt.arch) {
+  case Arch::x86_64: {
+    if (tt.os == Os::Linux) {
+      return ABI::SystemV_Amd64;
+    }
+    break;
+  }
+  }
+
+  std::cerr << "No known ABI for Target Triple `" << (uint16_t)tt.arch << "."
+            << (uint16_t)tt.os << "`\n";
+  std::abort();
+}
+
 extern TargetABI ABIcreateSystemVAmd64();
 
 TargetABI ABIcreateTarget(ABI abi) {

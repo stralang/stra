@@ -698,7 +698,6 @@ void CodeGenContext::init(Environment *env, String user_target_triple) {
 
   // Context
   this->ctx = LLVMContextCreate();
-  this->abi = GetABIFromTargetTriple(env->target);
 
   // Setup environment
   env->target = decodeTargetTriple(this->target_triple);
@@ -708,6 +707,9 @@ void CodeGenContext::init(Environment *env, String user_target_triple) {
 
   env->pointer_size = LLVMSizeOfTypeInBits(
       this->target_data, LLVMPointerType(LLVMVoidTypeInContext(ctx), 0));
+
+  // ABI
+  this->abi = GetABIFromTargetTriple(env->target);
 }
 
 void CodeGenContext::deinit() {

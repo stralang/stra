@@ -27,20 +27,7 @@ enum class ABI {
   SystemV_Amd64,
 };
 
-inline ABI GetABIFromTargetTriple(TargetTriple tt) {
-  switch (tt.arch) {
-  case Arch::x86_64: {
-    if (tt.os == Os::Linux) {
-      return ABI::SystemV_Amd64;
-    }
-    break;
-  }
-  }
-
-  std::cerr << "No known ABI for Target Triple\n";
-  std::abort();
-}
-
+ABI GetABIFromTargetTriple(TargetTriple tt);
 TargetABI ABIcreateTarget(ABI abi);
 
 // Helpers
