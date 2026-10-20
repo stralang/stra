@@ -13,6 +13,7 @@ struct ComptimeStackFrame {
   ArrayList<UIRLiteral *> values;
   DynamicArena arena;
   size_t arg_count = 0;
+  Option<ComptimeStackFrame *> parent;
 
   UIRLiteral *inject(UIRLiteral lit) {
     UIRLiteral *ptr = (UIRLiteral *)this->arena.alloc(sizeof(UIRLiteral));
@@ -53,7 +54,7 @@ struct UIRComptime {
   void init(Allocator *allocator, DynamicArena *arena);
   void deinit();
 
-  void pushStack();
+  void pushStack(Option<ComptimeStackFrame *> parent = nullptr);
   void popStack();
   ComptimeStackFrame *currentStack();
 

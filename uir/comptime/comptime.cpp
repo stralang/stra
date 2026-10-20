@@ -239,7 +239,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
   }
 
   case UIRValueKind::Comptime: {
-    state->pushStack();
+    state->pushStack(frame);
     executeProgram(state, inst->comptime.blocks.get(0));
 
     UIRLiteral result = **state->currentStack()->values.back();
@@ -462,11 +462,12 @@ void UIRComptime::init(Allocator *allocator, DynamicArena *arena) {
 }
 void UIRComptime::deinit() { this->call_stack.deinit(); }
 
-void UIRComptime::pushStack() {
+void UIRComptime::pushStack(Option<ComptimeStackFrame *> parent) {
   ComptimeStackFrame frame;
   frame.lookup.init(this->allocator, 32);
   frame.values.init(this->allocator, 32);
   frame.arena.init(this->allocator, 1024 * 1024);
+  frame.parent = parent;
   this->call_stack.push(frame);
 }
 
@@ -485,6 +486,8 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
   size_t *opt_idx = frame->lookup.get(from);
   if (opt_idx != nullptr) {
     return *frame->values.getUnchecked(*opt_idx);
+  } else if (frame->parent.isSome()) {
+    return this->getValue(frame->parent.get(), from);
   }
 
   // Get Instruction
