@@ -1,0 +1,17 @@
+getType :: comptime fn(a: bool) typeid {
+  if a == true {
+    return struct { a: i32 };
+  }
+
+  return struct { b: f32 };
+}
+
+TYPE_A :: getType(true);
+TYPE_B :: getType(false);
+
+main :: fn() i32 {
+  dataA :: TYPE_A { a = 20 };
+  dataB :: TYPE_B { b = 2.0 };
+
+  return !(dataA.a == 20 && dataB.b == 2.0) as i32;
+}

@@ -60,6 +60,7 @@ checkExitCode comptime/alignof 0
 checkExitCode comptime/comptime 0
 checkExitCode comptime/builtin_global 0
 checkExitCode comptime/recursion 0
+checkExitCode comptime/generated_type 0
 
 # Cleanup
 set -e
