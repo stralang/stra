@@ -20,16 +20,14 @@
 #define expect(ok, srcloc, msg)                                                \
   if (!(ok)) {                                                                 \
     error(srcloc, msg);                                                        \
-    analyser->resolved_mapping.insert(inst->id,                                \
-                                      {.kind = UIRResolvedKind::Poison});      \
+    analyser->addResolvedInst(inst->id, {.kind = UIRResolvedKind::Poison});    \
     return;                                                                    \
   }
 
 // Silently poison the resolved data and return
 #define expectSilent(ok)                                                       \
   if (!(ok)) {                                                                 \
-    analyser->resolved_mapping.insert(inst->id,                                \
-                                      {.kind = UIRResolvedKind::Poison});      \
+    analyser->addResolvedInst(inst->id, {.kind = UIRResolvedKind::Poison});    \
     return;                                                                    \
   }
 

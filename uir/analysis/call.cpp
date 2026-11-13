@@ -7,7 +7,7 @@ void analyseComptimeCall(UIRAnalyser *analyser, UIRValue *inst,
                          UIRValue *callee_inst) {
   if (callee_inst->function.attributes.implied_comptime) {
     UIRLiteral lit = analyser->comptime_state.execute(inst);
-    analyser->resolved_mapping.insert(
+    analyser->addResolvedInst(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     return;
   }
@@ -27,8 +27,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   analyse(analyser, callee_inst);
 
   // Get Callee
-  UIRResolved *callee_resolved =
-      analyser->resolved_mapping.get(inst->call.callee);
+  UIRResolved *callee_resolved = analyser->getResolvedInst(inst->call.callee);
   checkResolved(callee_resolved);
 
   if (callee_resolved->kind == UIRResolvedKind::Literal) {
@@ -43,7 +42,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
 
     analyse(analyser, callee_inst);
     callee_resolved =
-        analyser->resolved_mapping.get(callee_resolved->literal.data.function);
+        analyser->getResolvedInst(callee_resolved->literal.data.function);
   }
 
   assert(callee_resolved->kind == UIRResolvedKind::Inst);
@@ -80,7 +79,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
     analyse(analyser, uir_receiver_inst);
 
     UIRResolved *receiver_resolved =
-        analyser->resolved_mapping.get(uir_receiver_inst->id);
+        analyser->getResolvedInst(uir_receiver_inst->id);
     checkResolved(receiver_resolved);
 
     // The receiver is only valid if it is not a TypeId or Namespace
@@ -125,7 +124,7 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
     // Get argument
     analyse(analyser, uir_arg);
 
-    UIRResolved *arg_resolved = analyser->resolved_mapping.get(uir_arg->id);
+    UIRResolved *arg_resolved = analyser->getResolvedInst(uir_arg->id);
     checkResolved(arg_resolved);
 
     RIRValueId resolved_arg_id =
@@ -147,6 +146,6 @@ void analyseCall(UIRAnalyser *analyser, UIRValue *inst) {
   // Create Instruction
   RIRValueId out_id = analyser->builder.buildCall(
       resolved_callee_inst->id, arguments, fn_type->function._return);
-  analyser->resolved_mapping.insert(
-      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+  analyser->addResolvedInst(inst->id,
+                            {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }

@@ -23,8 +23,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
   UIRValue *type_inst = analyser->ctx->getInst(inst->aggregate.type);
   analyse(analyser, type_inst);
 
-  UIRResolved *type_resolved =
-      analyser->resolved_mapping.get(inst->aggregate.type);
+  UIRResolved *type_resolved = analyser->getResolvedInst(inst->aggregate.type);
   checkResolved(type_resolved);
   assert(type_resolved->kind == UIRResolvedKind::Literal);
   expect(type_resolved->literal.data.kind == UIRRawDataKind::TypeId,
@@ -68,8 +67,7 @@ void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
         analyser->ctx->getInst(inst->aggregate.values.ptr[i]);
     analyse(analyser, value_inst);
 
-    UIRResolved *value_resolved =
-        analyser->resolved_mapping.get(value_inst->id);
+    UIRResolved *value_resolved = analyser->getResolvedInst(value_inst->id);
     checkResolved(value_resolved);
     RIRValueId out_id =
         getInstFromResolved(analyser, value_resolved, expected_type);
@@ -89,6 +87,6 @@ void analyseAggregate(UIRAnalyser *analyser, UIRValue *inst) {
 
   RIRValueId out_id =
       analyser->builder.buildAggregate(aggregate_type_id, out_values);
-  analyser->resolved_mapping.insert(
-      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+  analyser->addResolvedInst(inst->id,
+                            {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }

@@ -14,8 +14,8 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
   analyse(analyser, lhs_inst);
   analyse(analyser, rhs_inst);
 
-  UIRResolved *lhs_resolved = analyser->resolved_mapping.get(inst->binop.lhs);
-  UIRResolved *rhs_resolved = analyser->resolved_mapping.get(inst->binop.rhs);
+  UIRResolved *lhs_resolved = analyser->getResolvedInst(inst->binop.lhs);
+  UIRResolved *rhs_resolved = analyser->getResolvedInst(inst->binop.rhs);
   checkResolved(lhs_resolved);
   checkResolved(rhs_resolved);
   expect(rhs_resolved->kind == UIRResolvedKind::Literal &&
@@ -25,7 +25,7 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
   // Execute comptime
   if (lhs_resolved->kind == UIRResolvedKind::Literal) {
     UIRLiteral lit = analyser->comptime_state.execute(inst);
-    analyser->resolved_mapping.insert(
+    analyser->addResolvedInst(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     return;
   }
@@ -46,8 +46,8 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
   if (inst->binop.opcode == UIROpcode::Bitcast) {
     RIRValueId out_id = analyser->builder.buildCast(
         lhs->id, rhs_resolved->literal.data._typeid, true);
-    analyser->resolved_mapping.insert(
-        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    analyser->addResolvedInst(inst->id,
+                              {.kind = UIRResolvedKind::Inst, .inst = out_id});
     return;
   }
 
@@ -103,7 +103,7 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
         RIRValueId out_id = analyser->builder.buildRange(
             lhs->id, offset, length, dst_type->slice.child,
             dst_type->slice.const_element);
-        analyser->resolved_mapping.insert(
+        analyser->addResolvedInst(
             inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
         return;
       }
@@ -136,8 +136,8 @@ void analyseCast(UIRAnalyser *analyser, UIRValue *inst) {
 
   RIRValueId out_id = analyser->builder.buildCast(
       lhs->id, rhs_resolved->literal.data._typeid, false);
-  analyser->resolved_mapping.insert(
-      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+  analyser->addResolvedInst(inst->id,
+                            {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }
 
 void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
@@ -152,8 +152,8 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
   analyse(analyser, lhs_inst);
   analyse(analyser, rhs_inst);
 
-  UIRResolved *lhs_resolved = analyser->resolved_mapping.get(inst->binop.lhs);
-  UIRResolved *rhs_resolved = analyser->resolved_mapping.get(inst->binop.rhs);
+  UIRResolved *lhs_resolved = analyser->getResolvedInst(inst->binop.lhs);
+  UIRResolved *rhs_resolved = analyser->getResolvedInst(inst->binop.rhs);
   checkResolved(lhs_resolved);
   checkResolved(rhs_resolved);
 
@@ -161,7 +161,7 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
   if (lhs_resolved->kind == UIRResolvedKind::Literal &&
       rhs_resolved->kind == UIRResolvedKind::Literal) {
     UIRLiteral lit = analyser->comptime_state.execute(inst);
-    analyser->resolved_mapping.insert(
+    analyser->addResolvedInst(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     return;
   }
@@ -296,16 +296,15 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
   }
   }
 
-  analyser->resolved_mapping.insert(
-      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+  analyser->addResolvedInst(inst->id,
+                            {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }
 
 void analyseUnary(UIRAnalyser *analyser, UIRValue *inst) {
   UIRValue *value_inst = analyser->ctx->getInst(inst->unaryop.value);
   analyse(analyser, value_inst);
 
-  UIRResolved *child_resolved =
-      analyser->resolved_mapping.get(inst->unaryop.value);
+  UIRResolved *child_resolved = analyser->getResolvedInst(inst->unaryop.value);
   checkResolved(child_resolved);
 
   // Comptime
@@ -317,10 +316,10 @@ void analyseUnary(UIRAnalyser *analyser, UIRValue *inst) {
           uirRawDataToRIRConstant(analyser->allocator, lit.data);
       RIRValueId out_id =
           analyser->builder.buildConstant(lit.lit_type.get(), rir_const);
-      analyser->resolved_mapping.insert(
+      analyser->addResolvedInst(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     } else {
-      analyser->resolved_mapping.insert(
+      analyser->addResolvedInst(
           inst->id, {.kind = UIRResolvedKind::Literal, .literal = lit});
     }
     return;
@@ -371,6 +370,6 @@ void analyseUnary(UIRAnalyser *analyser, UIRValue *inst) {
   }
   }
 
-  analyser->resolved_mapping.insert(
-      inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+  analyser->addResolvedInst(inst->id,
+                            {.kind = UIRResolvedKind::Inst, .inst = out_id});
 }

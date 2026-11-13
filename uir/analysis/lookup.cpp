@@ -12,8 +12,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
   // Get parent info
   UIRValue *parent_inst = analyser->ctx->getInst(inst->lookup.parent);
   analyse(analyser, parent_inst);
-  UIRResolved parent_resolved =
-      *analyser->resolved_mapping.get(inst->lookup.parent);
+  UIRResolved parent_resolved = *analyser->getResolvedInst(inst->lookup.parent);
   if (parent_resolved.kind == UIRResolvedKind::Pending ||
       parent_resolved.kind == UIRResolvedKind::Poison) {
     return parent_resolved;
@@ -196,7 +195,7 @@ Option<UIRResolved> analyseLookup(UIRAnalyser *analyser, UIRValue *inst) {
           analyser->ctx->getInst(definitions->list.getUnchecked(i));
       if (child->name.compare(*member)) {
         analyse(analyser, child);
-        return *analyser->resolved_mapping.get(child->id);
+        return *analyser->getResolvedInst(child->id);
       }
     }
   }
@@ -218,7 +217,7 @@ void analyseLookupPtr(UIRAnalyser *analyser, UIRValue *inst) {
   UIRResolved resolved = opt_resolved.get();
   checkResolved((&resolved));
 
-  analyser->resolved_mapping.insert(inst->id, resolved);
+  analyser->addResolvedInst(inst->id, resolved);
 }
 
 void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
@@ -242,7 +241,7 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
       RIRValueId loaded_result = analyser->builder.buildLoad(
           result_inst->id, result_type->pointer.child);
 
-      analyser->resolved_mapping.insert(
+      analyser->addResolvedInst(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = loaded_result});
       return;
     }
@@ -261,7 +260,7 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
       }
     }
 
-    analyser->resolved_mapping.insert(
+    analyser->addResolvedInst(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = result_lit});
     return;
   }
@@ -278,6 +277,6 @@ void analyseLookupValue(UIRAnalyser *analyser, UIRValue *inst) {
     return;
   }
 
-  analyser->resolved_mapping.insert(
+  analyser->addResolvedInst(
       inst->id, {.kind = UIRResolvedKind::Literal, .literal = out_lit.get()});
 }

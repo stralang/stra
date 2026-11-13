@@ -254,7 +254,7 @@ void execute(UIRComptime *state, UIRValue *inst) {
 
     UIRLiteral infer_from;
     UIRResolved *resolved_inst =
-        state->analyser->resolved_mapping.get(inst->_typeof);
+        state->analyser->getResolvedInst(inst->_typeof);
     if (resolved_inst == nullptr) {
       UIRLiteral comptime_result = state->getValue(frame, inst->_typeof);
       infer_from = comptime_result;
@@ -500,10 +500,10 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
   }
 
   // Get Resolved data
-  UIRResolved *resolved_value = this->analyser->resolved_mapping.get(from);
+  UIRResolved *resolved_value = this->analyser->getResolvedInst(from);
   if (resolved_value == nullptr) {
     analyse(this->analyser, from_inst);
-    resolved_value = this->analyser->resolved_mapping.get(from);
+    resolved_value = this->analyser->getResolvedInst(from);
   }
 
   // Cycle and Posion assertion
@@ -517,7 +517,7 @@ UIRLiteral UIRComptime::getValue(ComptimeStackFrame *frame, UIRValueId from) {
     UIRValueId constant = from_inst->global_variable.constant.get();
     if (resolved_value == nullptr) {
       analyseGlobal(this->analyser, from_inst);
-      resolved_value = this->analyser->resolved_mapping.get(constant);
+      resolved_value = this->analyser->getResolvedInst(constant);
     }
 
     RIRTypeId type_id;

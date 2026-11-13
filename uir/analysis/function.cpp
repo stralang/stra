@@ -43,7 +43,7 @@ void computeUndefinedFnType(UIRAnalyser *analyser, UIRValue *fn_inst) {
   rir_inst->result = fn_type;
   rir_inst->function.type = fn_type;
 
-  analyser->resolved_mapping.get(fn_inst->id)->kind = UIRResolvedKind::Inst;
+  analyser->getResolvedInst(fn_inst->id)->kind = UIRResolvedKind::Inst;
 }
 
 void analyseFunction(UIRAnalyser *analyser, UIRValue *inst) {
@@ -64,7 +64,7 @@ void analyseFunction(UIRAnalyser *analyser, UIRValue *inst) {
   // Build and Map Function
   RIRValueId fn_inst_id =
       analyser->builder.buildFunction({}, inst->function.undefined, link_name);
-  analyser->resolved_mapping.insert(
+  analyser->addResolvedInst(
       inst->id, {.kind = UIRResolvedKind::Pending, .inst = fn_inst_id});
 
   // Push stack
@@ -79,14 +79,13 @@ void analyseFunction(UIRAnalyser *analyser, UIRValue *inst) {
     for (size_t i = 0; i < inst->function.blocks.length; i++) {
       UIRBlockId uir_block = inst->function.blocks.getUnchecked(i);
       RIRBlockId rir_block = analyser->builder.appendBlock(fn_inst_id);
-      analyser->resolved_block_mapping.insert(uir_block, rir_block);
+      analyser->mapRIRBlock(uir_block, rir_block);
       analyser->builder.block.setSome(analyser->rir_ctx->getBlock(rir_block));
     }
 
     for (size_t i = 0; i < inst->function.blocks.length; i++) {
       UIRBlockId uir_block = inst->function.blocks.getUnchecked(i);
-      RIRBlockId rir_block_id =
-          *analyser->resolved_block_mapping.get(uir_block);
+      RIRBlockId rir_block_id = *analyser->getRIRBlock(uir_block);
       analyser->builder.block.setSome(
           analyser->rir_ctx->getBlock(rir_block_id));
 

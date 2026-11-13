@@ -45,9 +45,10 @@ struct UIRAnalyser {
   RIRContext *rir_ctx;
   RIRBuilder builder;
 
+  // State
+  HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
   HashMap<UIRValueId, UIRResolved> resolved_mapping;
   HashMap<UIRBlockId, RIRBlockId> resolved_block_mapping;
-  HashMap<RIRTypeId, UIRExtraTypeInfo> type_extras;
   HashMap<UIRValueId, String> mangled_name_cache;
 
   ArrayList<UIRFunctionInfo> function_stack;
@@ -65,4 +66,9 @@ struct UIRAnalyser {
   void init(Allocator *allocator);
   RIRContext *analyse();
   void deinit();
+
+  UIRResolved *getResolvedInst(UIRValueId inst);
+  RIRBlockId *getRIRBlock(UIRBlockId block);
+  void addResolvedInst(UIRValueId inst, UIRResolved resolved);
+  void mapRIRBlock(UIRBlockId uir, RIRBlockId rir);
 };

@@ -108,14 +108,12 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
     UIRValue *const_inst =
         analyser->ctx->getInst(inst->global_variable.constant.get());
     UIRLiteral const_literal = analyser->comptime_state.execute(const_inst);
-    analyser->resolved_mapping.insert(
-        const_inst->id,
-        {.kind = UIRResolvedKind::Literal, .literal = const_literal});
+    analyser->addResolvedInst(const_inst->id, {.kind = UIRResolvedKind::Literal,
+                                               .literal = const_literal});
 
     if (const_literal.data.kind == UIRRawDataKind::TypeId) {
       // Generate Virtual Variable
-      UIRResolved *const_resolved =
-          analyser->resolved_mapping.get(const_inst->id);
+      UIRResolved *const_resolved = analyser->getResolvedInst(const_inst->id);
       checkResolved(const_resolved);
       const_resolved->literal.lit_type =
           analyser->rir_ctx->types->push({.kind = RIRTypeKind::TypeId});
@@ -132,7 +130,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
                           .data = &const_resolved->literal.data};
 
       // Create mapping
-      analyser->resolved_mapping.insert(
+      analyser->addResolvedInst(
           inst->id, {.kind = UIRResolvedKind::Literal, .literal = out_lit});
     } else {
       // Generate Real Variable
@@ -168,7 +166,7 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
           uirRawDataToRIRConstant(analyser->allocator, const_literal.data);
       RIRValueId out_id = analyser->builder.buildGlobalVariable(
           typeId.get(), constant, inst->global_variable.is_const, link_name);
-      analyser->resolved_mapping.insert(
+      analyser->addResolvedInst(
           inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
     }
   } else if (!inst->global_variable.attributes.builtin.isAbsent()) {
@@ -186,12 +184,12 @@ void analyseGlobal(UIRAnalyser *analyser, UIRValue *inst) {
         .lit_type = analyser->ctx->types->push(
             {.kind = RIRTypeKind::Pointer, .pointer = {typeId.get(), true}}),
     };
-    analyser->resolved_mapping.insert(
+    analyser->addResolvedInst(
         inst->id, {.kind = UIRResolvedKind::Literal, .literal = out});
   } else {
     RIRValueId out_id = analyser->builder.buildGlobalVariable(
         typeId.get(), {}, inst->global_variable.is_const, link_name);
-    analyser->resolved_mapping.insert(
-        inst->id, {.kind = UIRResolvedKind::Inst, .inst = out_id});
+    analyser->addResolvedInst(inst->id,
+                              {.kind = UIRResolvedKind::Inst, .inst = out_id});
   }
 }
