@@ -46,6 +46,7 @@ RIRValueId getInstFromResolved(UIRAnalyser *analyser, UIRResolved *resolved,
           {.kind = RIRTypeKind::Float, .float_bits = 32});
       break;
     }
+    case UIRRawDataKind::Null:
     case UIRRawDataKind::Pointer:
     case UIRRawDataKind::Slice:
     case UIRRawDataKind::Function:

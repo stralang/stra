@@ -242,6 +242,8 @@ UIRLiteral executeBinary(UIRComptime *state, ComptimeStackFrame *frame,
       } else if (lhs.data.ptr.kind == UIRPlaceKind::Raw) {
         result.data._bool = lhs.data.ptr.data == rhs.data.ptr.data;
       }
+    } else if (lhs.data.kind == UIRRawDataKind::Null) {
+      result.data._bool = rhs.data.kind == UIRRawDataKind::Null;
     } else {
       break;
     }

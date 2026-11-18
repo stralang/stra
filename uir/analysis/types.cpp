@@ -23,10 +23,10 @@ bool compareRawDataToType(UIRAnalyser *analyser, UIRRawDataKind kind,
     return kind == UIRRawDataKind::Float;
   }
   case RIRTypeKind::Pointer: {
-    return kind == UIRRawDataKind::Pointer;
+    return kind == UIRRawDataKind::Pointer || kind == UIRRawDataKind::Null;
   }
   case RIRTypeKind::Slice: {
-    return kind == UIRRawDataKind::Slice;
+    return kind == UIRRawDataKind::Slice || kind == UIRRawDataKind::Null;
   }
   case RIRTypeKind::TypeId: {
     return kind == UIRRawDataKind::TypeId;
@@ -58,6 +58,10 @@ RIRValue *autoCast(UIRAnalyser *analyser, RIRValue *src, RIRTypeId dst) {
 RIRConstant uirRawDataToRIRConstant(Allocator *allocator, UIRRawData raw_data) {
   RIRConstant rir_const;
   switch (raw_data.kind) {
+  case UIRRawDataKind::Null: {
+    rir_const.kind = RIRConstantKind::Null;
+    break;
+  }
   case UIRRawDataKind::Bool: {
     rir_const.kind = RIRConstantKind::Bool;
     rir_const._bool = raw_data._bool;

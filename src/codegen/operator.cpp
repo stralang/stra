@@ -1,6 +1,7 @@
 #include "../print.hpp"
 #include "codegen.hpp"
 #include "define.hpp"
+#include "rir/rir.hpp"
 #include "rir/type.hpp"
 #include "uir/uir.hpp"
 #include "llvm-c/Types.h"
@@ -51,7 +52,6 @@ LLVMValueRef genUnary(CodeGenModule *codegen, LLVMBuilderRef builder,
 
 LLVMValueRef genBinary(CodeGenModule *codegen, LLVMBuilderRef builder,
                        RIRValue *inst) {
-
   LLVMValueRef lhs_value = getReference(codegen, inst->binop.lhs);
   LLVMValueRef rhs_value = getReference(codegen, inst->binop.rhs);
 

@@ -26,6 +26,7 @@ struct UIRPlace {
 
 enum class UIRRawDataKind {
   Void,
+  Null,
   Bool,
   Int,
   Float,

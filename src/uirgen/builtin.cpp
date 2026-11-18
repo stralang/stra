@@ -60,6 +60,9 @@ UIRValue *genBuiltin(UIRGen *uirgen, String name) {
   } else if (str.compare("false") == 0) {
     literal.lit_type = uirgen->ctx->types->push({.kind = RIRTypeKind::Bool});
     literal.data = {.kind = UIRRawDataKind::Bool, ._bool = false};
+  } else if (str.compare("null") == 0) {
+    literal.lit_type = {};
+    literal.data = {.kind = UIRRawDataKind::Null};
   } else {
     return nullptr;
   }

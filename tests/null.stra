@@ -1,0 +1,20 @@
+main :: fn() i32 {
+  // Pointer
+  value: u8 = 100;
+  ptr: ^u8 = null;
+  ptr = &value;
+  ptr = null;
+
+  ptr_null := ptr == null && null == ptr;
+
+  // Slice
+  array: [4]u8;
+  slice: []u8 = null;
+  slice = array[0..<array.len];
+  slice = null;
+
+  // `slice == null` only checks that `slice.ptr == null`
+  slice_null := slice == null && null == slice && slice.len == 0;
+
+  return !(ptr_null && slice_null) as i32;
+}

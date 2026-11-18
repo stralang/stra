@@ -3,7 +3,6 @@
 #include "rir/constant.hpp"
 #include "rir/rir.hpp"
 #include "rir/type.hpp"
-#include "uir/literal.hpp"
 #include "llvm-c/Types.h"
 #include <cassert>
 #include <llvm-c/Core.h>
@@ -169,6 +168,10 @@ LLVMTypeRef typeToLLVM(CodeGenModule *codegen, RIRTypeId type_id,
 LLVMValueRef constantToLLVM(CodeGenModule *codegen, RIRConstant *constant,
                             RIRTypeId const_type) {
   switch (constant->kind) {
+  case RIRConstantKind::Null: {
+    LLVMTypeRef type = typeToLLVM(codegen, const_type);
+    return LLVMConstNull(type);
+  }
   case RIRConstantKind::Bool: {
     return LLVMConstInt(LLVMInt1TypeInContext(codegen->ctx), constant->_bool,
                         false);

@@ -186,6 +186,21 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
                                 rhs->result),
            lhs_inst->source_location, "LHS literal must match RHS type");
 
+    // Get pointer from slice
+    if (rhs_type != nullptr &&
+        lhs_resolved->literal.data.kind == UIRRawDataKind::Null &&
+        rhs_type->kind == RIRTypeKind::Slice) {
+      rhs_type = analyser->rir_ctx->getType(rhs_type->slice.child);
+      RIRTypeId rhs_type_id = analyser->rir_ctx->types->push(
+          {.kind = RIRTypeKind::Pointer,
+           .pointer = {.child = rhs_type->id, .const_pointee = true}});
+      rhs_type = analyser->rir_ctx->getType(rhs_type_id);
+
+      RIRValueId rhs_id =
+          analyser->builder.buildFieldAt(rhs->id, 0, rhs_type->id);
+      rhs = analyser->rir_ctx->getInst(rhs_id);
+    }
+
     lhs_type = rhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,
                                                     lhs_resolved->literal.data);
@@ -196,6 +211,21 @@ void analyseBinary(UIRAnalyser *analyser, UIRValue *inst) {
     expect(compareRawDataToType(analyser, rhs_resolved->literal.data.kind,
                                 lhs->result),
            lhs_inst->source_location, "RHS literal must match LHS type");
+
+    // Get pointer from slice
+    if (lhs_type != nullptr &&
+        rhs_resolved->literal.data.kind == UIRRawDataKind::Null &&
+        lhs_type->kind == RIRTypeKind::Slice) {
+      lhs_type = analyser->rir_ctx->getType(lhs_type->slice.child);
+      RIRTypeId lhs_type_id = analyser->rir_ctx->types->push(
+          {.kind = RIRTypeKind::Pointer,
+           .pointer = {.child = lhs_type->id, .const_pointee = true}});
+      lhs_type = analyser->rir_ctx->getType(lhs_type_id);
+
+      RIRValueId lhs_id =
+          analyser->builder.buildFieldAt(lhs->id, 0, lhs_type->id);
+      lhs = analyser->rir_ctx->getInst(lhs_id);
+    }
 
     rhs_type = lhs_type;
     RIRConstant rir_const = uirRawDataToRIRConstant(analyser->allocator,

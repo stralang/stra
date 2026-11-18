@@ -15,6 +15,9 @@
 UIRRawData convertRIRConstant(RIRConstant constant) {
   UIRRawData data_out;
   switch (constant.kind) {
+  case RIRConstantKind::Null: {
+    data_out.kind = UIRRawDataKind::Null;
+  }
   case RIRConstantKind::Bool: {
     data_out.kind = UIRRawDataKind::Bool;
     data_out._bool = constant._bool;
@@ -64,22 +67,25 @@ void execute(UIRComptime *state, UIRValue *inst) {
       switch (real_type->kind) {
       case RIRTypeKind::Bool: {
         value_lit->data.kind = UIRRawDataKind::Bool;
+        value_lit->data._bool = false;
         break;
       }
       case RIRTypeKind::Integer: {
         value_lit->data.kind = UIRRawDataKind::Int;
+        value_lit->data._int = 0;
         break;
       }
       case RIRTypeKind::Float: {
         value_lit->data.kind = UIRRawDataKind::Float;
+        value_lit->data._float = 0.0;
         break;
       }
       case RIRTypeKind::Pointer: {
-        value_lit->data.kind = UIRRawDataKind::Pointer;
+        value_lit->data.kind = UIRRawDataKind::Null;
         break;
       }
       case RIRTypeKind::Slice: {
-        value_lit->data.kind = UIRRawDataKind::Slice;
+        value_lit->data.kind = UIRRawDataKind::Null;
         break;
       }
       }
